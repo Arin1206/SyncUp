@@ -1,0 +1,230 @@
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".DoctorLoginFragment"
+    android:background="@drawable/fragment_background"
+    android:fillViewport="false">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingBottom="20dp"
+        android:paddingTop="20dp">
+
+        <!-- Phone Number Label -->
+
+        <!-- Phone Number Input Field -->
+
+        <!-- Phone Number Input Field -->
+
+
+
+        <!-- Phone Label -->
+        <TextView
+            android:id="@+id/phonenumbertextview"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="32dp"
+            android:fontFamily="@font/bold_font"
+            android:text="@string/phone"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:ignore="MissingConstraints" />
+
+        <!-- STR Label -->
+
+        <!-- Phone Input -->
+
+        <TextView
+            android:id="@+id/strtextview"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="32dp"
+            android:layout_marginTop="16dp"
+            android:fontFamily="@font/bold_font"
+            android:text="@string/str"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/phoneEditTextLayout"
+            tools:ignore="MissingConstraints" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/phoneEditTextLayout"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent"
+            android:layout_height="45dp"
+            android:layout_marginStart="32dp"
+            android:layout_marginEnd="32dp"
+            app:boxBackgroundColor="@color/white_light"
+            app:boxCornerRadiusBottomEnd="5dp"
+            app:boxCornerRadiusBottomStart="5dp"
+            app:boxCornerRadiusTopEnd="5dp"
+            app:boxCornerRadiusTopStart="5dp"
+            app:boxStrokeColor="@color/white_light"
+            app:boxStrokeWidth="0dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/phonenumbertextview"
+            tools:ignore="MissingConstraints">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/ed_regis_phone"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:ems="8"
+                android:fontFamily="@font/regular_font"
+                android:inputType="phone"
+                android:textColor="@color/black"
+                android:textSize="16sp"
+                android:paddingVertical="8dp"
+                tools:ignore="SpeakableTextPresentCheck" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- STR Input -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/strlayout"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent"
+            android:layout_height="45dp"
+            android:layout_marginStart="32dp"
+            android:layout_marginEnd="32dp"
+            app:boxBackgroundColor="@color/white_light"
+            app:boxCornerRadiusBottomEnd="5dp"
+            app:boxCornerRadiusBottomStart="5dp"
+            app:boxCornerRadiusTopEnd="5dp"
+            app:boxCornerRadiusTopStart="5dp"
+            app:boxStrokeColor="@color/white_light"
+            app:boxStrokeWidth="0dp"
+
+            app:layout_constraintTop_toBottomOf="@+id/strtextview"
+            tools:ignore="MissingConstraints">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/ed_str"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:ems="8"
+                android:fontFamily="@font/regular_font"
+                android:inputType="phone"
+                android:textColor="@color/black"
+                android:textSize="16sp"
+                android:paddingVertical="8dp"
+                tools:ignore="SpeakableTextPresentCheck" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+
+        <TextView
+            android:id="@+id/customTextView"
+            android:layout_width="158dp"
+            android:layout_height="30dp"
+            android:layout_marginStart="32dp"
+            android:layout_marginTop="92dp"
+            android:layout_marginEnd="32dp"
+            android:background="@drawable/custom_button"
+            android:clickable="true"
+            android:focusable="true"
+            android:fontFamily="@font/bold_font"
+            android:gravity="center"
+            android:paddingVertical="2dp"
+            android:text="Continue"
+            android:textAllCaps="false"
+            android:textColor="@color/text_color_selector"
+            android:textSize="14sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.523"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/phoneEditTextLayout" />
+
+        <TextView
+            android:id="@+id/textView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Or Login With"
+            android:textSize="14sp"
+            android:fontFamily="@font/bold_font"
+            android:textColor="@color/white"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/customTextView" />
+
+        <View
+            android:layout_width="47dp"
+            android:layout_height="1dp"
+            android:layout_marginStart="28dp"
+            android:layout_marginTop="24dp"
+            android:background="@drawable/white_line"
+            app:layout_constraintStart_toEndOf="@+id/textView"
+            app:layout_constraintTop_toBottomOf="@+id/customTextView"
+            tools:ignore="MissingConstraints" />
+
+        <View
+            android:layout_width="47dp"
+            android:layout_height="1dp"
+            android:layout_marginTop="24dp"
+            android:layout_marginEnd="32dp"
+            android:background="@drawable/white_line"
+            app:layout_constraintEnd_toStartOf="@+id/textView"
+            app:layout_constraintTop_toBottomOf="@+id/customTextView"
+            tools:ignore="MissingConstraints" />
+
+        <TextView
+            android:id="@+id/customgoogle"
+            android:layout_width="147dp"
+            android:layout_height="30dp"
+            android:layout_marginStart="32dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="32dp"
+            android:background="@drawable/custom_button_google"
+            android:clickable="true"
+            android:focusable="true"
+            android:fontFamily="@font/bold_font"
+            android:gravity="center"
+            android:paddingVertical="2dp"
+            android:text="Google"
+            android:drawableStart="@drawable/icon_google"
+            android:textAllCaps="false"
+            android:textColor="@color/black"
+            android:textSize="14sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.497"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/textView" />
+
+        <TextView
+            android:id="@+id/textView3"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:fontFamily="@font/bold_font"
+            android:text="Not Register yet ?"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.363"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/customgoogle" />
+
+        <TextView
+            android:id="@+id/textView4"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:autoLink="web"
+            android:fontFamily="@font/bold_font"
+            android:text="@string/sign_up_text"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            android:textStyle="italic"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.069"
+            app:layout_constraintStart_toEndOf="@+id/textView3"
+            app:layout_constraintTop_toBottomOf="@+id/customgoogle" />
+
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</ScrollView>

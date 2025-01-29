@@ -13,12 +13,23 @@
         android:theme="@style/Theme.SyncUp"
         tools:targetApi="31">
         <activity
-            android:name=".MainActivity"
+            android:name=".register.SignUpDoctorActivity"
+            android:screenOrientation="portrait"
             android:exported="false" />
         <activity
-            android:name=".SplashActivity"
-            android:theme="@style/SyncUp"
-            android:exported="true">
+            android:name=".register.SignUpPatientActivity"
+            android:screenOrientation="portrait"
+            android:exported="false" />
+        <activity
+            android:name=".welcome.WelcomeActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustPan" />
+        <activity
+            android:name=".splash.SplashActivity"
+            android:exported="true"
+            android:screenOrientation="portrait"
+            android:theme="@style/SyncUp">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
