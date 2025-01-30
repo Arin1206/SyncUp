@@ -118,7 +118,7 @@
 
 
         <TextView
-            android:id="@+id/customTextView"
+            android:id="@+id/customTextView2"
             android:layout_width="158dp"
             android:layout_height="30dp"
             android:layout_marginStart="32dp"
@@ -150,7 +150,7 @@
             android:textColor="@color/white"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/customTextView" />
+            app:layout_constraintTop_toBottomOf="@+id/customTextView2" />
 
         <View
             android:layout_width="47dp"
@@ -159,7 +159,7 @@
             android:layout_marginTop="24dp"
             android:background="@drawable/white_line"
             app:layout_constraintStart_toEndOf="@+id/textView"
-            app:layout_constraintTop_toBottomOf="@+id/customTextView"
+            app:layout_constraintTop_toBottomOf="@+id/customTextView2"
             tools:ignore="MissingConstraints" />
 
         <View
@@ -169,7 +169,7 @@
             android:layout_marginEnd="32dp"
             android:background="@drawable/white_line"
             app:layout_constraintEnd_toStartOf="@+id/textView"
-            app:layout_constraintTop_toBottomOf="@+id/customTextView"
+            app:layout_constraintTop_toBottomOf="@+id/customTextView2"
             tools:ignore="MissingConstraints" />
 
         <TextView

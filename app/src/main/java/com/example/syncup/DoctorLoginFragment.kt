@@ -1,6 +1,7 @@
 package com.example.syncup
 
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -8,6 +9,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
 import androidx.fragment.app.Fragment
+import com.example.syncup.otp.OtpDoctorActivity
+import com.example.syncup.register.SignUpDoctorActivity
 
 class DoctorLoginFragment : Fragment() {
     override fun onCreateView(
@@ -22,6 +25,17 @@ class DoctorLoginFragment : Fragment() {
 
         // Set listener untuk menyembunyikan keyboard ketika area non-input ditekan
         setHideKeyboardListener(view)
+
+        val signUpTextView = view.findViewById<View>(R.id.textView4)
+        signUpTextView.setOnClickListener {
+            val intent = Intent(requireContext(), SignUpDoctorActivity::class.java)
+            startActivity(intent)
+        }
+        val otpTextView = view.findViewById<View>(R.id.customTextView2)
+        otpTextView.setOnClickListener {
+            val intent = Intent(requireContext(), OtpDoctorActivity::class.java)
+            startActivity(intent)
+        }
     }
 
     private fun setHideKeyboardListener(view: View) {

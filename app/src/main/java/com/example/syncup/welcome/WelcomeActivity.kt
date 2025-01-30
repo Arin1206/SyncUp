@@ -51,6 +51,12 @@ class WelcomeActivity : AppCompatActivity() {
                 else -> "Tab $position"
             }
         }.attach()
+        val fragmentType = intent.getStringExtra("fragment")
+        if (fragmentType == "doctor") {
+            viewPager2.post {
+                viewPager2.currentItem = 1 // Pindah ke tab "Doctor"
+            }
+        }
 // Auto-resize ViewPager2 when page is changed
         viewPager2.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
@@ -68,7 +74,7 @@ class WelcomeActivity : AppCompatActivity() {
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            v.setPadding(systemBars.left, 0, systemBars.right, systemBars.bottom)
             insets
         }
 

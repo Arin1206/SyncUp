@@ -9,7 +9,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
 import androidx.fragment.app.Fragment
-import com.example.syncup.R
+import com.example.syncup.otp.OtpPatientActivity
+
 import com.example.syncup.register.SignUpPatientActivity
 
 class PatientLoginFragment : Fragment() {
@@ -29,6 +30,11 @@ class PatientLoginFragment : Fragment() {
         val signUpTextView = view.findViewById<View>(R.id.signup)
         signUpTextView.setOnClickListener {
             val intent = Intent(requireContext(), SignUpPatientActivity::class.java)
+            startActivity(intent)
+        }
+        val otpTextView = view.findViewById<View>(R.id.customTextView)
+        otpTextView.setOnClickListener {
+            val intent = Intent(requireContext(), OtpPatientActivity::class.java)
             startActivity(intent)
         }
 

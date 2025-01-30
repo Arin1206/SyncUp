@@ -8,4 +8,5 @@
     <string name="phoneplaceholder">Input Your Phone Number</string>
     <string name="sign_up_text"><u>Sign Up here</u></string>
     <string name="str">STR</string>
+    <string name="logintext"><u>Login here</u></string>
 </resources>
