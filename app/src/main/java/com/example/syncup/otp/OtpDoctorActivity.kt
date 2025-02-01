@@ -14,6 +14,8 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.syncup.R
 import com.example.syncup.databinding.ActivityOtpDoctorBinding
+import com.example.syncup.main.MainDoctorActivity
+import com.example.syncup.main.MainPatientActivity
 import com.example.syncup.welcome.WelcomeActivity
 
 class OtpDoctorActivity : AppCompatActivity() {
@@ -46,6 +48,11 @@ class OtpDoctorActivity : AppCompatActivity() {
             intent.putExtra("fragment", "doctor")
             startActivity(intent)
         }
+        binding.customTextView.setOnClickListener {
+            val intent = Intent(this, MainDoctorActivity::class.java)
+            startActivity(intent)
+        }
+
     }
 
 //    private fun hideStatusBar() {

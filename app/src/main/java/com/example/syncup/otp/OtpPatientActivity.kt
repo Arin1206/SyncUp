@@ -15,6 +15,7 @@ import androidx.core.view.WindowInsetsCompat
 import com.example.syncup.R
 import com.example.syncup.databinding.ActivityOtpDoctorBinding
 import com.example.syncup.databinding.ActivityOtpPatientBinding
+import com.example.syncup.main.MainPatientActivity
 import com.example.syncup.welcome.WelcomeActivity
 
 class OtpPatientActivity : AppCompatActivity() {
@@ -45,6 +46,10 @@ class OtpPatientActivity : AppCompatActivity() {
         binding.arrow.setOnClickListener {
             val intent = Intent(this, WelcomeActivity::class.java)
             intent.putExtra("fragment", "patient")
+            startActivity(intent)
+        }
+        binding.customTextView.setOnClickListener {
+            val intent = Intent(this, MainPatientActivity::class.java)
             startActivity(intent)
         }
     }

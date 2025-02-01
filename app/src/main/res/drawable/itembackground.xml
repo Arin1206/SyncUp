@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Item tidak dipilih -->
+    <item android:drawable="@color/black" android:state_checked="false" />
+    <!-- Item dipilih -->
+    <item android:drawable="@color/purple_dark" android:state_checked="true" />
+</selector>

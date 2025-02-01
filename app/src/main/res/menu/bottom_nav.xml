@@ -1,0 +1,33 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/homepage"
+        android:title="@string/home"
+        android:icon="@drawable/add_home"
+        app:showAsAction="ifRoom"/>
+
+    <item
+        android:id="@+id/history"
+        android:title="@string/history"
+        android:icon="@drawable/history"
+        app:showAsAction="ifRoom"/>
+
+    <item
+        android:id="@+id/kosong"
+        android:title="@string/kosong"
+        android:icon="@android:color/transparent"
+        app:showAsAction="never"/> <!-- Item kosong disembunyikan -->
+
+    <item
+        android:id="@+id/faq"
+        android:title="@string/faq"
+        android:icon="@drawable/quiz"
+        app:showAsAction="ifRoom"/>
+
+    <item
+        android:id="@+id/chat"
+        android:title="@string/chat"
+        android:icon="@drawable/_p"
+        app:showAsAction="ifRoom"/>
+</menu>

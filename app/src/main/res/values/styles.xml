@@ -7,4 +7,14 @@
     <style name="SpinnerStyle">
         <item name="android:popupBackground">@drawable/spinner_dropdown_background</item>
     </style>
+    <style name="BottomNavActiveText">
+        <item name="android:textSize">12sp</item> <!-- Ukuran teks -->
+        <item name="android:textColor">@color/purple_dark</item> <!-- Warna saat dipilih -->
+    </style>
+
+    <style name="BottomNavInactiveText">
+        <item name="android:textSize">10sp</item> <!-- Ukuran teks -->
+        <item name="android:textColor">@color/black</item> <!-- Warna saat tidak dipilih -->
+    </style>
+
 </resources>
