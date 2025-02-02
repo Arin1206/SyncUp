@@ -1,9 +1,11 @@
 package com.example.syncup.welcome
 
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -16,8 +18,12 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.viewpager2.widget.ViewPager2
 import com.example.syncup.R
+import com.example.syncup.main.MainDoctorActivity
+import com.example.syncup.main.MainPatientActivity
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 
 class WelcomeActivity : AppCompatActivity() {
 
@@ -25,6 +31,9 @@ class WelcomeActivity : AppCompatActivity() {
     private lateinit var viewPager2: ViewPager2
     private var doubleBackPressed = false
     private val handler = Handler(Looper.getMainLooper())
+
+    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
+    private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -90,9 +99,9 @@ class WelcomeActivity : AppCompatActivity() {
                 }
             }
         })
+
+
     }
-
-
     private fun adjustViewPagerHeight(position: Int) {
         viewPager2.post {
             val fragment = (viewPager2.adapter as? ViewPagerAdapter)?.getFragment(position)
