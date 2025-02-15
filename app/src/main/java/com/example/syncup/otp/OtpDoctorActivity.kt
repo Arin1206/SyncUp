@@ -8,6 +8,7 @@ import android.text.TextWatcher
 import android.view.MotionEvent
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
+import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -17,9 +18,13 @@ import com.example.syncup.databinding.ActivityOtpDoctorBinding
 import com.example.syncup.main.MainDoctorActivity
 import com.example.syncup.main.MainPatientActivity
 import com.example.syncup.welcome.WelcomeActivity
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.PhoneAuthProvider
 
 class OtpDoctorActivity : AppCompatActivity() {
     private lateinit var binding: ActivityOtpDoctorBinding
+    private lateinit var auth: FirebaseAuth
+    private var verificationId: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,6 +34,10 @@ class OtpDoctorActivity : AppCompatActivity() {
         binding = ActivityOtpDoctorBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        auth = FirebaseAuth.getInstance()
+
+        verificationId = intent.getStringExtra("verificationId")
+        val phoneNumber = intent.getStringExtra("phoneNumber")
         // Setup OTP auto-move inpu
         setupOtpInputs()
 
@@ -49,8 +58,12 @@ class OtpDoctorActivity : AppCompatActivity() {
             startActivity(intent)
         }
         binding.customTextView.setOnClickListener {
-            val intent = Intent(this, MainDoctorActivity::class.java)
-            startActivity(intent)
+            val otpCode = getOtpCode()
+            if (otpCode.length == 6 && verificationId != null) {
+                verifyOtp(otpCode)
+            } else {
+                Toast.makeText(this, "Please enter a valid OTP", Toast.LENGTH_SHORT).show()
+            }
         }
 
     }
@@ -96,15 +109,34 @@ class OtpDoctorActivity : AppCompatActivity() {
 
                 override fun afterTextChanged(s: Editable?) {}
             })
-
-            otpFields[i].setOnEditorActionListener { _, actionId, _ ->
-                if (actionId == EditorInfo.IME_ACTION_DONE) {
-                    otpFields[i].clearFocus()
-                }
-                false
-            }
         }
     }
+
+    private fun getOtpCode(): String {
+        return binding.otp1.text.toString().trim() +
+                binding.otp2.text.toString().trim() +
+                binding.otp3.text.toString().trim() +
+                binding.otp4.text.toString().trim() +
+                binding.otp5.text.toString().trim() +
+                binding.otp6.text.toString().trim()
+    }
+
+    private fun verifyOtp(code: String) {
+        val credential = PhoneAuthProvider.getCredential(verificationId!!, code)
+        auth.signInWithCredential(credential)
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    Toast.makeText(this, "OTP Verified!", Toast.LENGTH_SHORT).show()
+                    startActivity(Intent(this, MainDoctorActivity::class.java))
+                    finish()
+                } else {
+                    Toast.makeText(this, "Invalid OTP. Please try again.", Toast.LENGTH_SHORT).show()
+                }
+            }
+    }
+
+
+
     private fun hideKeyboardWhenClickedOutside() {
         binding.main.setOnTouchListener { _, event ->
             if (event.action == MotionEvent.ACTION_DOWN) {
