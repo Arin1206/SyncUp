@@ -26,16 +26,22 @@ class MainPatientActivity : AppCompatActivity() {
         binding = ActivityMainPatientBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+
         auth = FirebaseAuth.getInstance()  // **Inisialisasi FirebaseAuth untuk Logout**
 
         window.navigationBarColor = getColor(R.color.black)
 
         ViewCompat.setOnApplyWindowInsetsListener(binding.bottomNav) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(0, 0, 0, 0)
+            val navigationBarHeight = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+
+            // Angkat BottomNavigationView agar berada di atas navigation bar bawaan
+            v.translationY = -navigationBarHeight.toFloat()
+
+            // Angkat Floating Button (scanButtonContainer) juga agar sejajar dengan BottomNavigationView
+            binding.scanButtonContainer.translationY = -(navigationBarHeight.toFloat() + 15)
+
             insets
         }
-
         replaceFragment(HomeFragment())
 
         binding.bottomNav.setOnItemSelectedListener {

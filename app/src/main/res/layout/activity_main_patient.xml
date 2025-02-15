@@ -32,7 +32,6 @@
         android:paddingBottom="8dp"
         android:paddingTop="0dp"
         android:elevation="10dp"
-        android:layout_marginBottom="40dp"
         android:clipChildren="false"
         android:clipToPadding="false"
         app:layout_constraintBottom_toBottomOf="parent">
@@ -89,6 +88,8 @@
             app:itemIconSize="18dp"
             app:itemBackground="@android:color/transparent"
             app:itemActiveIndicatorStyle="@color/purple_dark"
+            app:itemTextAppearanceActive="@color/purple_dark"
+            app:itemTextAppearanceInactive="@color/black"
             app:labelVisibilityMode="labeled"
             android:fitsSystemWindows="false"/>
 

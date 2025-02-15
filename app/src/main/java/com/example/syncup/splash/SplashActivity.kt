@@ -15,6 +15,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.syncup.R
+import com.example.syncup.main.MainDoctorActivity
 import com.example.syncup.main.MainPatientActivity
 import com.example.syncup.welcome.WelcomeActivity
 import com.google.firebase.auth.FirebaseAuth
@@ -88,47 +89,96 @@ class SplashActivity : AppCompatActivity() {
             logoutAndRedirect()
         }
     }
-
     private fun checkUserByPhone(userPhoneNumber: String) {
-        db.collection("users_patient_phonenumber")
+        val db = FirebaseFirestore.getInstance()
+
+        val patientQuery = db.collection("users_patient_phonenumber")
             .whereEqualTo("phoneNumber", userPhoneNumber)
             .get()
-            .addOnSuccessListener { documents ->
-                if (!documents.isEmpty) {
-                    Log.d("UserCheck", "User found in users_patient_phonenumber")
-                    navigateToMain()
-                } else {
-                    Log.d("UserCheck", "Phone number not found in users_patient_phonenumber")
-                    logoutAndRedirect()
+
+        val doctorQuery = db.collection("users_doctor_phonenumber")
+            .whereEqualTo("phoneNumber", userPhoneNumber)
+            .get()
+
+        // **Jalankan kedua query Firestore secara paralel**
+        patientQuery.addOnSuccessListener { patientDocs ->
+            doctorQuery.addOnSuccessListener { doctorDocs ->
+                when {
+                    !doctorDocs.isEmpty -> {
+                        // **Jika nomor ditemukan di koleksi dokter, arahkan ke halaman dokter**
+                        Log.d("UserCheck", "User found in users_doctor_phonenumber")
+                        navigateToMainDoctor()
+                    }
+                    !patientDocs.isEmpty -> {
+                        // **Jika nomor ditemukan di koleksi pasien, arahkan ke halaman pasien**
+                        Log.d("UserCheck", "User found in users_patient_phonenumber")
+                        navigateToMain()
+                    }
+                    else -> {
+                        // **Jika nomor tidak ditemukan di kedua koleksi, logout dan redirect**
+                        Log.d("UserCheck", "Phone number not found in both collections")
+                        logoutAndRedirect()
+                    }
                 }
-            }
-            .addOnFailureListener {
-                Log.e("UserCheck", "Error checking phone number in Firestore", it)
+            }.addOnFailureListener {
+                Log.e("UserCheck", "Error checking doctor phone number in Firestore", it)
                 logoutAndRedirect()
             }
+        }.addOnFailureListener {
+            Log.e("UserCheck", "Error checking patient phone number in Firestore", it)
+            logoutAndRedirect()
+        }
     }
 
+
     private fun checkUserByEmail(userEmail: String) {
-        db.collection("users_patient_email")
+        val db = FirebaseFirestore.getInstance()
+
+        val patientQuery = db.collection("users_patient_email")
             .whereEqualTo("email", userEmail)
             .get()
-            .addOnSuccessListener { documents ->
-                if (!documents.isEmpty) {
-                    Log.d("UserCheck", "User found in users_patient_email")
-                    navigateToMain()
-                } else {
-                    Log.d("UserCheck", "Email not found in users_patient_email")
-                    logoutAndRedirect()
+
+        val doctorQuery = db.collection("users_doctor_email")
+            .whereEqualTo("email", userEmail)
+            .get()
+
+        // **Jalankan kedua query Firestore secara paralel**
+        patientQuery.addOnSuccessListener { patientDocs ->
+            doctorQuery.addOnSuccessListener { doctorDocs ->
+                when {
+                    !doctorDocs.isEmpty -> {
+                        // **Jika email ditemukan di koleksi dokter, arahkan ke halaman dokter**
+                        Log.d("UserCheck", "User found in users_doctor_email")
+                        navigateToMainDoctor()
+                    }
+                    !patientDocs.isEmpty -> {
+                        // **Jika email ditemukan di koleksi pasien, arahkan ke halaman pasien**
+                        Log.d("UserCheck", "User found in users_patient_email")
+                        navigateToMain()
+                    }
+                    else -> {
+                        // **Jika email tidak ditemukan di kedua koleksi, logout dan redirect**
+                        Log.d("UserCheck", "Email not found in both collections")
+                        logoutAndRedirect()
+                    }
                 }
-            }
-            .addOnFailureListener {
-                Log.e("UserCheck", "Error checking email in Firestore", it)
+            }.addOnFailureListener {
+                Log.e("UserCheck", "Error checking doctor email in Firestore", it)
                 logoutAndRedirect()
             }
+        }.addOnFailureListener {
+            Log.e("UserCheck", "Error checking patient email in Firestore", it)
+            logoutAndRedirect()
+        }
     }
+
 
     private fun navigateToMain() {
         startActivity(Intent(this, MainPatientActivity::class.java))
+        finish()
+    }
+    private fun navigateToMainDoctor() {
+        startActivity(Intent(this, MainDoctorActivity::class.java))
         finish()
     }
 

@@ -14,6 +14,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.example.syncup.R
 import com.example.syncup.databinding.ActivitySignUpPatientBinding
+import com.example.syncup.main.MainDoctorActivity
+import com.example.syncup.main.MainPatientActivity
 import com.example.syncup.welcome.WelcomeActivity
 import com.google.android.gms.auth.api.signin.*
 import com.google.android.gms.common.api.ApiException
@@ -39,6 +41,8 @@ class SignUpPatientActivity : AppCompatActivity() {
         setupGenderSpinner()
         hideKeyboardWhenClickedOutside()
 
+        logoutUser()
+
         window.navigationBarColor = getColor(R.color.black)
 
         // **Navigasi kembali**
@@ -56,10 +60,14 @@ class SignUpPatientActivity : AppCompatActivity() {
             signInWithGoogle()
         }
 
-//        // **Logout Button (Tambahan)**
-//        binding.logoutbutton.setOnClickListener {
-//            logoutUser()
-//        }
+        binding.login.setOnClickListener{
+            startActivity(Intent(this, WelcomeActivity::class.java))
+        }
+
+    }
+    private fun logoutUser() {
+        auth.signOut()
+        googleSignInClient.signOut()
     }
 
     private fun setupGenderSpinner() {
@@ -116,13 +124,21 @@ class SignUpPatientActivity : AppCompatActivity() {
         binding.customTextView.isEnabled = false
         binding.customTextView.text = "Checking phone number..."
 
-        // **Cek apakah nomor telepon sudah ada di Firestore**
-        db.collection("users_patient_phonenumber")
+        val db = FirebaseFirestore.getInstance()
+
+        val patientQuery = db.collection("users_patient_phonenumber")
             .whereEqualTo("phoneNumber", phoneNumber)
             .get()
-            .addOnSuccessListener { documents ->
-                if (!documents.isEmpty) {
-                    // **Jika nomor telepon sudah ada, beri pesan error**
+
+        val doctorQuery = db.collection("users_doctor_phonenumber")
+            .whereEqualTo("phoneNumber", phoneNumber)
+            .get()
+
+        // **Jalankan kedua query Firestore secara paralel**
+        patientQuery.addOnSuccessListener { patientDocs ->
+            doctorQuery.addOnSuccessListener { doctorDocs ->
+                if (!patientDocs.isEmpty || !doctorDocs.isEmpty) {
+                    // **Jika nomor sudah terdaftar di salah satu koleksi**
                     Toast.makeText(this, "Phone number already registered!", Toast.LENGTH_SHORT).show()
                     binding.edRegisPhone.error = "Phone number already in use"
                     binding.edRegisPhone.requestFocus()
@@ -134,13 +150,18 @@ class SignUpPatientActivity : AppCompatActivity() {
                     // **Jika nomor telepon belum digunakan, lanjutkan registrasi**
                     registerNewUser(fullName, phoneNumber, age, gender)
                 }
-            }
-            .addOnFailureListener {
-                Toast.makeText(this, "Error checking phone number!", Toast.LENGTH_SHORT).show()
+            }.addOnFailureListener {
+                Toast.makeText(this, "Error checking doctor phone number!", Toast.LENGTH_SHORT).show()
                 binding.customTextView.isEnabled = true
                 binding.customTextView.text = "Continue"
             }
+        }.addOnFailureListener {
+            Toast.makeText(this, "Error checking patient phone number!", Toast.LENGTH_SHORT).show()
+            binding.customTextView.isEnabled = true
+            binding.customTextView.text = "Continue"
+        }
     }
+
 
     private fun registerNewUser(fullName: String, phoneNumber: String, age: String, gender: String) {
         // **Generate user ID acak**
@@ -190,37 +211,19 @@ class SignUpPatientActivity : AppCompatActivity() {
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     val user = auth.currentUser
-                    val userId = user?.uid ?: ""
                     val email = user?.email ?: ""
 
-                    db.collection("users_patient_email").whereEqualTo("email", email).get()
-                        .addOnSuccessListener { documents ->
-                            if (!documents.isEmpty) {
-                                Toast.makeText(this, "Welcome back!", Toast.LENGTH_SHORT).show()
-                                startActivity(Intent(this, WelcomeActivity::class.java))
-                                finish()
+                    // **Cek apakah email sudah ada di users_patient_email**
+                    db.collection("users_doctor_email").whereEqualTo("email", email).get()
+                        .addOnSuccessListener { patientDocs ->
+                            if (!patientDocs.isEmpty) {
+                                // **Langsung tampilkan akun Google untuk dipilih ulang tanpa pesan tambahan**
+                                auth.signOut()
+                                googleSignInClient.signOut()
+                                signInWithGoogle()
                             } else {
-                                if (email.isNotEmpty()) {
-                                    val userData = hashMapOf(
-                                        "userId" to userId,
-                                        "fullName" to (user?.displayName ?: "Google User"),
-                                        "email" to email,
-                                        "age" to "N/A",
-                                        "gender" to "N/A"
-                                    )
-                                    db.collection("users_patient_email").document(userId)
-                                        .set(userData)
-                                        .addOnSuccessListener {
-                                            Toast.makeText(this, "Google Sign-In Successful", Toast.LENGTH_SHORT).show()
-                                            startActivity(Intent(this, WelcomeActivity::class.java))
-                                            finish()
-                                        }
-                                        .addOnFailureListener {
-                                            Toast.makeText(this, "Failed to save Google user data", Toast.LENGTH_SHORT).show()
-                                        }
-                                } else {
-                                    Toast.makeText(this, "Google account not found, please register.", Toast.LENGTH_SHORT).show()
-                                }
+                                // **Jika tidak ada di users_patient_email, cek di users_doctor_email**
+                                checkPatientEmailBeforeRegister(user?.uid ?: "", email, user?.displayName)
                             }
                         }
                         .addOnFailureListener {
@@ -231,16 +234,44 @@ class SignUpPatientActivity : AppCompatActivity() {
                 }
             }
     }
+    private fun checkPatientEmailBeforeRegister(userId: String, email: String, fullName: String?) {
+        db.collection("users_patient_email").whereEqualTo("email", email).get()
+            .addOnSuccessListener { doctorDocs ->
+                if (!doctorDocs.isEmpty) {
+                    Toast.makeText(this, "Welcome back, Patient!", Toast.LENGTH_SHORT).show()
+                    val intent = Intent(this, MainPatientActivity::class.java)
+                    startActivity(intent)
+                    finish()
+                } else {
+                    registerNewPatient(userId, email, fullName)
+                }
+            }
+            .addOnFailureListener {
+                Toast.makeText(this, "Error checking doctor database", Toast.LENGTH_SHORT).show()
+            }
+    }
+    private fun registerNewPatient(userId: String, email: String, fullName: String?) {
+        val userData = hashMapOf(
+            "userId" to userId,
+            "fullName" to (fullName ?: "Google User"),
+            "email" to email,
+            "age" to "N/A",
+            "gender" to "N/A"
+        )
 
-//    private fun logoutUser() {
-//        auth.signOut()  // Logout dari Firebase Authentication
-//        googleSignInClient.signOut().addOnCompleteListener {
-//            Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show()
-//            val intent = Intent(this, SignUpPatientActivity::class.java)
-//            startActivity(intent)
-//            finish()
-//        }
-//    }
+        db.collection("users_patient_email").document(userId)
+            .set(userData)
+            .addOnSuccessListener {
+                Toast.makeText(this, "Google Sign-Up Successful", Toast.LENGTH_SHORT).show()
+                val intent = Intent(this,MainPatientActivity::class.java)
+                startActivity(intent)
+                finish()
+            }
+            .addOnFailureListener {
+                Toast.makeText(this, "Failed to save Google user data", Toast.LENGTH_SHORT).show()
+            }
+    }
+
 
     private fun hideKeyboardWhenClickedOutside() {
         binding.main.setOnTouchListener { _, event ->
