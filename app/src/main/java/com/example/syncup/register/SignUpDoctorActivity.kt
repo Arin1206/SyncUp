@@ -14,6 +14,8 @@ import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import com.example.syncup.R
 import com.example.syncup.databinding.ActivitySignUpDoctorBinding
 import com.example.syncup.main.MainDoctorActivity
@@ -41,6 +43,11 @@ class SignUpDoctorActivity : AppCompatActivity() {
         enableEdgeToEdge()
         auth = FirebaseAuth.getInstance()
 
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(0 ,0, 0, systemBars.bottom)
+            insets
+        }
         setupGoogleSignIn()
         setupGenderSpinner()
         hideKeyboardWhenClickedOutside()

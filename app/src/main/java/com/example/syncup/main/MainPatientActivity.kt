@@ -1,15 +1,32 @@
 package com.example.syncup.main
 
+import android.Manifest
+import android.annotation.SuppressLint
+import android.app.Activity
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothManager
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
 import android.view.View
-import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
+import android.widget.*
+import androidx.activity.result.ActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.example.syncup.R
+import com.example.syncup.ble.DeviceControlActivity
 import com.example.syncup.databinding.ActivityMainPatientBinding
 import com.example.syncup.home.HomeFragment
 import com.example.syncup.welcome.WelcomeActivity
@@ -19,29 +36,49 @@ class MainPatientActivity : AppCompatActivity() {
     internal lateinit var binding: ActivityMainPatientBinding
     private var backPressedTime: Long = 0
     private lateinit var auth: FirebaseAuth
+    private lateinit var bluetoothAdapter: BluetoothAdapter
+    private val handler = Handler(Looper.getMainLooper())
+    private val scanInterval: Long = 15000 // Interval scanning 15 detik
+    private val scanResults = mutableListOf<Map<String, String>>()
+    private lateinit var listAdapter: SimpleAdapter
+    private val deviceAddresses = mutableSetOf<String>()
+
+    // BroadcastReceiver untuk menangkap perangkat Bluetooth
+    private val receiver = object : BroadcastReceiver() {
+        @SuppressLint("MissingPermission")
+        override fun onReceive(context: Context, intent: Intent) {
+            val action = intent.action
+            if (BluetoothDevice.ACTION_FOUND == action) {
+                val device: BluetoothDevice? = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                val deviceName = device?.name ?: "Unknown Device"
+                val deviceAddress = device?.address
+
+                if (deviceAddress != null && !deviceAddresses.contains(deviceAddress)) {
+                    deviceAddresses.add(deviceAddress)
+                    updateDeviceList(deviceName, deviceAddress)
+                }
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         binding = ActivityMainPatientBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-
-        auth = FirebaseAuth.getInstance()  // **Inisialisasi FirebaseAuth untuk Logout**
-
+        auth = FirebaseAuth.getInstance()
         window.navigationBarColor = getColor(R.color.black)
 
-        ViewCompat.setOnApplyWindowInsetsListener(binding.bottomNav) { v, insets ->
-            val navigationBarHeight = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+        val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        bluetoothAdapter = bluetoothManager.adapter
 
-            // Angkat BottomNavigationView agar berada di atas navigation bar bawaan
-            v.translationY = -navigationBarHeight.toFloat()
+        val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
+        registerReceiver(receiver, filter)
 
-            // Angkat Floating Button (scanButtonContainer) juga agar sejajar dengan BottomNavigationView
-            binding.scanButtonContainer.translationY = -(navigationBarHeight.toFloat() + 15)
-
-            insets
+        binding.scanButtonContainer.setOnClickListener {
+            scanBt(it)
         }
+
         replaceFragment(HomeFragment())
 
         binding.bottomNav.setOnItemSelectedListener {
@@ -52,7 +89,6 @@ class MainPatientActivity : AppCompatActivity() {
             true
         }
     }
-
     fun replaceFragment(fragment: Fragment, hideBottomNavigation: Boolean = false) {
         val fragmentManager = supportFragmentManager
         val fragmentTransaction = fragmentManager.beginTransaction()
@@ -67,31 +103,151 @@ class MainPatientActivity : AppCompatActivity() {
         fragmentTransaction.commit()
     }
 
-    // **Fungsi Logout**
-    fun logoutUser() {
-        auth.signOut()  // **Keluar dari Firebase Authentication**
-        Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show()
 
-        // **Kembali ke WelcomeActivity setelah logout**
-        val intent = Intent(this, WelcomeActivity::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        startActivity(intent)
-        finish()
+
+    // Periksa izin Bluetooth
+    private fun checkPermissions(): Boolean {
+        return ContextCompat.checkSelfPermission(
+            this, Manifest.permission.BLUETOOTH_SCAN
+        ) == PackageManager.PERMISSION_GRANTED &&
+                ContextCompat.checkSelfPermission(
+                    this, Manifest.permission.ACCESS_FINE_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED
     }
 
-    override fun onBackPressed() {
-        val currentFragment = supportFragmentManager.findFragmentById(R.id.frame)
+    // Minta izin Bluetooth
+    private fun requestPermissions() {
+        ActivityCompat.requestPermissions(
+            this,
+            arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.ACCESS_FINE_LOCATION),
+            1
+        )
+    }
 
-        if (currentFragment is HomeFragment) {
-            if (backPressedTime + 2000 > System.currentTimeMillis()) {
-                super.onBackPressed()
-                finishAffinity()  // **Keluar dari aplikasi sepenuhnya**
-            } else {
-                Toast.makeText(this, "Press back again to exit", Toast.LENGTH_SHORT).show()
-            }
-            backPressedTime = System.currentTimeMillis()
+    // Fungsi untuk scanning Bluetooth
+    fun scanBt(view: View) {
+        if (bluetoothAdapter == null) {
+            Toast.makeText(this, "Device doesn't support Bluetooth", Toast.LENGTH_SHORT).show()
         } else {
-            super.onBackPressed()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                blueToothPermissionLauncher.launch(Manifest.permission.BLUETOOTH_SCAN)
+            } else {
+                blueToothPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+            }
         }
+    }
+
+    private val blueToothPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            if (!bluetoothAdapter.isEnabled) {
+                val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+                btActivityResultLauncher.launch(enableBtIntent)
+            } else {
+                scanBT()
+            }
+        } else {
+            Toast.makeText(this, "Bluetooth permission denied", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private val btActivityResultLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result: ActivityResult ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            scanBT()
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private val scanRunnable = object : Runnable {
+        override fun run() {
+            if (!bluetoothAdapter.isDiscovering) {
+                bluetoothAdapter.startDiscovery()
+            }
+            handler.postDelayed(this, scanInterval)
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun scanBT() {
+        if (!bluetoothAdapter.isEnabled) {
+            val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+            btActivityResultLauncher.launch(enableBtIntent)
+        } else {
+            if (!bluetoothAdapter.isDiscovering) {
+                bluetoothAdapter.startDiscovery()
+            }
+            scanResults.clear()
+            deviceAddresses.clear()
+            handler.post(scanRunnable)
+            showScanDialog()
+        }
+    }
+
+    private fun showScanDialog() {
+        val builder = AlertDialog.Builder(this@MainPatientActivity)
+        val inflater = layoutInflater
+        val dialogView: View = inflater.inflate(R.layout.scan_bt, null)
+        builder.setView(dialogView)
+
+        val deviceListView = dialogView.findViewById<ListView>(R.id.bt_list)
+        val dialog = builder.create()
+
+        val from = arrayOf("A")
+        val to = intArrayOf(R.id.item_name)
+        listAdapter = SimpleAdapter(this, scanResults, R.layout.item_list, from, to)
+        deviceListView.adapter = listAdapter
+
+        deviceListView.onItemClickListener = AdapterView.OnItemClickListener { _, _, position, _ ->
+            val deviceInfo = scanResults[position]
+            val deviceName = deviceInfo["A"] ?: "Unknown Device"
+            val deviceAddress = deviceInfo["B"] ?: "No Address"
+
+            if (deviceAddress.isNotEmpty() && deviceAddress != "No Address") {
+                try {
+                    // Kirim data ke HomeFragment, bukan ke DeviceControlActivity
+                    val homeFragment = HomeFragment().apply {
+                        arguments = Bundle().apply {
+                            putString("DEVICE_ADDRESS", deviceAddress)
+                            putString("DEVICE_NAME", deviceName)
+                        }
+                    }
+                    replaceFragment(homeFragment) // Ganti fragment ke HomeFragment dengan data perangkat
+
+                    Toast.makeText(this@MainPatientActivity, "Connected to $deviceName", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Log.e("Bluetooth", "Error replacing fragment: ${e.message}")
+                    Toast.makeText(this@MainPatientActivity, "Error connecting to device", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                Toast.makeText(this@MainPatientActivity, "Invalid device selected", Toast.LENGTH_SHORT).show()
+            }
+
+            dialog.dismiss()
+        }
+
+            dialog.show()
+    }
+
+    private fun updateDeviceList(deviceName: String, deviceAddress: String) {
+        val deviceData = mapOf("A" to deviceName, "B" to deviceAddress)
+        scanResults.add(deviceData)
+        listAdapter.notifyDataSetChanged()
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun stopScan() {
+        if (bluetoothAdapter.isDiscovering) {
+            bluetoothAdapter.cancelDiscovery()
+        }
+        handler.removeCallbacks(scanRunnable)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        stopScan()
+        unregisterReceiver(receiver)
     }
 }

@@ -200,7 +200,7 @@ class DoctorLoginFragment : Fragment() {
                         .addOnSuccessListener { documents ->
                             if (!documents.isEmpty) {
                                 // **Jika email ditemukan, masuk ke MainDoctorActivity**
-                                Toast.makeText(requireContext(), "Welcome back!", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(requireContext(), "Welcome back, Doctor!", Toast.LENGTH_SHORT).show()
                                 startActivity(Intent(requireContext(), MainDoctorActivity::class.java))
                                 requireActivity().finish()
                             } else {

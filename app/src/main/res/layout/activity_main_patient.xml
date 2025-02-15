@@ -9,7 +9,6 @@
     android:background="@color/white"
     android:clipChildren="false"
     android:clipToPadding="false"
-    android:paddingTop="20dp"
     tools:context="main.MainPatientActivity">
 
     <!-- Frame Layout untuk Menampilkan Fragment -->
@@ -34,12 +33,14 @@
         android:elevation="10dp"
         android:clipChildren="false"
         android:clipToPadding="false"
+
         app:layout_constraintBottom_toBottomOf="parent">
 
         <!-- FrameLayout untuk Menggabungkan Tombol Scan dan Teks -->
         <FrameLayout
             android:id="@+id/scanButtonContainer"
             android:layout_width="wrap_content"
+            android:onClick="scanbt"
             android:layout_height="wrap_content"
             android:layout_centerHorizontal="true"
             android:translationY="-15dp"
