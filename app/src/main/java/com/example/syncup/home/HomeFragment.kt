@@ -91,11 +91,14 @@ class HomeFragment : Fragment() {
         // **Listen for Heart Rate Updates from Firebase**
         heartRateEventListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                if (snapshot.exists() && isAdded) {
+                try {
                     val heartRate = snapshot.getValue(Int::class.java) ?: -1
-                    heartRateTextView?.text = "$heartRate bpm"
+                    Log.d(TAG, "Heart Rate: $heartRate BPM")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error reading heart rate: ${e.message}")
                 }
             }
+
 
             override fun onCancelled(error: DatabaseError) {
                 Log.e(TAG, "Failed to read heart rate from Firebase: ${error.message}")
