@@ -11,6 +11,7 @@ import androidx.fragment.app.Fragment
 import com.example.syncup.R
 import com.example.syncup.databinding.ActivityMainDoctorBinding
 import com.example.syncup.databinding.ActivityMainPatientBinding
+import com.example.syncup.home.HomeDoctorFragment
 import com.example.syncup.home.HomeFragment
 import com.google.firebase.auth.FirebaseAuth
 
@@ -25,6 +26,8 @@ class MainDoctorActivity : AppCompatActivity() {
         binding = ActivityMainDoctorBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+        window.statusBarColor = getColor(android.R.color.transparent)  // Status bar transparan
 
         auth = FirebaseAuth.getInstance()  // **Inisialisasi FirebaseAuth untuk Logout**
 
@@ -41,11 +44,11 @@ class MainDoctorActivity : AppCompatActivity() {
 
             insets
         }
-        replaceFragment(HomeFragment())
+        replaceFragment(HomeDoctorFragment())
 
         binding.bottomNav.setOnItemSelectedListener {
             when (it.itemId) {
-                R.id.homepage -> replaceFragment(HomeFragment())
+                R.id.homepage -> replaceFragment(HomeDoctorFragment())
                 else -> {}
             }
             true

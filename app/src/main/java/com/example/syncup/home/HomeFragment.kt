@@ -13,6 +13,7 @@ import com.example.syncup.R
 import com.example.syncup.ble.BluetoothLeService
 import com.example.syncup.welcome.WelcomeActivity
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.*
 
 class HomeFragment : Fragment() {
 
@@ -20,7 +21,12 @@ class HomeFragment : Fragment() {
     private var deviceName: String? = null
     private var bluetoothLeService: BluetoothLeService? = null
     private var isBound = false
-    private var isReceiverRegistered = false  // FLAG untuk mengecek apakah receiver sudah terdaftar
+    private var isReceiverRegistered = false
+    private lateinit var database: DatabaseReference
+    private lateinit var heartRateDatabase: DatabaseReference
+    private var deviceEventListener: ValueEventListener? = null
+    private var heartRateEventListener: ValueEventListener? = null
+    private var heartRateTextView: TextView? = null
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -43,42 +49,64 @@ class HomeFragment : Fragment() {
         }
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         val view = inflater.inflate(R.layout.fragment_home, container, false)
+        heartRateTextView = view.findViewById(R.id.heart_rate_value)
 
-        // Ambil data perangkat jika ada
-        arguments?.let {
-            deviceAddress = it.getString("DEVICE_ADDRESS")
-            deviceName = it.getString("DEVICE_NAME")
+        database = FirebaseDatabase.getInstance().reference.child("connected_device")
+        heartRateDatabase = FirebaseDatabase.getInstance().reference.child("heart_rate")
+
+        // **Pencegahan Force Close: Tambahkan Listener dengan Cek isAdded**
+        deviceEventListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (snapshot.exists() && isAdded) {  // Cek apakah fragment masih aktif
+                    deviceName = snapshot.child("deviceName").getValue(String::class.java) ?: "No Device"
+                    deviceAddress = snapshot.child("deviceAddress").getValue(String::class.java) ?: "Unknown Address"
+
+                    activity?.runOnUiThread {
+                        view?.findViewById<TextView>(R.id.device_name)?.text =
+                            "Connected to: $deviceName ($deviceAddress)"
+                    }
+
+                    if (!deviceAddress.isNullOrEmpty() && deviceAddress != "Unknown Address") {
+                        val intent = Intent(requireContext(), BluetoothLeService::class.java)
+                        requireContext().bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+
+                        if (!isReceiverRegistered) {
+                            requireContext().registerReceiver(heartRateReceiver, makeGattUpdateIntentFilter())
+                            isReceiverRegistered = true
+                            Log.d(TAG, "Receiver registered")
+                        }
+                    }
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Log.e(TAG, "Failed to read device data from Firebase: ${error.message}")
+            }
         }
 
-        // Menampilkan informasi perangkat atau pesan default jika belum memilih
-        val deviceInfoTextView = view.findViewById<TextView>(R.id.device_name)
-        deviceInfoTextView.text = if (deviceName != null) {
-            "Connected to: $deviceName ($deviceAddress)"
-        } else {
-            "No Device Selected"
+        database.addValueEventListener(deviceEventListener!!)
+
+        // **Listen for Heart Rate Updates from Firebase**
+        heartRateEventListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (snapshot.exists() && isAdded) {
+                    val heartRate = snapshot.getValue(Int::class.java) ?: -1
+                    heartRateTextView?.text = "$heartRate bpm"
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Log.e(TAG, "Failed to read heart rate from Firebase: ${error.message}")
+            }
         }
+
+        heartRateDatabase.addValueEventListener(heartRateEventListener!!)
 
         // Tombol Logout
-        val logoutButton = view.findViewById<TextView>(R.id.logoutbutton)
-        logoutButton.setOnClickListener {
+        view.findViewById<TextView>(R.id.logoutbutton)?.setOnClickListener {
             logoutUser()
-        }
-
-        // Mulai layanan Bluetooth jika ada perangkat yang dipilih
-        if (deviceAddress != null) {
-            val intent = Intent(requireContext(), BluetoothLeService::class.java)
-            requireContext().bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
-
-            if (!isReceiverRegistered) {
-                requireContext().registerReceiver(heartRateReceiver, makeGattUpdateIntentFilter())
-                isReceiverRegistered = true  // Tandai receiver sebagai terdaftar
-                Log.d(TAG, "Receiver registered")
-            }
         }
 
         return view
@@ -91,11 +119,15 @@ class HomeFragment : Fragment() {
             isBound = false
         }
 
-        if (isReceiverRegistered) {  // Hanya unregister jika sudah terdaftar
+        if (isReceiverRegistered) {
             requireContext().unregisterReceiver(heartRateReceiver)
             isReceiverRegistered = false
             Log.d(TAG, "Receiver unregistered")
         }
+
+        // **Hapus Listener Firebase untuk Menghindari Crash**
+        deviceEventListener?.let { database.removeEventListener(it) }
+        heartRateEventListener?.let { heartRateDatabase.removeEventListener(it) }
     }
 
     private val heartRateReceiver = object : BroadcastReceiver() {
@@ -103,7 +135,10 @@ class HomeFragment : Fragment() {
             if (BluetoothLeService.ACTION_HEART_RATE_MEASUREMENT == intent.action) {
                 val heartRate = intent.getIntExtra(BluetoothLeService.EXTRA_HEART_RATE, -1)
                 Log.d(TAG, "Heart rate received: $heartRate")
-                view?.findViewById<TextView>(R.id.heart_rate_value)?.text = "$heartRate bpm"
+                heartRateTextView?.text = "$heartRate bpm"
+
+                // Simpan heart rate ke Firebase
+                heartRateDatabase.setValue(heartRate)
             }
         }
     }
@@ -129,10 +164,7 @@ class HomeFragment : Fragment() {
                 }
         }
 
-        // Logout dari Firebase
         auth.signOut()
-
-        // Kembali ke WelcomeActivity
         val intent = Intent(requireContext(), WelcomeActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)

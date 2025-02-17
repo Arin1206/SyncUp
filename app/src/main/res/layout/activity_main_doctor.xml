@@ -9,7 +9,7 @@
     android:background="@color/white"
     android:clipChildren="false"
     android:clipToPadding="false"
-    android:paddingTop="20dp"
+    android:paddingTop="25dp"
     tools:context="main.MainDoctorActivity">
 
     <!-- Frame Layout untuk Menampilkan Fragment -->

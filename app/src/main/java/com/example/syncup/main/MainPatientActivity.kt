@@ -28,9 +28,12 @@ import androidx.fragment.app.Fragment
 import com.example.syncup.R
 import com.example.syncup.ble.DeviceControlActivity
 import com.example.syncup.databinding.ActivityMainPatientBinding
+import com.example.syncup.history.HistoryPatientFragment
 import com.example.syncup.home.HomeFragment
 import com.example.syncup.welcome.WelcomeActivity
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.DatabaseReference
+import com.google.firebase.database.FirebaseDatabase
 
 class MainPatientActivity : AppCompatActivity() {
     internal lateinit var binding: ActivityMainPatientBinding
@@ -42,6 +45,7 @@ class MainPatientActivity : AppCompatActivity() {
     private val scanResults = mutableListOf<Map<String, String>>()
     private lateinit var listAdapter: SimpleAdapter
     private val deviceAddresses = mutableSetOf<String>()
+    private lateinit var database: DatabaseReference
 
     // BroadcastReceiver untuk menangkap perangkat Bluetooth
     private val receiver = object : BroadcastReceiver() {
@@ -66,6 +70,11 @@ class MainPatientActivity : AppCompatActivity() {
         binding = ActivityMainPatientBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        database = FirebaseDatabase.getInstance().reference.child("connected_device")
+        window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+        window.statusBarColor = getColor(android.R.color.transparent)  // Status bar transparan
+ // Status bar putih, teks hitam
+
         auth = FirebaseAuth.getInstance()
         window.navigationBarColor = getColor(R.color.black)
 
@@ -84,11 +93,21 @@ class MainPatientActivity : AppCompatActivity() {
         binding.bottomNav.setOnItemSelectedListener {
             when (it.itemId) {
                 R.id.homepage -> replaceFragment(HomeFragment())
+                R.id.history-> replaceFragment(HistoryPatientFragment())
                 else -> {}
             }
             true
         }
     }
+    private fun saveToFirebase(deviceName: String, deviceAddress: String) {
+        val deviceInfo = mapOf(
+            "deviceName" to deviceName,
+            "deviceAddress" to deviceAddress
+        )
+        database.setValue(deviceInfo) // Simpan ke Firebase
+    }
+
+
     fun replaceFragment(fragment: Fragment, hideBottomNavigation: Boolean = false) {
         val fragmentManager = supportFragmentManager
         val fragmentTransaction = fragmentManager.beginTransaction()
@@ -195,6 +214,7 @@ class MainPatientActivity : AppCompatActivity() {
         val deviceListView = dialogView.findViewById<ListView>(R.id.bt_list)
         val dialog = builder.create()
 
+        // **Pastikan listAdapter telah diinisialisasi sebelum digunakan**
         val from = arrayOf("A")
         val to = intArrayOf(R.id.item_name)
         listAdapter = SimpleAdapter(this, scanResults, R.layout.item_list, from, to)
@@ -206,15 +226,16 @@ class MainPatientActivity : AppCompatActivity() {
             val deviceAddress = deviceInfo["B"] ?: "No Address"
 
             if (deviceAddress.isNotEmpty() && deviceAddress != "No Address") {
+                saveToFirebase(deviceName, deviceAddress) // Simpan ke Firebase
+
                 try {
-                    // Kirim data ke HomeFragment, bukan ke DeviceControlActivity
                     val homeFragment = HomeFragment().apply {
                         arguments = Bundle().apply {
                             putString("DEVICE_ADDRESS", deviceAddress)
                             putString("DEVICE_NAME", deviceName)
                         }
                     }
-                    replaceFragment(homeFragment) // Ganti fragment ke HomeFragment dengan data perangkat
+                    replaceFragment(homeFragment)
 
                     Toast.makeText(this@MainPatientActivity, "Connected to $deviceName", Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
@@ -228,14 +249,19 @@ class MainPatientActivity : AppCompatActivity() {
             dialog.dismiss()
         }
 
-            dialog.show()
+        dialog.show()
     }
 
     private fun updateDeviceList(deviceName: String, deviceAddress: String) {
         val deviceData = mapOf("A" to deviceName, "B" to deviceAddress)
         scanResults.add(deviceData)
-        listAdapter.notifyDataSetChanged()
+
+        // **Cek apakah listAdapter sudah diinisialisasi sebelum update**
+        if (::listAdapter.isInitialized) {
+            listAdapter.notifyDataSetChanged()
+        }
     }
+
 
     @SuppressLint("MissingPermission")
     private fun stopScan() {

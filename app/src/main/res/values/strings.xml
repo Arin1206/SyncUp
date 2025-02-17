@@ -16,4 +16,8 @@
     <string name="chat">Chat</string>
     <string name="default_web_client_id">652599682808-b41jbc9uolpnssgmptijkbufgbo1vvrd.apps.googleusercontent.com</string>
     <string name="request">Request</string>
+    <string name="tab_date">Date</string>
+    <string name="tab_week">Week</string>
+    <string name="tab_month">Month</string>
+    <string name="tab_year">Year</string>
 </resources>
