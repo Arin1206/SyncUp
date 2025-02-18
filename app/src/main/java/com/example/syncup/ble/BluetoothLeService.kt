@@ -3,18 +3,17 @@ package com.example.syncup.ble
 import android.annotation.SuppressLint
 import android.app.Service
 import android.bluetooth.*
-import android.bluetooth.BluetoothAdapter.STATE_CONNECTED
-import android.bluetooth.BluetoothAdapter.STATE_DISCONNECTED
-import android.content.ContentValues.TAG
 import android.content.Intent
 import android.os.Binder
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.FirebaseFirestore
+import java.text.SimpleDateFormat
 import java.util.*
 
 class BluetoothLeService : Service() {
@@ -26,7 +25,9 @@ class BluetoothLeService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private var previousSBP: Double = 120.0
     private var previousDBP: Double = 80.0
+    private var batteryLevel: Int = -1 // Default -1 jika belum ada pembacaan
 
+    private var lastHeartRate: Int = -1
     // Firestore dan Realtime Database
     private val realtimeDatabase: DatabaseReference = FirebaseDatabase.getInstance().reference.child("heart_rate")
     private val firestore = FirebaseFirestore.getInstance()
@@ -43,15 +44,12 @@ class BluetoothLeService : Service() {
 
                 // Simulasi nilai PTT (Pulse Transit Time) untuk perhitungan BP
                 val ptt = 0.25 // Harus diganti dengan nilai aktual dari sensor
-                val previousBP = 120.0 // Bisa diambil dari Firestore jika sudah ada
 
                 // Hitung Blood Pressure (BP)
-                // Dapatkan nilai SBP dan DBP sebagai Pair
                 val (systolicBP, diastolicBP) = calculateBloodPressure(ptt, mostFrequentHR, previousSBP, previousDBP)
 
-// Simpan ke Firestore dengan memisahkan SBP dan DBP
-                saveToFirestore(mostFrequentHR, systolicBP, diastolicBP, timestamp)
-
+                // **Tambahkan battery level**
+                saveToFirestore(mostFrequentHR, systolicBP, diastolicBP, batteryLevel, timestamp)
 
                 // Kosongkan buffer setelah penyimpanan
                 heartRateBuffer.clear()
@@ -59,6 +57,7 @@ class BluetoothLeService : Service() {
             handler.postDelayed(this, SAVE_INTERVAL_MS)
         }
     }
+
 
     private val bluetoothGattCallback = object : BluetoothGattCallback() {
         @SuppressLint("MissingPermission")
@@ -97,14 +96,69 @@ class BluetoothLeService : Service() {
                             }
                         }
                     }
+                    // ✅ Tambahkan timeout jika BLE tidak merespons dalam 2 detik
+                    else if (service.uuid == UUID.fromString(BATTERY_SERVICE_UUID)) {
+                        for (characteristic in service.characteristics) {
+                            if (characteristic.uuid == UUID.fromString(BATTERY_CHARACTERISTIC_UUID)) {
+                                Log.i(TAG, "Battery Level characteristic found. Enabling Read & Notify...")
+
+                                handler.postDelayed({
+                                    val success = readBatteryLevel(characteristic)
+                                    if (!success) {
+                                        Log.w(TAG, "Battery Level READ failed. Enabling NOTIFY instead.")
+                                        enableBatteryNotification(characteristic)
+                                    }
+                                }, 1000) // Delay 1 detik sebelum mencoba Read
+
+                                // 🔹 Timeout jika tidak ada respons dalam 2 detik
+                                handler.postDelayed({
+                                    if (batteryLevel == -1) {
+                                        Log.e(TAG, "Battery Level Read Timeout! Switching to NOTIFY mode.")
+                                        enableBatteryNotification(characteristic)
+                                    }
+                                }, 3000) // Timeout setelah 3 detik
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        override fun onCharacteristicChanged(gatt: BluetoothGatt?, characteristic: BluetoothGattCharacteristic?) {
+        override fun onCharacteristicRead(gatt: BluetoothGatt?, characteristic: BluetoothGattCharacteristic?, status: Int) {
+            if (status == BluetoothGatt.GATT_SUCCESS && characteristic != null) {
+                if (characteristic.uuid == UUID.fromString(BATTERY_CHARACTERISTIC_UUID)) {
+                    val rawData = characteristic.value
+                    Log.i(TAG, "Raw Battery Level Data (via READ): ${rawData?.joinToString(" ")}")
+
+                    batteryLevel = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 0) ?:
+                            characteristic.value?.get(0)?.toInt() ?: -1
+                    Log.i(TAG, "Battery level received via READ: $batteryLevel%")
+
+                }
+            } else {
+                Log.e(TAG, "Failed to read Battery Level characteristic. Status: $status")
+
+                // 🔹 Jika READ gagal, gunakan NOTIFY sebagai cadangan
+                Log.w(TAG, "Using NOTIFY as a fallback for Battery Level.")
+                enableBatteryNotification(characteristic)
+            }
+        }
+
+
+
+        override fun onCharacteristicChanged(
+            gatt: BluetoothGatt?,
+            characteristic: BluetoothGattCharacteristic?
+        ) {
             super.onCharacteristicChanged(gatt, characteristic)
-            if (characteristic != null && characteristic.uuid == UUID.fromString(HEART_RATE_CHARACTERISTIC_UUID)) {
-                val heartRate = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 1) ?: -1
+
+            if (characteristic != null && characteristic.uuid == UUID.fromString(
+                    HEART_RATE_CHARACTERISTIC_UUID
+                )
+            ) {
+                val heartRate =
+                    characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 1) ?: -1
+                lastHeartRate = heartRate // ✅ Simpan heart rate terbaru
                 Log.i(TAG, "Heart rate characteristic changed: $heartRate")
 
                 // **Tambahkan heart rate ke buffer (untuk Firestore setiap 5 menit)**
@@ -121,12 +175,36 @@ class BluetoothLeService : Service() {
                     .addOnFailureListener { e ->
                         Log.e(TAG, "Failed to update live heart rate: ${e.message}")
                     }
+            }
 
+            // ✅ Pastikan Battery Level diterima melalui Notify
+            if (characteristic != null && characteristic.uuid == UUID.fromString(
+                    BATTERY_CHARACTERISTIC_UUID
+                )
+            ) {
+                val rawData = characteristic.value
+                Log.i(TAG, "Raw Battery Level Data (via NOTIFY): ${rawData?.joinToString(" ")}")
+
+                var tempBatteryLevel = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 0) ?: -1
+
+                if (tempBatteryLevel == -1 && rawData != null && rawData.isNotEmpty()) {
+                    tempBatteryLevel = rawData[0].toInt()
+                    Log.w(TAG, "Using manual value extraction for Battery Level: $tempBatteryLevel%")
+                }
+
+                batteryLevel = tempBatteryLevel
+                Log.i(TAG, "Battery level updated via NOTIFY: $batteryLevel%")
+
+                if (batteryLevel in 0..100) {
+                    saveToFirestore(lastHeartRate, previousSBP, previousDBP, batteryLevel, System.currentTimeMillis())
+                } else {
+                    Log.e(TAG, "Invalid Battery Level received: $batteryLevel%")
+                }
             }
         }
     }
 
-    inner class LocalBinder : Binder() {
+        inner class LocalBinder : Binder() {
         fun getService(): BluetoothLeService = this@BluetoothLeService
     }
 
@@ -196,53 +274,105 @@ class BluetoothLeService : Service() {
         return values.groupingBy { it }.eachCount().maxByOrNull { it.value }?.key ?: -1
     }
 
+    @SuppressLint("MissingPermission")
+    private fun readBatteryLevel(characteristic: BluetoothGattCharacteristic?): Boolean {
+        return characteristic?.let {
+            // ✅ Periksa apakah karakteristik mendukung operasi READ
+            if ((it.properties and BluetoothGattCharacteristic.PROPERTY_READ) == 0) {
+                Log.e(TAG, "Battery Level Characteristic does NOT support READ!")
+                return false
+            }
+
+            val success = bluetoothGatt?.readCharacteristic(it) ?: false
+            if (success) {
+                Log.i(TAG, "Battery Level read request sent successfully.")
+            } else {
+                Log.e(TAG, "Failed to read Battery Level characteristic.")
+            }
+            success
+        } ?: false
+    }
+
+
     private fun calculateBloodPressure(
         ptt: Double,
         heartRate: Int,
         previousSBP: Double,
         previousDBP: Double
     ): Pair<Double, Double> {
-        // Parameter optimal dari hasil optimasi Python
-        val a = 28.25  // Pengaruh utama PTT terhadap SBP
-        val b = 0.39   // Pengaruh HR terhadap SBP
-        val c = 0.71   // Pengaruh tekanan darah sebelumnya terhadap SBP
-        val d = 43.88  // Konstanta dasar SBP
+        // Parameter hasil optimasi
+        val a = 28.25
+        val b = 0.3949
+        val c = 0.7149
+        val d = 43.88
 
-        val e = -3.36  // Pengaruh utama PTT terhadap DBP
-        val f = -0.52  // Pengaruh HR terhadap DBP
-        val g = 0.55   // Pengaruh tekanan darah sebelumnya terhadap DBP
-        val h = 69.83  // Konstanta dasar DBP
+        val e = -3.36
+        val f = -0.5194
+        val g = 0.5470
+        val h = 69.83
 
-        // Normalisasi PTT agar tetap dalam batas fisiologis
-        val normalizedPTT = if (ptt in 0.2..0.4) ptt else 0.3
+        // Tidak ada normalisasi PTT agar bisa mendeteksi anomali tekanan darah
+        val sbp = (a * Math.log(ptt) + b * heartRate + c * previousSBP + d)
+        val dbp = (e * Math.log(ptt) + f * heartRate + g * previousDBP + h)
 
-        // Hitung SBP dan DBP menggunakan parameter yang telah dioptimalkan
-        val sbp = (a * Math.log(normalizedPTT) + b * heartRate + c * previousSBP + d)
-        val dbp = (e * Math.log(normalizedPTT) + f * heartRate + g * previousDBP + h)
-
-        // Pastikan nilai berada dalam rentang fisiologis dan mendekati data asli
-        return Pair(sbp.coerceIn(90.0, 160.0), dbp.coerceIn(60.0, 100.0))
+        return sbp to dbp
     }
 
 
+    private fun saveToFirestore(heartRate: Int, sbp: Double, dbp: Double, batteryLevel: Int, timestamp: Long) {
+        val firestore = FirebaseFirestore.getInstance()
+        val auth = FirebaseAuth.getInstance()
+        val currentUser = auth.currentUser
 
-    private fun saveToFirestore(heartRate: Int, sbp: Double, dbp: Double, timestamp: Long) {
-        val data = hashMapOf(
-            "heartRate" to heartRate,
-            "systolicBP" to sbp,
-            "diastolicBP" to dbp,
-            "timestamp" to timestamp
-        )
+        // Pastikan ada pengguna yang login sebelum menyimpan data
+        if (currentUser != null) {
+            val userId = currentUser.uid // Ambil User ID dari pengguna yang sedang login
 
-        firestore.collection("patient_heart_rate")
-            .add(data)
-            .addOnSuccessListener {
-                Log.i(TAG, "Heart rate and BP saved: $heartRate BPM, SBP: $sbp mmHg, DBP: $dbp mmHg")
-            }
-            .addOnFailureListener { e ->
-                Log.e(TAG, "Failed to save data: ${e.message}")
-            }
+            // Dapatkan waktu saat ini dalam format Date
+            val currentDate = Date()
+
+            // Format waktu ke dalam format "yyyy-MM-dd HH:mm:ss"
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            val formattedTimestamp = dateFormat.format(currentDate) // Contoh: "2025-02-18 21:45:30"
+
+            // Data yang akan disimpan di Firestore
+            val data = hashMapOf(
+                "userId" to userId,        // Simpan User ID pengguna
+                "heartRate" to heartRate,
+                "systolicBP" to sbp,
+                "diastolicBP" to dbp,
+                "batteryLevel" to batteryLevel,  // **Tambahkan nilai batteryLevel**
+                "timestamp" to formattedTimestamp // Timestamp dalam format yang bisa dibaca manusia
+            )
+
+            firestore.collection("patient_heart_rate")
+                .add(data)
+                .addOnSuccessListener {
+                    Log.i(TAG, "Data saved: User: $userId, Heart Rate: $heartRate BPM, SBP: $sbp mmHg, DBP: $dbp mmHg, Battery: $batteryLevel%, Timestamp: $formattedTimestamp")
+                }
+                .addOnFailureListener { e ->
+                    Log.e(TAG, "Failed to save data: ${e.message}")
+                }
+        } else {
+            Log.e(TAG, "Failed to save data: No user is logged in!")
+        }
     }
+    @SuppressLint("MissingPermission")
+    private fun enableBatteryNotification(characteristic: BluetoothGattCharacteristic?) {
+        characteristic?.let {
+            bluetoothGatt?.setCharacteristicNotification(it, true)
+
+            // **Menulis ke Client Characteristic Configuration Descriptor (CCCD)**
+            for (descriptor in it.descriptors) {
+                if (descriptor.uuid == UUID.fromString(CLIENT_CHARACTERISTIC_CONFIG)) {
+                    descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                    bluetoothGatt?.writeDescriptor(descriptor)
+                    Log.i(TAG, "Writing to CCCD to enable battery notifications")
+                }
+            }
+        }
+    }
+
 
     companion object {
         private const val TAG = "BluetoothLeService"
@@ -267,6 +397,12 @@ class BluetoothLeService : Service() {
 
         // **UUID untuk Client Characteristic Configuration Descriptor (CCCD)**
         private const val CLIENT_CHARACTERISTIC_CONFIG = "00002902-0000-1000-8000-00805f9b34fb"
+
+        private const val BATTERY_SERVICE_UUID = "0000180f-0000-1000-8000-00805f9b34fb"
+
+        // ✅ UUID untuk Battery Level Characteristic
+        private const val BATTERY_CHARACTERISTIC_UUID = "00002a19-0000-1000-8000-00805f9b34fb"
+
     }
 
 }
