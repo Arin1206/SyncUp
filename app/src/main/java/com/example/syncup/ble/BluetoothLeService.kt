@@ -196,28 +196,34 @@ class BluetoothLeService : Service() {
         return values.groupingBy { it }.eachCount().maxByOrNull { it.value }?.key ?: -1
     }
 
-    private fun calculateBloodPressure(ptt: Double, heartRate: Int, previousSBP: Double, previousDBP: Double): Pair<Double, Double> {
-        // Faktor skala untuk sistolik & diastolik
-        val a = 25.0  // Pengaruh utama PTT terhadap SBP
-        val b = 0.4   // Pengaruh HR terhadap SBP
-        val c = 0.2   // Pengaruh tekanan darah sebelumnya terhadap SBP
-        val d = 80.0  // Konstanta dasar SBP
+    private fun calculateBloodPressure(
+        ptt: Double,
+        heartRate: Int,
+        previousSBP: Double,
+        previousDBP: Double
+    ): Pair<Double, Double> {
+        // Parameter optimal dari hasil optimasi Python
+        val a = 28.25  // Pengaruh utama PTT terhadap SBP
+        val b = 0.39   // Pengaruh HR terhadap SBP
+        val c = 0.71   // Pengaruh tekanan darah sebelumnya terhadap SBP
+        val d = 43.88  // Konstanta dasar SBP
 
-        val e = 15.0  // Pengaruh utama PTT terhadap DBP
-        val f = 0.3   // Pengaruh HR terhadap DBP
-        val g = 0.2   // Pengaruh tekanan darah sebelumnya terhadap DBP
-        val h = 50.0  // Konstanta dasar DBP
+        val e = -3.36  // Pengaruh utama PTT terhadap DBP
+        val f = -0.52  // Pengaruh HR terhadap DBP
+        val g = 0.55   // Pengaruh tekanan darah sebelumnya terhadap DBP
+        val h = 69.83  // Konstanta dasar DBP
 
         // Normalisasi PTT agar tetap dalam batas fisiologis
         val normalizedPTT = if (ptt in 0.2..0.4) ptt else 0.3
 
-        // Hitung SBP dan DBP
+        // Hitung SBP dan DBP menggunakan parameter yang telah dioptimalkan
         val sbp = (a * Math.log(normalizedPTT) + b * heartRate + c * previousSBP + d)
         val dbp = (e * Math.log(normalizedPTT) + f * heartRate + g * previousDBP + h)
 
-        // Pastikan nilai berada dalam rentang fisiologis
-        return Pair(sbp.coerceIn(90.0, 120.0), dbp.coerceIn(60.0, 80.0))
+        // Pastikan nilai berada dalam rentang fisiologis dan mendekati data asli
+        return Pair(sbp.coerceIn(90.0, 160.0), dbp.coerceIn(60.0, 100.0))
     }
+
 
 
     private fun saveToFirestore(heartRate: Int, sbp: Double, dbp: Double, timestamp: Long) {
