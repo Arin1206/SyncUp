@@ -2,11 +2,13 @@ package com.example.syncup.home
 
 import android.content.*
 import android.os.Bundle
+import android.os.Handler
 import android.os.IBinder
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import com.example.syncup.R
@@ -26,6 +28,7 @@ class HomeFragment : Fragment() {
     private lateinit var heartRateDatabase: DatabaseReference
     private var deviceEventListener: ValueEventListener? = null
     private var heartRateEventListener: ValueEventListener? = null
+    private var progressBar: ProgressBar? = null
     private var heartRateTextView: TextView? = null
 
     private val serviceConnection = object : ServiceConnection {
@@ -53,6 +56,8 @@ class HomeFragment : Fragment() {
         val view = inflater.inflate(R.layout.fragment_home, container, false)
         heartRateTextView = view.findViewById(R.id.heart_rate_value)
 
+        progressBar = view.findViewById(R.id.progress_loading)
+
         database = FirebaseDatabase.getInstance().reference.child("connected_device")
         heartRateDatabase = FirebaseDatabase.getInstance().reference.child("heart_rate")
 
@@ -65,7 +70,7 @@ class HomeFragment : Fragment() {
 
                     activity?.runOnUiThread {
                         view?.findViewById<TextView>(R.id.device_name)?.text =
-                            "Connected to: $deviceName ($deviceAddress)"
+                            "$deviceName ($deviceAddress)"
                     }
 
                     if (!deviceAddress.isNullOrEmpty() && deviceAddress != "Unknown Address") {
@@ -114,6 +119,78 @@ class HomeFragment : Fragment() {
 
         return view
     }
+
+    private val deviceDisconnectReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == BluetoothLeService.ACTION_DEVICE_DISCONNECTED) {
+                Log.i(TAG, "Device disconnected, hiding UI elements...")
+
+                // 🔹 Hanya sembunyikan UI, tidak hapus dari Firebase
+                activity?.runOnUiThread {
+                    progressBar?.visibility = View.VISIBLE // 🔹 Tampilkan *ProgressBar*
+
+                    Log.d(TAG, "ProgressBar set to VISIBLE")
+                    Handler().postDelayed({
+                        progressBar?.visibility = View.GONE // 🔹 Sembunyikan *ProgressBar* setelah 2 detik
+                        view?.findViewById<TextView>(R.id.device_name)?.visibility = View.GONE
+                        view?.findViewById<TextView>(R.id.heart_rate_value)?.visibility = View.GONE
+                    }, 2000) // Delay 2 detik sebelum menyembunyikan UI
+                }
+            }
+        }
+    }
+
+    private val deviceReconnectReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == BluetoothLeService.ACTION_GATT_CONNECTED) {
+                Log.i(TAG, "Device reconnected, showing UI elements...")
+
+                // 🔹 Tampilkan UI kembali saat perangkat terkoneksi
+                activity?.runOnUiThread {
+                    view?.findViewById<TextView>(R.id.device_name)?.visibility = View.VISIBLE
+                    view?.findViewById<TextView>(R.id.heart_rate_value)?.visibility = View.VISIBLE
+                }
+            }
+        }
+    }
+
+
+    override fun onResume() {
+        super.onResume()
+
+        progressBar?.visibility = View.VISIBLE // 🔹 Tampilkan ProgressBar saat mulai pengecekan
+        Log.d(TAG, "ProgressBar set to VISIBLE in onResume")
+
+        // 🔹 Beri waktu 2 detik untuk BLE menentukan status koneksi sebelum menghilangkan ProgressBar
+        Handler().postDelayed({
+            if (bluetoothLeService != null && bluetoothLeService!!.isConnected()) {
+                Log.d(TAG, "Device is connected, showing UI elements.")
+                progressBar?.visibility = View.GONE
+                view?.findViewById<TextView>(R.id.device_name)?.visibility = View.VISIBLE
+                view?.findViewById<TextView>(R.id.heart_rate_value)?.visibility = View.VISIBLE
+            } else {
+                Log.d(TAG, "Device is disconnected, hiding UI elements.")
+                progressBar?.visibility = View.GONE
+                view?.findViewById<TextView>(R.id.device_name)?.visibility = View.GONE
+                view?.findViewById<TextView>(R.id.heart_rate_value)?.visibility = View.GONE
+            }
+        }, 2000) // Delay 2 detik untuk memberi waktu BLE menentukan status
+
+        val filter = IntentFilter().apply {
+            addAction(BluetoothLeService.ACTION_DEVICE_DISCONNECTED)
+            addAction(BluetoothLeService.ACTION_GATT_CONNECTED)
+        }
+        requireContext().registerReceiver(deviceDisconnectReceiver, filter)
+        requireContext().registerReceiver(deviceReconnectReceiver, filter)
+    }
+
+
+    override fun onPause() {
+        super.onPause()
+        requireContext().unregisterReceiver(deviceDisconnectReceiver)
+        requireContext().unregisterReceiver(deviceReconnectReceiver)
+    }
+
 
     override fun onDestroyView() {
         super.onDestroyView()

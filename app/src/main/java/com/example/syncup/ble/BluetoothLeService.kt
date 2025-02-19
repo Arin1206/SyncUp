@@ -42,16 +42,12 @@ class BluetoothLeService : Service() {
                 val mostFrequentHR = calculateMode(heartRateBuffer)
                 val timestamp = System.currentTimeMillis()
 
-                // Simulasi nilai PTT (Pulse Transit Time) untuk perhitungan BP
-                val ptt = 0.25 // Harus diganti dengan nilai aktual dari sensor
-
-                // Hitung Blood Pressure (BP)
+                val ptt = 0.25
                 val (systolicBP, diastolicBP) = calculateBloodPressure(ptt, mostFrequentHR, previousSBP, previousDBP)
 
-                // **Tambahkan battery level**
+                // **Simpan ke Firestore hanya jika sudah lebih dari 5 menit**
                 saveToFirestore(mostFrequentHR, systolicBP, diastolicBP, batteryLevel, timestamp)
 
-                // Kosongkan buffer setelah penyimpanan
                 heartRateBuffer.clear()
             }
             handler.postDelayed(this, SAVE_INTERVAL_MS)
@@ -68,22 +64,43 @@ class BluetoothLeService : Service() {
                 Log.i(TAG, "Connected to GATT server.")
                 bluetoothGatt?.discoverServices()
 
+                val intent = Intent(ACTION_GATT_CONNECTED) // 🔹 Kirim broadcast ke UI
+                sendBroadcast(intent)
+
                 // Jalankan penyimpanan ke Firestore setiap 5 menit
                 handler.postDelayed(saveToFirestoreRunnable, SAVE_INTERVAL_MS)
 
-            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+            }else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 connectionState = STATE_DISCONNECTED
                 broadcastUpdate(ACTION_GATT_DISCONNECTED)
                 Log.w(TAG, "Disconnected from GATT server. Status: $status")
 
+                if (isManualDisconnect) {
+                    // ✅ Jika Disconnect Manual → Hapus data dari Firebase
+                    FirebaseDatabase.getInstance().reference.child("connected_device").removeValue()
+                        .addOnSuccessListener { Log.i(TAG, "Connected device removed from Firebase.") }
+                        .addOnFailureListener { e -> Log.e(TAG, "Failed to remove connected device: ${e.message}") }
+                } else {
+                    // 🔹 Jika Disconnect Otomatis, hanya kirim broadcast ke UI tanpa hapus data
+                    Log.w(TAG, "Auto-disconnected, hiding UI without removing device from Firebase.")
+                }
+
+                // 🔹 Kirim broadcast ke UI agar bisa menyembunyikan tampilan
+                val intent = Intent(ACTION_DEVICE_DISCONNECTED)
+                sendBroadcast(intent)
+
                 if (!isManualDisconnect) {
-                    handleDisconnect(status)
+                    handleDisconnect(status)  // Reconnect otomatis jika perlu
                 } else {
                     Log.i(TAG, "Manually disconnected from GATT server.")
                     isManualDisconnect = false
                 }
             }
+
         }
+
+
+
 
         @SuppressLint("MissingPermission")
         override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
@@ -318,31 +335,38 @@ class BluetoothLeService : Service() {
         return sbp to dbp
     }
 
+    private var lastSaveTime: Long = 0 // Waktu terakhir penyimpanan data
 
     private fun saveToFirestore(heartRate: Int, sbp: Double, dbp: Double, batteryLevel: Int, timestamp: Long) {
         val firestore = FirebaseFirestore.getInstance()
         val auth = FirebaseAuth.getInstance()
         val currentUser = auth.currentUser
 
-        // Pastikan ada pengguna yang login sebelum menyimpan data
+        val currentTime = System.currentTimeMillis()
+
+        // **Cek jika sudah lebih dari 5 menit sejak penyimpanan terakhir**
+        if (currentTime - lastSaveTime < SAVE_INTERVAL_MS) {
+            Log.i(TAG, "Skipping data save: Last save was too recent.")
+            return
+        }
+
+        // **Update timestamp terakhir penyimpanan**
+        lastSaveTime = currentTime
+
         if (currentUser != null) {
-            val userId = currentUser.uid // Ambil User ID dari pengguna yang sedang login
+            val userId = currentUser.uid
 
-            // Dapatkan waktu saat ini dalam format Date
             val currentDate = Date()
-
-            // Format waktu ke dalam format "yyyy-MM-dd HH:mm:ss"
             val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-            val formattedTimestamp = dateFormat.format(currentDate) // Contoh: "2025-02-18 21:45:30"
+            val formattedTimestamp = dateFormat.format(currentDate)
 
-            // Data yang akan disimpan di Firestore
             val data = hashMapOf(
-                "userId" to userId,        // Simpan User ID pengguna
+                "userId" to userId,
                 "heartRate" to heartRate,
                 "systolicBP" to sbp,
                 "diastolicBP" to dbp,
-                "batteryLevel" to batteryLevel,  // **Tambahkan nilai batteryLevel**
-                "timestamp" to formattedTimestamp // Timestamp dalam format yang bisa dibaca manusia
+                "batteryLevel" to batteryLevel,
+                "timestamp" to formattedTimestamp
             )
 
             firestore.collection("patient_heart_rate")
@@ -357,6 +381,7 @@ class BluetoothLeService : Service() {
             Log.e(TAG, "Failed to save data: No user is logged in!")
         }
     }
+
     @SuppressLint("MissingPermission")
     private fun enableBatteryNotification(characteristic: BluetoothGattCharacteristic?) {
         characteristic?.let {
@@ -371,6 +396,10 @@ class BluetoothLeService : Service() {
                 }
             }
         }
+    }
+
+    fun isConnected(): Boolean {
+        return connectionState == STATE_CONNECTED
     }
 
 
@@ -402,7 +431,7 @@ class BluetoothLeService : Service() {
 
         // ✅ UUID untuk Battery Level Characteristic
         private const val BATTERY_CHARACTERISTIC_UUID = "00002a19-0000-1000-8000-00805f9b34fb"
-
+        const val ACTION_DEVICE_DISCONNECTED = "com.example.syncup.ACTION_DEVICE_DISCONNECTED"
     }
 
 }
