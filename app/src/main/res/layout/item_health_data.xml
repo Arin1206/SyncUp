@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="8dp"
+    android:layout_marginBottom="2dp"
+    android:background="@drawable/rounded_border">
+
+    <TextView
+        android:id="@+id/tv_heart_rate"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="94"
+        android:fontFamily="@font/bold_font"
+        android:drawableStart="@drawable/cardiology"
+        android:drawablePadding="5dp"
+        android:textSize="14sp"
+        android:textColor="@color/black"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/tv_blood_pressure"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="28dp"
+        android:drawableStart="@drawable/blood_pressure"
+        android:drawablePadding="5dp"
+        android:fontFamily="@font/bold_font"
+        android:text="110/115"
+        android:textColor="@color/black"
+        android:textSize="14sp"
+        app:layout_constraintStart_toEndOf="@id/tv_heart_rate"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/tv_battery"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="28dp"
+        android:drawableStart="@drawable/battery_charging_30"
+        android:drawablePadding="5dp"
+        android:fontFamily="@font/bold_font"
+        android:text="94%"
+        android:textColor="@color/black"
+        android:textSize="14sp"
+        app:layout_constraintStart_toEndOf="@id/tv_blood_pressure"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/tv_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="12:41"
+        android:fontFamily="@font/bold_font"
+        android:textSize="11sp"
+        android:textColor="@color/black"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

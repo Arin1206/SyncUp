@@ -60,7 +60,8 @@
             android:textColor="@color/black"
             android:textSize="18sp"
             tools:layout_editor_absoluteX="16dp"
-            tools:layout_editor_absoluteY="72dp" />
+            tools:layout_editor_absoluteY="72dp"
+            tools:ignore="MissingConstraints" />
 
         <TextView
             android:id="@+id/heart_rate_value"
@@ -69,7 +70,17 @@
             android:layout_below="@id/device_name"
             android:textSize="24sp"
             tools:layout_editor_absoluteX="16dp"
-            tools:layout_editor_absoluteY="103dp" />
+            tools:layout_editor_absoluteY="103dp"
+            tools:ignore="MissingConstraints" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recycler_view_health"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:layout_constraintTop_toBottomOf="@id/device_name"
+            android:layout_marginTop="16dp"
+            android:padding="0dp"/>
+
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
