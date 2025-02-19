@@ -1,9 +1,11 @@
 package com.example.syncup.model
 
+import android.graphics.drawable.GradientDrawable
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.example.syncup.R
 
@@ -36,6 +38,7 @@ class HealthAdapter(private var healthItemList: List<HealthItem>) :
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         val item = healthItemList[position]
+
         if (holder is DateHeaderViewHolder && item is HealthItem.DateHeader) {
             holder.dateHeader.text = item.date
         } else if (holder is DataViewHolder && item is HealthItem.DataItem) {
@@ -43,6 +46,22 @@ class HealthAdapter(private var healthItemList: List<HealthItem>) :
             holder.bloodPressure.text = item.healthData.bloodPressure
             holder.batteryLevel.text = "${item.healthData.batteryLevel}%"
             holder.time.text = item.healthData.timestamp
+
+            // 🔥 **Atur warna indikator berdasarkan heart rate**
+            val context = holder.itemView.context
+            val heartRate = item.healthData.heartRate
+
+            val drawable = GradientDrawable()
+            drawable.shape = GradientDrawable.OVAL // Bentuk bulat
+            drawable.setSize(10, 10) // Ukuran sesuai View
+            drawable.setColor(
+                if (heartRate in 60..100)
+                    ContextCompat.getColor(context, R.color.green)
+                else
+                    ContextCompat.getColor(context, R.color.red)
+            )
+            holder.indicator.background = drawable
+
         }
     }
 
@@ -62,5 +81,6 @@ class HealthAdapter(private var healthItemList: List<HealthItem>) :
         val bloodPressure: TextView = itemView.findViewById(R.id.tv_blood_pressure)
         val batteryLevel: TextView = itemView.findViewById(R.id.tv_battery)
         val time: TextView = itemView.findViewById(R.id.tv_time)
+        val indicator: View = itemView.findViewById(R.id.indicator_status) // 🔹 Tambahkan ini
     }
 }
