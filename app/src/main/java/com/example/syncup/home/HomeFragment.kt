@@ -11,8 +11,10 @@ import android.view.ViewGroup
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProvider
 import com.example.syncup.R
 import com.example.syncup.ble.BluetoothLeService
+import com.example.syncup.viewmodel.HeartRateViewModel
 import com.example.syncup.welcome.WelcomeActivity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
@@ -22,6 +24,7 @@ class HomeFragment : Fragment() {
     private var deviceAddress: String? = null
     private var deviceName: String? = null
     private var bluetoothLeService: BluetoothLeService? = null
+    private lateinit var heartRateViewModel: HeartRateViewModel
     private var isBound = false
     private var isReceiverRegistered = false
     private lateinit var database: DatabaseReference
@@ -94,24 +97,6 @@ class HomeFragment : Fragment() {
         database.addValueEventListener(deviceEventListener!!)
 
         // **Listen for Heart Rate Updates from Firebase**
-        heartRateEventListener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                try {
-                    val heartRate = snapshot.getValue(Int::class.java) ?: -1
-                    Log.d(TAG, "Heart Rate: $heartRate BPM")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error reading heart rate: ${e.message}")
-                }
-            }
-
-
-            override fun onCancelled(error: DatabaseError) {
-                Log.e(TAG, "Failed to read heart rate from Firebase: ${error.message}")
-            }
-        }
-
-        heartRateDatabase.addValueEventListener(heartRateEventListener!!)
-
         // Tombol Logout
         view.findViewById<TextView>(R.id.logoutbutton)?.setOnClickListener {
             logoutUser()
@@ -119,6 +104,17 @@ class HomeFragment : Fragment() {
 
         return view
     }
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        // Inisialisasi ViewModel dengan lingkup Activity sehingga tetap aktif meski fragment berubah
+        heartRateViewModel = ViewModelProvider(requireActivity()).get(HeartRateViewModel::class.java)
+
+        // Observasi LiveData untuk mendapatkan update nilai heart rate secara realtime
+        heartRateViewModel.heartRate.observe(viewLifecycleOwner) { rate ->
+            heartRateTextView?.text = "$rate bpm"
+        }
+    }
+
 
     private val deviceDisconnectReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -191,7 +187,6 @@ class HomeFragment : Fragment() {
         requireContext().unregisterReceiver(deviceReconnectReceiver)
     }
 
-
     override fun onDestroyView() {
         super.onDestroyView()
         if (isBound) {
@@ -205,9 +200,7 @@ class HomeFragment : Fragment() {
             Log.d(TAG, "Receiver unregistered")
         }
 
-        // **Hapus Listener Firebase untuk Menghindari Crash**
-        deviceEventListener?.let { database.removeEventListener(it) }
-        heartRateEventListener?.let { heartRateDatabase.removeEventListener(it) }
+
     }
 
     private val heartRateReceiver = object : BroadcastReceiver() {
@@ -217,8 +210,11 @@ class HomeFragment : Fragment() {
                 Log.d(TAG, "Heart rate received: $heartRate")
                 heartRateTextView?.text = "$heartRate bpm"
 
-                // Simpan heart rate ke Firebase
-                heartRateDatabase.setValue(heartRate)
+                FirebaseDatabase.getInstance()
+                    .reference
+                    .child("heart_rate")
+                    .child("latest")
+                    .setValue(heartRate)
             }
         }
     }

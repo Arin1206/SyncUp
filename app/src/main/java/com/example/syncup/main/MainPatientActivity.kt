@@ -26,6 +26,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.example.syncup.R
+import com.example.syncup.ble.BluetoothLeService
 import com.example.syncup.ble.DeviceControlActivity
 import com.example.syncup.databinding.ActivityMainPatientBinding
 import com.example.syncup.history.HistoryPatientFragment
@@ -69,6 +70,9 @@ class MainPatientActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainPatientBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        val serviceIntent = Intent(this, BluetoothLeService::class.java)
+        startService(serviceIntent)
 
         database = FirebaseDatabase.getInstance().reference.child("connected_device")
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR

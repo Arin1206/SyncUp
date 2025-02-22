@@ -9,6 +9,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
+import com.example.syncup.data.HeartRateRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
@@ -181,6 +182,16 @@ class BluetoothLeService : Service() {
                 // **Tambahkan heart rate ke buffer (untuk Firestore setiap 5 menit)**
                 heartRateBuffer.add(heartRate)
 
+// Update Firebase Realtime (contoh: menyimpan ke node "heart_rate/latest")
+                realtimeDatabase.child("latest").setValue(heartRate)
+                    .addOnSuccessListener {
+                        Log.i(TAG, "Live heart rate updated: $heartRate BPM")
+                    }
+                    .addOnFailureListener { e ->
+                        Log.e(TAG, "Failed to update live heart rate: ${e.message}")
+                    }
+
+
                 // **Broadcast ke UI atau komponen lain**
                 broadcastUpdate(ACTION_HEART_RATE_MEASUREMENT, heartRate)
 
@@ -228,7 +239,6 @@ class BluetoothLeService : Service() {
     override fun onBind(intent: Intent): IBinder = binder
 
     override fun onUnbind(intent: Intent?): Boolean {
-        close()
         return super.onUnbind(intent)
     }
 
