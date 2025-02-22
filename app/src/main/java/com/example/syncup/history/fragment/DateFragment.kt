@@ -73,6 +73,8 @@ class DateFragment : Fragment() {
 
                 for (doc in documents) {
                     val heartRate = doc.getLong("heartRate")?.toInt() ?: 0
+
+                    if (heartRate == 0) continue
                     val systolicBP = doc.getDouble("systolicBP")?.toInt() ?: 0
                     val diastolicBP = doc.getDouble("diastolicBP")?.toInt() ?: 0
                     val batteryLevel = doc.getLong("batteryLevel")?.toInt() ?: 0
@@ -126,7 +128,7 @@ class DateFragment : Fragment() {
 
                         Log.d("FirestoreDebug", "Avg Heart Rate: $avgHeartRate, BP: $avgSystolicBP/$avgDiastolicBP, Battery: $avgBatteryLevel%")
 
-                        if (isAdded) {
+                        if (avgHeartRate != 0 && isAdded) {
                             activity?.runOnUiThread {
                                 avgHeartRateTextView.text = "$avgHeartRate"
                                 avgBloodPressureTextView.text = "$avgSystolicBP/$avgDiastolicBP"
