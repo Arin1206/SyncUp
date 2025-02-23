@@ -119,20 +119,22 @@ class HomeFragment : Fragment() {
     }
     private fun startLiveLocationUpdates() {
         val mapsTextView = view?.findViewById<TextView>(R.id.maps)
+
         val locationRequest = com.google.android.gms.location.LocationRequest.create().apply {
             interval = 5000           // Update setiap 5 detik
             fastestInterval = 3000    // Update tercepat 3 detik
             priority = com.google.android.gms.location.LocationRequest.PRIORITY_HIGH_ACCURACY
         }
+
         locationCallback = object : com.google.android.gms.location.LocationCallback() {
             override fun onLocationResult(locationResult: com.google.android.gms.location.LocationResult) {
                 val location = locationResult.lastLocation
                 if (location != null) {
-                    val lat = location.latitude
-                    val lon = location.longitude
-                    currentLat = lat
-                    currentLon = lon
-                    mapsTextView?.text = "Lat: $lat, Long: $lon"
+                    currentLat = location.latitude
+                    currentLon = location.longitude
+                    mapsTextView?.text = "Lat: $currentLat, Long: $currentLon"
+                } else {
+                    mapsTextView?.text = "Location not available"
                 }
             }
         }
@@ -141,13 +143,12 @@ class HomeFragment : Fragment() {
         if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
             == PackageManager.PERMISSION_GRANTED
         ) {
-            // Izin sudah diberikan, aman untuk memanggil requestLocationUpdates()
             fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback!!, requireActivity().mainLooper)
         } else {
-            // Izin belum ada → minta lagi atau abaikan
             requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), LOCATION_PERMISSION_REQUEST_CODE)
         }
     }
+
 
 
     private fun stopLiveLocationUpdates() {
@@ -156,16 +157,46 @@ class HomeFragment : Fragment() {
 
 
     private fun checkLocationPermissionAndUpdateMaps() {
-
         val mapsTextView = view?.findViewById<TextView>(R.id.maps)
-        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // Jika belum ada izin, minta izin
+
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
             requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), LOCATION_PERMISSION_REQUEST_CODE)
         } else {
-            startLiveLocationUpdates()
+            // Cek apakah layanan lokasi aktif (GPS atau Network)
+            val locationManager = requireContext().getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
+            val isGpsEnabled = locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)
+            val isNetworkEnabled = locationManager.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER)
 
+            if (!isGpsEnabled && !isNetworkEnabled) {
+                // Jika lokasi tidak aktif, tampilkan pesan dan arahkan ke setting
+                mapsTextView?.text = "Location not available, enable location services"
+                openLocationSettings()
+            } else {
+                // Jika layanan lokasi aktif, mulai live updates
+                startLiveLocationUpdates()
+            }
         }
     }
+
+    private val locationModeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == android.location.LocationManager.PROVIDERS_CHANGED_ACTION) {
+                val locationManager = requireContext().getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
+                val isGpsEnabled = locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)
+                val isNetworkEnabled = locationManager.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER)
+
+                if (!isGpsEnabled && !isNetworkEnabled) {
+                    val mapsTextView = view?.findViewById<TextView>(R.id.maps)
+                    mapsTextView?.text = "Location not available"
+                    openLocationSettings()
+                }
+            }
+        }
+    }
+
+
 
     private fun openLocationSettings() {
         val intent = Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS)
@@ -186,25 +217,20 @@ class HomeFragment : Fragment() {
     }
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        // Inisialisasi ViewModel dengan lingkup Activity sehingga tetap aktif meski fragment berubah
         heartRateViewModel = ViewModelProvider(requireActivity()).get(HeartRateViewModel::class.java)
-
-        // Observasi LiveData untuk mendapatkan update nilai heart rate secara realtime
         heartRateViewModel.heartRate.observe(viewLifecycleOwner) { rate ->
             heartRateTextView?.text = "$rate bpm"
         }
+
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireContext())
 
         val mapsTextView = view.findViewById<TextView>(R.id.maps)
         mapsTextView.setOnClickListener {
             if (currentLat != null && currentLon != null) {
-                // Buat Uri geo dengan koordinat
                 val gmmIntentUri = Uri.parse("geo:${currentLat},${currentLon}?q=${currentLat},${currentLon}")
                 val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
-                // Pastikan gunakan Google Maps
                 mapIntent.setPackage("com.google.android.apps.maps")
 
-                // Cek apakah ada aplikasi yang bisa handle Intent
                 if (mapIntent.resolveActivity(requireContext().packageManager) != null) {
                     startActivity(mapIntent)
                 } else {
@@ -217,6 +243,7 @@ class HomeFragment : Fragment() {
 
         checkLocationPermissionAndUpdateMaps()
     }
+
 
 
     private val deviceDisconnectReceiver = object : BroadcastReceiver() {
@@ -284,6 +311,10 @@ class HomeFragment : Fragment() {
             }
         }, 2000) // Delay 2 detik untuk memberi waktu BLE menentukan status
 
+        requireContext().registerReceiver(locationModeReceiver, IntentFilter(android.location.LocationManager.PROVIDERS_CHANGED_ACTION))
+
+        checkLocationPermissionAndUpdateMaps()
+
         val filter = IntentFilter().apply {
             addAction(BluetoothLeService.ACTION_DEVICE_DISCONNECTED)
             addAction(BluetoothLeService.ACTION_GATT_CONNECTED)
@@ -298,6 +329,7 @@ class HomeFragment : Fragment() {
 
         requireContext().unregisterReceiver(deviceDisconnectReceiver)
         requireContext().unregisterReceiver(deviceReconnectReceiver)
+        requireContext().unregisterReceiver(locationModeReceiver)
         stopLiveLocationUpdates()
     }
 
