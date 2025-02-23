@@ -6,6 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/white"
+    android:id="@+id/scroll_container"
     tools:context=".history.HistoryPatientFragment">
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -109,6 +110,19 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"/>
+
+        <ImageView
+            android:id="@+id/btnScrollUp"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:layout_margin="16dp"
+            android:visibility="gone"
+            android:background="@drawable/rounded_bg"
+            android:padding="3dp"
+            app:srcCompat="@drawable/ic_arrow_up"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"/>
+
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
