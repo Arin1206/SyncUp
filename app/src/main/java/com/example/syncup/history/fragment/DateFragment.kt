@@ -80,8 +80,11 @@ class DateFragment : Fragment() {
                     val batteryLevel = doc.getLong("batteryLevel")?.toInt() ?: 0
                     val timestamp = doc.getString("timestamp") ?: continue
 
-                    val formattedDate = extractDate(timestamp)
                     val formattedTime = extractTime(timestamp)
+                    // ✅ Tambahan: Jika sudah ada data dengan waktu (jam dan menit) yang sama, lewati agar hanya satu yang ditampilkan
+                    if (dataList.any { extractTime(it.fullTimestamp) == formattedTime }) continue
+
+                    val formattedDate = extractDate(timestamp)
 
                     Log.d("FirestoreDebug", "Data: $heartRate BPM, BP: $systolicBP/$diastolicBP, Battery: $batteryLevel%, Date: $formattedDate, Time: $formattedTime")
 
@@ -161,7 +164,6 @@ class DateFragment : Fragment() {
                 Log.e("FirestoreError", "Failed to fetch data: ${exception.message}")
             }
     }
-
 
     // **Fungsi untuk mengambil hanya tanggal (misalnya "24 Jan 2025")**
     private fun extractDate(timestamp: String): String {
