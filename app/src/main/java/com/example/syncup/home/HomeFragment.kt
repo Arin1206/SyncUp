@@ -1,6 +1,8 @@
 package com.example.syncup.home
 
+import android.Manifest
 import android.content.*
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
@@ -10,17 +12,23 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ProgressBar
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import com.example.syncup.R
 import com.example.syncup.ble.BluetoothLeService
 import com.example.syncup.viewmodel.HeartRateViewModel
 import com.example.syncup.welcome.WelcomeActivity
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
 
 class HomeFragment : Fragment() {
 
+    private val LOCATION_PERMISSION_REQUEST_CODE = 1001
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private var locationCallback: com.google.android.gms.location.LocationCallback? = null
     private var deviceAddress: String? = null
     private var isDeviceDisconnected = false
     private var deviceName: String? = null
@@ -105,6 +113,71 @@ class HomeFragment : Fragment() {
 
         return view
     }
+    private fun startLiveLocationUpdates() {
+        val mapsTextView = view?.findViewById<TextView>(R.id.maps)
+        val locationRequest = com.google.android.gms.location.LocationRequest.create().apply {
+            interval = 5000           // Update setiap 5 detik
+            fastestInterval = 3000    // Update tercepat 3 detik
+            priority = com.google.android.gms.location.LocationRequest.PRIORITY_HIGH_ACCURACY
+        }
+        locationCallback = object : com.google.android.gms.location.LocationCallback() {
+            override fun onLocationResult(locationResult: com.google.android.gms.location.LocationResult) {
+                val location = locationResult.lastLocation
+                if (location != null) {
+                    val lat = location.latitude
+                    val lon = location.longitude
+                    mapsTextView?.text = "Lat: $lat, Long: $lon"
+                }
+            }
+        }
+
+        // 🔹 **Tambahkan pengecekan izin sebelum requestLocationUpdates()**
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
+            == PackageManager.PERMISSION_GRANTED
+        ) {
+            // Izin sudah diberikan, aman untuk memanggil requestLocationUpdates()
+            fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback!!, requireActivity().mainLooper)
+        } else {
+            // Izin belum ada → minta lagi atau abaikan
+            requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), LOCATION_PERMISSION_REQUEST_CODE)
+        }
+    }
+
+
+    private fun stopLiveLocationUpdates() {
+        locationCallback?.let { fusedLocationClient.removeLocationUpdates(it) }
+    }
+
+
+    private fun checkLocationPermissionAndUpdateMaps() {
+
+        val mapsTextView = view?.findViewById<TextView>(R.id.maps)
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // Jika belum ada izin, minta izin
+            requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), LOCATION_PERMISSION_REQUEST_CODE)
+        } else {
+            startLiveLocationUpdates()
+
+        }
+    }
+
+    private fun openLocationSettings() {
+        val intent = Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+        startActivity(intent)
+    }
+
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                checkLocationPermissionAndUpdateMaps() // Izin sudah diberikan, update lokasi
+            } else {
+                Log.e(TAG, "Location permission denied.")
+                view?.findViewById<TextView>(R.id.maps)?.text = "Permission denied"
+            }
+        }
+    }
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         // Inisialisasi ViewModel dengan lingkup Activity sehingga tetap aktif meski fragment berubah
@@ -114,6 +187,10 @@ class HomeFragment : Fragment() {
         heartRateViewModel.heartRate.observe(viewLifecycleOwner) { rate ->
             heartRateTextView?.text = "$rate bpm"
         }
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireContext())
+
+
+        checkLocationPermissionAndUpdateMaps()
     }
 
 
@@ -193,8 +270,10 @@ class HomeFragment : Fragment() {
 
     override fun onPause() {
         super.onPause()
+
         requireContext().unregisterReceiver(deviceDisconnectReceiver)
         requireContext().unregisterReceiver(deviceReconnectReceiver)
+        stopLiveLocationUpdates()
     }
 
     override fun onDestroyView() {
