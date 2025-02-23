@@ -73,8 +73,8 @@ class DateFragment : Fragment() {
 
                 for (doc in documents) {
                     val heartRate = doc.getLong("heartRate")?.toInt() ?: 0
-
                     if (heartRate == 0) continue
+
                     val systolicBP = doc.getDouble("systolicBP")?.toInt() ?: 0
                     val diastolicBP = doc.getDouble("diastolicBP")?.toInt() ?: 0
                     val batteryLevel = doc.getLong("batteryLevel")?.toInt() ?: 0
@@ -146,10 +146,13 @@ class DateFragment : Fragment() {
                     Log.w("FirestoreDebug", "No valid date found in the dataset")
                 }
 
-                // 🔹 **Masukkan ke dalam RecyclerView**
-                for ((date, items) in groupedMap) {
+                // 🔹 **Urutkan groupedMap berdasarkan tanggal dari yang terbaru ke terlama**
+                val sortedGroupedMap = groupedMap.toSortedMap(compareByDescending { it })
+
+                // 🔹 **Masukkan ke dalam RecyclerView dengan urutan yang benar**
+                for ((date, items) in sortedGroupedMap) {
                     groupedItems.add(HealthItem.DateHeader(date))
-                    groupedItems.addAll(items)
+                    groupedItems.addAll(items.sortedByDescending { it.healthData.fullTimestamp }) // ✅ Urutkan dalam setiap grup dari timestamp terbaru ke terlama
                 }
 
                 healthDataAdapter.updateData(groupedItems)
@@ -158,6 +161,7 @@ class DateFragment : Fragment() {
                 Log.e("FirestoreError", "Failed to fetch data: ${exception.message}")
             }
     }
+
 
     // **Fungsi untuk mengambil hanya tanggal (misalnya "24 Jan 2025")**
     private fun extractDate(timestamp: String): String {
