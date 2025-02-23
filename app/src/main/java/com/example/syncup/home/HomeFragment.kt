@@ -3,6 +3,7 @@ package com.example.syncup.home
 import android.Manifest
 import android.content.*
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
@@ -42,6 +43,9 @@ class HomeFragment : Fragment() {
     private var heartRateEventListener: ValueEventListener? = null
     private var progressBar: ProgressBar? = null
     private var heartRateTextView: TextView? = null
+    private var currentLat: Double? = null
+    private var currentLon: Double? = null
+
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -126,6 +130,8 @@ class HomeFragment : Fragment() {
                 if (location != null) {
                     val lat = location.latitude
                     val lon = location.longitude
+                    currentLat = lat
+                    currentLon = lon
                     mapsTextView?.text = "Lat: $lat, Long: $lon"
                 }
             }
@@ -189,6 +195,25 @@ class HomeFragment : Fragment() {
         }
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireContext())
 
+        val mapsTextView = view.findViewById<TextView>(R.id.maps)
+        mapsTextView.setOnClickListener {
+            if (currentLat != null && currentLon != null) {
+                // Buat Uri geo dengan koordinat
+                val gmmIntentUri = Uri.parse("geo:${currentLat},${currentLon}?q=${currentLat},${currentLon}")
+                val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
+                // Pastikan gunakan Google Maps
+                mapIntent.setPackage("com.google.android.apps.maps")
+
+                // Cek apakah ada aplikasi yang bisa handle Intent
+                if (mapIntent.resolveActivity(requireContext().packageManager) != null) {
+                    startActivity(mapIntent)
+                } else {
+                    Log.e(TAG, "Google Maps app is not installed.")
+                }
+            } else {
+                Log.e(TAG, "Coordinates are null. Cannot open maps.")
+            }
+        }
 
         checkLocationPermissionAndUpdateMaps()
     }
