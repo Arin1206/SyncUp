@@ -298,8 +298,13 @@ class BluetoothLeService : Service() {
     }
 
     private fun calculateMode(values: List<Int>): Int {
-        return values.groupingBy { it }.eachCount().maxByOrNull { it.value }?.key ?: -1
+        return values.filterNotNull() // pastikan tidak ada nilai null
+            .groupingBy { it }
+            .eachCount()
+            .maxByOrNull { it.value }
+            ?.key ?: -1
     }
+
 
     @SuppressLint("MissingPermission")
     private fun readBatteryLevel(characteristic: BluetoothGattCharacteristic?): Boolean {
