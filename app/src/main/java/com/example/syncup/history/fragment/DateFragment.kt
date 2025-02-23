@@ -65,8 +65,13 @@ class DateFragment : Fragment() {
 
         firestore.collection("patient_heart_rate")
             .whereEqualTo("userId", userId)
-            .get()
-            .addOnSuccessListener { documents ->
+            .addSnapshotListener { documents, exception ->
+                if (exception != null) {
+                    Log.e("FirestoreError", "Failed to fetch data: ${exception.message}")
+                    return@addSnapshotListener
+                }
+                if (documents == null) return@addSnapshotListener
+
                 val groupedItems = mutableListOf<HealthItem>()
                 val groupedMap = LinkedHashMap<String, MutableList<HealthItem.DataItem>>()
                 val dataList = mutableListOf<HealthData>()
@@ -109,7 +114,7 @@ class DateFragment : Fragment() {
                     Log.w("FirestoreDebug", "No health data found for user: $userId")
                     // Tampilkan empty state jika tidak ada data
                     view?.findViewById<View>(R.id.emptyStateView)?.visibility = View.VISIBLE
-                    return@addOnSuccessListener
+                    return@addSnapshotListener
                 }
 
                 // 🔹 **Urutkan data berdasarkan timestamp terbaru**
@@ -161,9 +166,6 @@ class DateFragment : Fragment() {
                 }
 
                 healthDataAdapter.updateData(groupedItems)
-            }
-            .addOnFailureListener { exception ->
-                Log.e("FirestoreError", "Failed to fetch data: ${exception.message}")
             }
     }
 
