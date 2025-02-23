@@ -22,6 +22,7 @@ import com.google.firebase.database.*
 class HomeFragment : Fragment() {
 
     private var deviceAddress: String? = null
+    private var isDeviceDisconnected = false
     private var deviceName: String? = null
     private var bluetoothLeService: BluetoothLeService? = null
     private lateinit var heartRateViewModel: HeartRateViewModel
@@ -98,9 +99,9 @@ class HomeFragment : Fragment() {
 
         // **Listen for Heart Rate Updates from Firebase**
         // Tombol Logout
-        view.findViewById<TextView>(R.id.logoutbutton)?.setOnClickListener {
-            logoutUser()
-        }
+//        view.findViewById<TextView>(R.id.logoutbutton)?.setOnClickListener {
+//            logoutUser()
+//        }
 
         return view
     }
@@ -119,18 +120,20 @@ class HomeFragment : Fragment() {
     private val deviceDisconnectReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == BluetoothLeService.ACTION_DEVICE_DISCONNECTED) {
-                Log.i(TAG, "Device disconnected, hiding UI elements...")
-
-                // 🔹 Hanya sembunyikan UI, tidak hapus dari Firebase
-                activity?.runOnUiThread {
-                    progressBar?.visibility = View.VISIBLE // 🔹 Tampilkan *ProgressBar*
-
-                    Log.d(TAG, "ProgressBar set to VISIBLE")
-                    Handler().postDelayed({
-                        progressBar?.visibility = View.GONE // 🔹 Sembunyikan *ProgressBar* setelah 2 detik
-                        view?.findViewById<TextView>(R.id.device_name)?.visibility = View.GONE
-                        view?.findViewById<TextView>(R.id.heart_rate_value)?.visibility = View.GONE
-                    }, 2000) // Delay 2 detik sebelum menyembunyikan UI
+                if (!isDeviceDisconnected) {
+                    isDeviceDisconnected = true
+                    Log.i(TAG, "Device disconnected, hiding UI elements...")
+                    activity?.runOnUiThread {
+                        progressBar?.visibility = View.VISIBLE // Tampilkan progress bar
+                        Log.d(TAG, "ProgressBar set to VISIBLE")
+                        Handler().postDelayed({
+                            progressBar?.visibility = View.GONE // Sembunyikan progress bar setelah 2 detik
+                            view?.findViewById<TextView>(R.id.device_name)?.visibility = View.GONE
+                            view?.findViewById<TextView>(R.id.heart_rate_value)?.visibility = View.GONE
+                        }, 2000)
+                    }
+                } else {
+                    Log.d(TAG, "Disconnect already handled.")
                 }
             }
         }
@@ -139,9 +142,8 @@ class HomeFragment : Fragment() {
     private val deviceReconnectReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == BluetoothLeService.ACTION_GATT_CONNECTED) {
+                isDeviceDisconnected = false
                 Log.i(TAG, "Device reconnected, showing UI elements...")
-
-                // 🔹 Tampilkan UI kembali saat perangkat terkoneksi
                 activity?.runOnUiThread {
                     view?.findViewById<TextView>(R.id.device_name)?.visibility = View.VISIBLE
                     view?.findViewById<TextView>(R.id.heart_rate_value)?.visibility = View.VISIBLE
@@ -166,9 +168,17 @@ class HomeFragment : Fragment() {
                 view?.findViewById<TextView>(R.id.heart_rate_value)?.visibility = View.VISIBLE
             } else {
                 Log.d(TAG, "Device is disconnected, hiding UI elements.")
-                progressBar?.visibility = View.GONE
-                view?.findViewById<TextView>(R.id.device_name)?.visibility = View.GONE
-                view?.findViewById<TextView>(R.id.heart_rate_value)?.visibility = View.GONE
+                if (progressBar?.visibility != View.VISIBLE) {
+                    progressBar?.visibility = View.VISIBLE
+                    Log.d(TAG, "ProgressBar set to VISIBLE")
+                    // Lanjutkan dengan Handler.postDelayed untuk menyembunyikannya
+                    Handler().postDelayed({
+                        progressBar?.visibility = View.GONE
+                        view?.findViewById<TextView>(R.id.device_name)?.visibility = View.GONE
+                        view?.findViewById<TextView>(R.id.heart_rate_value)?.visibility = View.GONE
+                    }, 2000)
+                }
+
             }
         }, 2000) // Delay 2 detik untuk memberi waktu BLE menentukan status
 
