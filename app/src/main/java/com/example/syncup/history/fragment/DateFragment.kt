@@ -107,6 +107,8 @@ class DateFragment : Fragment() {
                 // 🔹 **Cek apakah ada data yang ditemukan**
                 if (dataList.isEmpty()) {
                     Log.w("FirestoreDebug", "No health data found for user: $userId")
+                    // Tampilkan empty state jika tidak ada data
+                    view?.findViewById<View>(R.id.emptyStateView)?.visibility = View.VISIBLE
                     return@addOnSuccessListener
                 }
 
@@ -164,6 +166,7 @@ class DateFragment : Fragment() {
                 Log.e("FirestoreError", "Failed to fetch data: ${exception.message}")
             }
     }
+
 
     // **Fungsi untuk mengambil hanya tanggal (misalnya "24 Jan 2025")**
     private fun extractDate(timestamp: String): String {
