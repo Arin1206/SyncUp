@@ -110,6 +110,8 @@ class HomeFragment : Fragment() {
         val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imm.hideSoftInputFromWindow(view?.windowToken, 0)
     }
+
+
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         val view = inflater.inflate(R.layout.fragment_home, container, false)
         heartRateTextView = view.findViewById(R.id.heart_rate_value)
@@ -135,16 +137,23 @@ class HomeFragment : Fragment() {
         // **Pencegahan Force Close: Tambahkan Listener dengan Cek isAdded**
         deviceEventListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                if (snapshot.exists() && isAdded) {  // Cek apakah fragment masih aktif
-                    deviceName = snapshot.child("deviceName").getValue(String::class.java) ?: "No Device"
-                    deviceAddress = snapshot.child("deviceAddress").getValue(String::class.java) ?: "Unknown Address"
+                if (snapshot.exists() && isAdded) {
+                    deviceName = snapshot.child("deviceName").getValue(String::class.java) ?: "Start Connected"
+                    deviceAddress = snapshot.child("deviceAddress").getValue(String::class.java) ?: "null"
 
                     activity?.runOnUiThread {
-                        view?.findViewById<TextView>(R.id.device_name)?.text =
-                            "$deviceName"
+                        if (deviceAddress == "null") {
+                            view?.findViewById<TextView>(R.id.device_name)?.text = "Start Connected"
+                            view?.findViewById<TextView>(R.id.heart_rate_value)?.text = "null"
+                            view?.findViewById<TextView>(R.id.bp_value)?.text = "null"
+                            view?.findViewById<TextView>(R.id.indicator_value)?.text = "null"
+                            view?.findViewById<TextView>(R.id.battery_value)?.text = "null"
+                        } else {
+                            view?.findViewById<TextView>(R.id.device_name)?.text = deviceName
+                        }
                     }
 
-                    if (!deviceAddress.isNullOrEmpty() && deviceAddress != "Unknown Address") {
+                    if (!deviceAddress.isNullOrEmpty() && deviceAddress != "null") {
                         val intent = Intent(requireContext(), BluetoothLeService::class.java)
                         requireContext().bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
 
@@ -154,6 +163,14 @@ class HomeFragment : Fragment() {
                             Log.d(TAG, "Receiver registered")
                         }
                     }
+                } else {
+                    activity?.runOnUiThread {
+                        view?.findViewById<TextView>(R.id.device_name)?.text = "Start Connected"
+                        view?.findViewById<TextView>(R.id.heart_rate_value)?.text = "null"
+                        view?.findViewById<TextView>(R.id.bp_value)?.text = "null"
+                        view?.findViewById<TextView>(R.id.indicator_value)?.text = "null"
+                        view?.findViewById<TextView>(R.id.battery_value)?.text = "null"
+                    }
                 }
             }
 
@@ -161,6 +178,8 @@ class HomeFragment : Fragment() {
                 Log.e(TAG, "Failed to read device data from Firebase: ${error.message}")
             }
         }
+
+
 
         database.addValueEventListener(deviceEventListener!!)
 
@@ -329,50 +348,56 @@ class HomeFragment : Fragment() {
             if (intent?.action == BluetoothLeService.ACTION_DEVICE_DISCONNECTED) {
                 if (!isDeviceDisconnected) {
                     isDeviceDisconnected = true
-                    hasHandledDisconnect = true // 🔹 Tandai bahwa disconnect sudah ditangani
-                    Log.i(TAG, "Device disconnected, hiding UI elements...")
+                    hasHandledDisconnect = true
+                    Log.i(TAG, "Device disconnected, resetting UI...")
 
                     activity?.runOnUiThread {
                         progressBar?.visibility = View.VISIBLE
-                        Log.d(TAG, "ProgressBar set to VISIBLE")
+
+                        // Set semua nilai jadi "null" dan ubah nama perangkat ke "Start Connected"
+                        view?.findViewById<TextView>(R.id.device_name)?.text = "Start Connected"
+                        view?.findViewById<TextView>(R.id.heart_rate_value)?.text = "null"
+                        view?.findViewById<TextView>(R.id.bp_value)?.text = "null"
+                        view?.findViewById<TextView>(R.id.indicator_value)?.text = "null"
+                        view?.findViewById<TextView>(R.id.battery_value)?.text = "null"
 
                         Handler().postDelayed({
-                            progressBar?.visibility = View.GONE // 🔹 Sembunyikan progress bar setelah 2 detik
-                            view?.findViewById<TextView>(R.id.device_name)?.visibility = View.GONE
-                            view?.findViewById<TextView>(R.id.heart_rate_value)?.visibility = View.GONE
-                            Log.d(TAG, "Disconnect handled. UI elements hidden.")
-                        }, 2000)
+                            progressBar?.visibility = View.GONE
+                        }, 3000) // Hilangkan progress bar setelah 3 detik
                     }
-                } else {
-                    Log.d(TAG, "Disconnect already handled. Ignoring further disconnect attempts.")
                 }
             }
         }
     }
-
-
 
     private val deviceReconnectReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == BluetoothLeService.ACTION_GATT_CONNECTED) {
                 isDeviceDisconnected = false
-                hasHandledDisconnect = false // 🔹 Reset flag saat reconnect
-                Log.i(TAG, "Device reconnected, showing UI elements...")
+                hasHandledDisconnect = false
+                Log.i(TAG, "Device reconnected, restoring UI...")
 
                 activity?.runOnUiThread {
                     view?.findViewById<TextView>(R.id.device_name)?.visibility = View.VISIBLE
                     view?.findViewById<TextView>(R.id.heart_rate_value)?.visibility = View.VISIBLE
+                    view?.findViewById<TextView>(R.id.bp_value)?.visibility = View.VISIBLE
+                    view?.findViewById<TextView>(R.id.indicator_value)?.visibility = View.VISIBLE
+                    view?.findViewById<TextView>(R.id.battery_value)?.visibility = View.VISIBLE
+
+                    Log.d(TAG, "Device reconnected. UI restored to normal values.")
                 }
             }
         }
     }
+
+
 
 
 
     override fun onResume() {
         super.onResume()
 
-        if (!hasHandledDisconnect) { // 🔹 Cek apakah disconnect sudah ditangani, jika belum lanjut
+        if (!hasHandledDisconnect) {
             progressBar?.visibility = View.VISIBLE
             Log.d(TAG, "ProgressBar set to VISIBLE in onResume")
 
@@ -380,13 +405,21 @@ class HomeFragment : Fragment() {
                 if (bluetoothLeService != null && bluetoothLeService!!.isConnected()) {
                     Log.d(TAG, "Device is connected, showing UI elements.")
                     progressBar?.visibility = View.GONE
-                    view?.findViewById<TextView>(R.id.device_name)?.visibility = View.VISIBLE
+                    view?.findViewById<TextView>(R.id.device_name)?.text = deviceName ?: "Start Connected"
                     view?.findViewById<TextView>(R.id.heart_rate_value)?.visibility = View.VISIBLE
+                    view?.findViewById<TextView>(R.id.bp_value)?.visibility = View.VISIBLE
+                    view?.findViewById<TextView>(R.id.indicator_value)?.visibility = View.VISIBLE
+                    view?.findViewById<TextView>(R.id.battery_value)?.visibility = View.VISIBLE
                 } else {
-                    Log.d(TAG, "Device is disconnected, UI elements remain hidden.")
+                    Log.d(TAG, "Device is disconnected, setting values to 'null'.")
                     progressBar?.visibility = View.GONE
+                    view?.findViewById<TextView>(R.id.device_name)?.text = "Start Connected"
+                    view?.findViewById<TextView>(R.id.heart_rate_value)?.text = "null"
+                    view?.findViewById<TextView>(R.id.bp_value)?.text = "null"
+                    view?.findViewById<TextView>(R.id.indicator_value)?.text = "null"
+                    view?.findViewById<TextView>(R.id.battery_value)?.text = "null"
                 }
-            }, 2000)
+            }, 3000)
         }
 
         requireContext().registerReceiver(locationModeReceiver, IntentFilter(android.location.LocationManager.PROVIDERS_CHANGED_ACTION))
@@ -400,6 +433,7 @@ class HomeFragment : Fragment() {
         requireContext().registerReceiver(deviceDisconnectReceiver, filter)
         requireContext().registerReceiver(deviceReconnectReceiver, filter)
     }
+
 
 
 
