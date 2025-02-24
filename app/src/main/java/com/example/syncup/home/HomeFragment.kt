@@ -140,21 +140,25 @@ class HomeFragment : Fragment() {
         deviceEventListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 if (snapshot.exists() && isAdded) {
-                    deviceName = snapshot.child("deviceName").getValue(String::class.java) ?: "Start Connected"
-                    deviceAddress = snapshot.child("deviceAddress").getValue(String::class.java) ?: "null"
+                    // Ambil nilai dari Firebase
+                    deviceName = snapshot.child("deviceName").getValue(String::class.java)
+                    deviceAddress = snapshot.child("deviceAddress").getValue(String::class.java)
 
                     activity?.runOnUiThread {
-                        if (deviceAddress == "null") {
-                            view?.findViewById<TextView>(R.id.device_name)?.text = "Start Connected"
+                        // Update device name: jika deviceName tersedia, tampilkan; jika tidak, tampilkan default
+                        view?.findViewById<TextView>(R.id.device_name)?.text =
+                            if (!deviceName.isNullOrEmpty()) deviceName else "Start Connected"
+
+                        // Jika deviceAddress tidak valid, set nilai-nilai lainnya ke "null"
+                        if (deviceAddress.isNullOrEmpty() || deviceAddress == "null") {
                             view?.findViewById<TextView>(R.id.heart_rate_value)?.text = "null"
                             view?.findViewById<TextView>(R.id.bp_value)?.text = "null"
                             view?.findViewById<TextView>(R.id.indicator_value)?.text = "null"
                             view?.findViewById<TextView>(R.id.battery_value)?.text = "null"
-                        } else {
-                            view?.findViewById<TextView>(R.id.device_name)?.text = deviceName
                         }
                     }
 
+                    // Jika deviceAddress valid, bind service dan register receiver
                     if (!deviceAddress.isNullOrEmpty() && deviceAddress != "null") {
                         val intent = Intent(requireContext(), BluetoothLeService::class.java)
                         requireContext().bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
@@ -305,6 +309,26 @@ class HomeFragment : Fragment() {
             }
         }
     }
+    private fun updateIndicator(heartRate: Int) {
+        val indicatorTextView = view?.findViewById<TextView>(R.id.indicator_value)
+        val indicatorBox = view?.findViewById<View>(R.id.indicator_box)
+
+        if (heartRate == -1) {
+            // Jika nilai heart rate tidak valid, kembalikan ke kondisi default
+            indicatorTextView?.text = "null"
+            indicatorBox?.setBackgroundResource(R.drawable.bg_purple_box)
+        } else if (heartRate in 60..100) {
+            // Heart rate sehat: set teks "health" dan background hijau
+            indicatorTextView?.text = "health"
+            indicatorBox?.setBackgroundResource(R.drawable.bg_green_box)
+        } else {
+            // Nilai di luar rentang sehat: set teks "anger" dan background merah
+            indicatorTextView?.text = "anger"
+            indicatorBox?.setBackgroundResource(R.drawable.bg_red_box)
+        }
+    }
+
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         heartRateViewModel = ViewModelProvider(requireActivity()).get(HeartRateViewModel::class.java)
@@ -381,7 +405,11 @@ class HomeFragment : Fragment() {
                 Log.i(TAG, "Device reconnected, restoring UI...")
 
                 activity?.runOnUiThread {
-                    view?.findViewById<TextView>(R.id.device_name)?.visibility = View.VISIBLE
+                    // Perbarui device name secara live
+                    view?.findViewById<TextView>(R.id.device_name)?.apply {
+                        text = if (!deviceName.isNullOrEmpty()) deviceName else "Start Connected"
+                        visibility = View.VISIBLE
+                    }
                     view?.findViewById<TextView>(R.id.heart_rate_value)?.visibility = View.VISIBLE
                     view?.findViewById<TextView>(R.id.bp_value)?.visibility = View.VISIBLE
                     view?.findViewById<TextView>(R.id.indicator_value)?.visibility = View.VISIBLE
@@ -393,6 +421,7 @@ class HomeFragment : Fragment() {
             }
         }
     }
+
 
 
     private val batteryReceiver = object : BroadcastReceiver() {
@@ -532,6 +561,8 @@ class HomeFragment : Fragment() {
                 val heartRate = intent.getIntExtra(BluetoothLeService.EXTRA_HEART_RATE, -1)
                 Log.d(TAG, "Heart rate received: $heartRate")
                 heartRateTextView?.text = "$heartRate bpm"
+
+                updateIndicator(heartRate)
 
                 FirebaseDatabase.getInstance()
                     .reference
