@@ -9,8 +9,11 @@ import android.os.Handler
 import android.os.IBinder
 import android.util.Log
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.InputMethodManager
+import android.widget.EditText
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.core.content.ContextCompat
@@ -44,6 +47,7 @@ class HomeFragment : Fragment() {
     private var progressBar: ProgressBar? = null
     private var heartRateTextView: TextView? = null
     private var currentLat: Double? = null
+    private lateinit var searchDoctor: EditText
     private var currentLon: Double? = null
 
 
@@ -68,12 +72,37 @@ class HomeFragment : Fragment() {
         }
     }
 
+    private fun setupUI(view: View) {
+        // Set listener pada parent layout untuk menangkap klik di luar input
+        view.setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_DOWN) {
+                hideKeyboard()
+            }
+            false
+        }
+
+        // Tambahkan listener agar keyboard turun saat EditText kehilangan fokus
+        searchDoctor.setOnFocusChangeListener { _, hasFocus ->
+            if (!hasFocus) {
+                hideKeyboard()
+            }
+        }
+    }
+
+    private fun hideKeyboard() {
+        val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.hideSoftInputFromWindow(view?.windowToken, 0)
+    }
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         val view = inflater.inflate(R.layout.fragment_home, container, false)
         heartRateTextView = view.findViewById(R.id.heart_rate_value)
 
         progressBar = view.findViewById(R.id.progress_loading)
 
+        searchDoctor = view.findViewById(R.id.search_doctor)
+
+        // Panggil fungsi untuk menutup keyboard saat klik di luar EditText
+        setupUI(view)
         database = FirebaseDatabase.getInstance().reference.child("connected_device")
         heartRateDatabase = FirebaseDatabase.getInstance().reference.child("heart_rate")
 
