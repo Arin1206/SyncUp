@@ -24,6 +24,8 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import com.example.syncup.R
 import com.example.syncup.ble.BluetoothLeService
+import com.example.syncup.data.BloodPressureRepository
+import com.example.syncup.data.HomeViewModel
 import com.example.syncup.search.SearchPatientFragment
 import com.example.syncup.viewmodel.HeartRateViewModel
 import com.example.syncup.welcome.WelcomeActivity
@@ -35,6 +37,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import kotlin.math.roundToInt
 
 class HomeFragment : Fragment() {
 
@@ -57,6 +60,8 @@ class HomeFragment : Fragment() {
     private var currentLat: Double? = null
     private lateinit var searchDoctor: EditText
     private var currentLon: Double? = null
+    private var bpTextView: TextView? = null
+    private lateinit var homeViewModel: HomeViewModel
     private var heartRateChartView: com.example.syncup.chart.HeartRateChartViewHome? = null
 
 
@@ -333,6 +338,20 @@ class HomeFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        homeViewModel = ViewModelProvider(requireActivity()).get(HomeViewModel::class.java)
+
+        bpTextView = view.findViewById(R.id.bp_value)
+
+        // **Gunakan ViewModel untuk menyimpan BP saat pindah fragment**
+        homeViewModel.bloodPressure.observe(viewLifecycleOwner) { bp ->
+            bpTextView?.text = when {
+                bp.systolic == -1 && bp.diastolic == -1 -> "Process"
+                bp.systolic > 0 && bp.diastolic > 0 -> "${bp.systolic} / ${bp.diastolic}"
+                else -> "No Data"
+            }
+        }
+
+
         heartRateViewModel = ViewModelProvider(requireActivity()).get(HeartRateViewModel::class.java)
         heartRateViewModel.heartRate.observe(viewLifecycleOwner) { rate ->
             heartRateTextView?.text = "$rate bpm"
@@ -378,28 +397,36 @@ class HomeFragment : Fragment() {
                 if (!isDeviceDisconnected) {
                     isDeviceDisconnected = true
                     hasHandledDisconnect = true
-                    Log.i(TAG, "Device disconnected, resetting UI...")
+                    Log.i(TAG, "Device disconnected, stopping BP polling...")
 
+                    // **Stop polling BP saat device disconnected**
+                    BloodPressureRepository.stopPolling()
 
                     activity?.runOnUiThread {
                         progressBar?.visibility = View.VISIBLE
 
-                        // 🔹 Set semua nilai jadi "null" termasuk Blood Pressure
+                        view?.findViewById<TextView>(R.id.bp_value)?.apply {
+                            text = "null"
+                            visibility = View.VISIBLE
+                        }
+
                         view?.findViewById<TextView>(R.id.device_name)?.text = "Start Connected"
                         view?.findViewById<TextView>(R.id.heart_rate_value)?.text = "null"
-                        view?.findViewById<TextView>(R.id.bp_value)?.text = "null"  // Tambahkan ini!
                         view?.findViewById<TextView>(R.id.indicator_value)?.text = "null"
                         view?.findViewById<TextView>(R.id.battery_value)?.text = "null"
+
+                        // **Hapus semua data di grafik saat perangkat terputus**
                         heartRateChartView?.clearChart()
 
                         Handler().postDelayed({
                             progressBar?.visibility = View.GONE
-                        }, 3000) // Hilangkan progress bar setelah 3 detik
+                        }, 3000)
                     }
                 }
             }
         }
     }
+
 
 
     private val deviceReconnectReceiver = object : BroadcastReceiver() {
@@ -407,25 +434,29 @@ class HomeFragment : Fragment() {
             if (intent?.action == BluetoothLeService.ACTION_GATT_CONNECTED) {
                 isDeviceDisconnected = false
                 hasHandledDisconnect = false
-                Log.i(TAG, "Device reconnected, restoring UI...")
+                Log.i(TAG, "Device reconnected, waiting 5 minutes before showing BP...")
 
                 activity?.runOnUiThread {
-                    // Perbarui device name secara live
                     view?.findViewById<TextView>(R.id.device_name)?.apply {
-                        text = if (!deviceName.isNullOrEmpty()) deviceName else "Start Connected"
+                        text = if (!deviceName.isNullOrEmpty()) deviceName else "Connected"
                         visibility = View.VISIBLE
                     }
-                    view?.findViewById<TextView>(R.id.heart_rate_value)?.visibility = View.VISIBLE
-                    view?.findViewById<TextView>(R.id.bp_value)?.visibility = View.VISIBLE
-                    view?.findViewById<TextView>(R.id.indicator_value)?.visibility = View.VISIBLE
-                    view?.findViewById<TextView>(R.id.battery_value)?.visibility = View.VISIBLE
 
-                    listenToBloodPressureUpdates()
-                    Log.d(TAG, "Device reconnected. UI restored to normal values.")
+                    view?.findViewById<TextView>(R.id.bp_value)?.apply {
+                        text = "Waiting..."
+                        visibility = View.VISIBLE
+                    }
+
+                    // **Gunakan delayedStartPolling() untuk menunda polling BP**
+                    BloodPressureRepository.delayedStartPolling()
+
+                    Log.d(TAG, "Device reconnected. BP polling starts after delay.")
                 }
             }
         }
     }
+
+
 
 
 
@@ -496,52 +527,6 @@ class HomeFragment : Fragment() {
         requireContext().unregisterReceiver(locationModeReceiver)
         stopLiveLocationUpdates()
     }
-
-    private fun listenToBloodPressureUpdates() {
-        val bpTextView = view?.findViewById<TextView>(R.id.bp_value)
-
-        // Tampilkan teks "Process" saat perangkat terkoneksi
-        bpTextView?.text = "Process"
-
-        // Tunggu 5 menit sebelum mengambil data terbaru
-        Handler(Looper.getMainLooper()).postDelayed({
-            // Jika perangkat sudah disconnect, jangan lakukan fetch data
-            if (isDeviceDisconnected) {
-                Log.d(TAG, "Perangkat terputus; lewati pengambilan data BP.")
-                return@postDelayed
-            }
-
-            val firestore = FirebaseFirestore.getInstance()
-            val bpRef = firestore.collection("patient_heart_rate")
-                .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
-                .limit(1)
-
-            bpRef.addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    Log.e(TAG, "Gagal mengambil data BP: ${error.message}")
-                    activity?.runOnUiThread { bpTextView?.text = "Error" }
-                    return@addSnapshotListener
-                }
-
-                if (snapshot != null && !snapshot.isEmpty) {
-                    val latestData = snapshot.documents[0]
-                    val sbp = latestData.getDouble("systolicBP") ?: 0.0
-                    val dbp = latestData.getDouble("diastolicBP") ?: 0.0
-                    Log.d(TAG, "BP Data Live Update: SBP = $sbp, DBP = $dbp")
-
-                    activity?.runOnUiThread {
-                        bpTextView?.text = "$sbp / $dbp"
-                    }
-                } else {
-                    Log.e(TAG, "Data BP tidak ditemukan!")
-                    activity?.runOnUiThread { bpTextView?.text = "No Data" }
-                }
-            }
-        }, 300000) // Delay 5 menit (300.000 ms)
-    }
-
-
-
 
 
     override fun onDestroyView() {
