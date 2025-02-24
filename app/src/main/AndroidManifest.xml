@@ -47,6 +47,7 @@
             android:name=".main.MainPatientActivity"
             android:exported="false"
             android:screenOrientation="portrait"
+            android:forceDarkAllowed="false"
             android:windowSoftInputMode="adjustPan"/>
         <activity
             android:name=".otp.OtpPatientActivity"

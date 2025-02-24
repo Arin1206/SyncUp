@@ -11,23 +11,23 @@
         android:id="@+id/main"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:paddingHorizontal="10dp"
-        android:background="@color/white">
-    <!--    <TextView-->
-<!--        android:id="@+id/logoutbutton"-->
-<!--        android:layout_width="158dp"-->
-<!--        android:layout_height="40dp"-->
-<!--        android:layout_marginBottom="125dp"-->
-<!--        android:background="@drawable/custom_button_2"-->
-<!--        android:clickable="true"-->
-<!--        android:focusable="true"-->
-<!--        android:fontFamily="@font/bold_font"-->
-<!--        android:gravity="center"-->
-<!--        android:paddingVertical="2dp"-->
-<!--        android:text="Continue"-->
-<!--        android:textAllCaps="false"-->
-<!--        android:textColor="@color/black"-->
-<!--        android:textSize="14sp"></TextView>-->
+        android:background="@color/white"
+        android:paddingHorizontal="10dp">
+        <!--    <TextView-->
+        <!--        android:id="@+id/logoutbutton"-->
+        <!--        android:layout_width="158dp"-->
+        <!--        android:layout_height="40dp"-->
+        <!--        android:layout_marginBottom="125dp"-->
+        <!--        android:background="@drawable/custom_button_2"-->
+        <!--        android:clickable="true"-->
+        <!--        android:focusable="true"-->
+        <!--        android:fontFamily="@font/bold_font"-->
+        <!--        android:gravity="center"-->
+        <!--        android:paddingVertical="2dp"-->
+        <!--        android:text="Continue"-->
+        <!--        android:textAllCaps="false"-->
+        <!--        android:textColor="@color/black"-->
+        <!--        android:textSize="14sp"></TextView>-->
 
         <ImageView
             android:id="@+id/imageView5"
@@ -57,10 +57,10 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
             android:layout_marginTop="8dp"
-            android:text="Maps"
             android:fontFamily="@font/bold_font"
-            android:textSize="14sp"
+            android:text="Maps"
             android:textColor="@color/black"
+            android:textSize="14sp"
             app:layout_constraintEnd_toStartOf="@+id/imageView5"
             app:layout_constraintHorizontal_bias="0.01"
             app:layout_constraintStart_toEndOf="@+id/imageView"
@@ -70,29 +70,68 @@
             android:id="@+id/device_name"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="48dp"
-            android:layout_marginTop="76dp"
+            android:layout_marginStart="68dp"
+            android:layout_marginTop="120dp"
             android:text="device"
-            android:visibility="gone"
             android:textColor="@color/black"
             android:textSize="18sp"
+            android:visibility="gone"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/cardView"
             tools:ignore="MissingConstraints" />
 
-        <TextView
-            android:id="@+id/heart_rate_value"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/device_name"
-            android:layout_marginStart="48dp"
-            android:visibility="gone"
-            android:layout_marginTop="12dp"
-            android:text="bpm"
-            android:textSize="24sp"
+        <!-- Search Input -->
+
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cardView"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_marginHorizontal="5dp"
+            android:layout_marginTop="16dp"
+            app:cardCornerRadius="15dp"
+            app:cardElevation="0dp"
+            app:cardBackgroundColor="@color/purple_light"
+            app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/device_name"
-            tools:ignore="MissingConstraints" />
+            app:layout_constraintTop_toBottomOf="@+id/imageView">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <ImageView
+                    android:id="@+id/search_icon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginTop="13dp"
+                    android:src="@drawable/account_circle"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintVertical_bias="0.0" />
+
+                <EditText
+                    android:id="@+id/search_doctor"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:fontFamily="@font/bold_font"
+                    android:hint="Search your doctor"
+                    android:paddingStart="48dp"
+                    android:background="@android:color/transparent"
+                    android:paddingEnd="16dp"
+                    android:textColor="@color/black"
+                    android:textColorHint="@color/black"
+                    android:textSize="16sp"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintHorizontal_bias="0.0"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintVertical_bias="0.0" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+        </androidx.cardview.widget.CardView>
 
         <ProgressBar
             android:id="@+id/progress_loading"
@@ -106,6 +145,20 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintVertical_bias="0.551"
+            tools:ignore="MissingConstraints" />
+
+        <TextView
+            android:id="@+id/heart_rate_value"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/device_name"
+            android:layout_marginStart="248dp"
+            android:layout_marginTop="28dp"
+            android:text="bpm"
+            android:textSize="24sp"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/cardView"
             tools:ignore="MissingConstraints" />  <!-- Secara default tersembunyi -->
     </androidx.constraintlayout.widget.ConstraintLayout>
 
