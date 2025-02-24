@@ -52,6 +52,7 @@
             android:layout_height="wrap_content"
             android:text="Lorem ipsum dolor sit amet..."
             android:textColor="@color/black"
+            android:fontFamily="@font/regular_font"
             android:textSize="14sp"
             android:maxLines="1"
             android:ellipsize="end"

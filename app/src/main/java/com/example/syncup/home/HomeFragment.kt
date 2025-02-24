@@ -90,15 +90,16 @@ class HomeFragment : Fragment() {
                 (event?.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_ENTER)) {
 
                 val searchText = searchDoctor.text.toString().trim()
-                if (searchText.isNotEmpty()) {
-                    hideKeyboard() // Sembunyikan keyboard setelah enter ditekan
-                    navigateToSearchFragment(searchText) // Navigasi ke SearchPatientFragment
-                }
+                hideKeyboard()
+
+                // Jika input kosong, tampilkan semua dokter
+                navigateToSearchFragment(searchText)
                 true
             } else {
                 false
             }
         }
+
 
     }
 
