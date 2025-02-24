@@ -57,6 +57,8 @@ class HomeFragment : Fragment() {
     private var currentLat: Double? = null
     private lateinit var searchDoctor: EditText
     private var currentLon: Double? = null
+    private var heartRateChartView: com.example.syncup.chart.HeartRateChartViewHome? = null
+
 
 
     private val serviceConnection = object : ServiceConnection {
@@ -336,6 +338,7 @@ class HomeFragment : Fragment() {
             heartRateTextView?.text = "$rate bpm"
         }
 
+        heartRateChartView = view.findViewById(R.id.heartRateChart)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireContext())
 
         val mapsTextView = view.findViewById<TextView>(R.id.maps)
@@ -377,6 +380,7 @@ class HomeFragment : Fragment() {
                     hasHandledDisconnect = true
                     Log.i(TAG, "Device disconnected, resetting UI...")
 
+
                     activity?.runOnUiThread {
                         progressBar?.visibility = View.VISIBLE
 
@@ -386,6 +390,7 @@ class HomeFragment : Fragment() {
                         view?.findViewById<TextView>(R.id.bp_value)?.text = "null"  // Tambahkan ini!
                         view?.findViewById<TextView>(R.id.indicator_value)?.text = "null"
                         view?.findViewById<TextView>(R.id.battery_value)?.text = "null"
+                        heartRateChartView?.clearChart()
 
                         Handler().postDelayed({
                             progressBar?.visibility = View.GONE
@@ -561,6 +566,8 @@ class HomeFragment : Fragment() {
                 val heartRate = intent.getIntExtra(BluetoothLeService.EXTRA_HEART_RATE, -1)
                 Log.d(TAG, "Heart rate received: $heartRate")
                 heartRateTextView?.text = "$heartRate bpm"
+
+                heartRateChartView?.addHeartRate(heartRate)
 
                 updateIndicator(heartRate)
 

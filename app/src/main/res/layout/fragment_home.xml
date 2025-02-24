@@ -86,7 +86,7 @@
             android:id="@+id/device_name"
             android:layout_width="102dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="32dp"
+            android:layout_marginTop="16dp"
             android:fontFamily="@font/bold_font"
             android:text="device"
             android:textAlignment="center"
@@ -94,7 +94,7 @@
             android:textSize="16sp"
             android:visibility="visible"
             app:layout_constraintEnd_toStartOf="@+id/battery_box"
-            app:layout_constraintHorizontal_bias="0.534"
+            app:layout_constraintHorizontal_bias="0.439"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/heartRateChart"
             tools:ignore="MissingConstraints" />
@@ -334,17 +334,16 @@
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
-        <com.example.syncup.chart.HeartRateChartView
+        <com.example.syncup.chart.HeartRateChartViewHome
             android:id="@+id/heartRateChart"
-            android:layout_width="90dp"
-            android:layout_height="80dp"
-            android:layout_marginStart="40dp"
-            android:layout_marginTop="60dp"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:layout_marginTop="48dp"
             android:background="@android:color/white"
             android:clickable="true"
             android:focusable="true"
             app:layout_constraintEnd_toStartOf="@+id/heart_rate_box"
-            app:layout_constraintHorizontal_bias="0.261"
+            app:layout_constraintHorizontal_bias="0.432"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/cardView" />
 
