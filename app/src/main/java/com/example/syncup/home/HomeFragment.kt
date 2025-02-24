@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.util.Log
 import android.view.KeyEvent
 import android.view.LayoutInflater
@@ -30,6 +31,7 @@ import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
+import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -354,10 +356,10 @@ class HomeFragment : Fragment() {
                     activity?.runOnUiThread {
                         progressBar?.visibility = View.VISIBLE
 
-                        // Set semua nilai jadi "null" dan ubah nama perangkat ke "Start Connected"
+                        // 🔹 Set semua nilai jadi "null" termasuk Blood Pressure
                         view?.findViewById<TextView>(R.id.device_name)?.text = "Start Connected"
                         view?.findViewById<TextView>(R.id.heart_rate_value)?.text = "null"
-                        view?.findViewById<TextView>(R.id.bp_value)?.text = "null"
+                        view?.findViewById<TextView>(R.id.bp_value)?.text = "null"  // Tambahkan ini!
                         view?.findViewById<TextView>(R.id.indicator_value)?.text = "null"
                         view?.findViewById<TextView>(R.id.battery_value)?.text = "null"
 
@@ -369,6 +371,7 @@ class HomeFragment : Fragment() {
             }
         }
     }
+
 
     private val deviceReconnectReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -384,6 +387,7 @@ class HomeFragment : Fragment() {
                     view?.findViewById<TextView>(R.id.indicator_value)?.visibility = View.VISIBLE
                     view?.findViewById<TextView>(R.id.battery_value)?.visibility = View.VISIBLE
 
+                    listenToBloodPressureUpdates()
                     Log.d(TAG, "Device reconnected. UI restored to normal values.")
                 }
             }
@@ -445,6 +449,50 @@ class HomeFragment : Fragment() {
         requireContext().unregisterReceiver(locationModeReceiver)
         stopLiveLocationUpdates()
     }
+
+    private fun listenToBloodPressureUpdates() {
+        val bpTextView = view?.findViewById<TextView>(R.id.bp_value)
+
+        // 🔹 Saat perangkat terkoneksi, tampilkan teks "Process"
+        bpTextView?.text = "Process"
+
+        // 🔹 Tunggu 5 menit sebelum mengambil data terbaru
+        Handler(Looper.getMainLooper()).postDelayed({
+            val firestore = FirebaseFirestore.getInstance()
+            val bpRef = firestore.collection("patient_heart_rate")
+                .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .limit(1)
+
+            bpRef.addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e(TAG, "Failed to fetch BP data: ${error.message}")
+                    activity?.runOnUiThread { bpTextView?.text = "Error" }
+                    return@addSnapshotListener
+                }
+
+                if (snapshot != null && !snapshot.isEmpty) {
+                    val latestData = snapshot.documents[0]
+
+                    // 🔹 Ambil SBP dan DBP terbaru
+                    val sbp = latestData.getDouble("systolicBP") ?: 0.0
+                    val dbp = latestData.getDouble("diastolicBP") ?: 0.0
+
+                    Log.d(TAG, "BP Data Live Update: SBP = $sbp, DBP = $dbp")
+
+                    // 🔹 Update tampilan UI langsung saat data berubah
+                    activity?.runOnUiThread {
+                        bpTextView?.text = "$sbp / $dbp"
+                    }
+                } else {
+                    Log.e(TAG, "No BP data found!")
+                    activity?.runOnUiThread { bpTextView?.text = "No Data" }
+                }
+            }
+        }, 300000) // 🔹 Delay 5 menit (300.000 ms)
+    }
+
+
+
 
     override fun onDestroyView() {
         super.onDestroyView()
