@@ -30,6 +30,9 @@ import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 class HomeFragment : Fragment() {
 
@@ -138,7 +141,7 @@ class HomeFragment : Fragment() {
 
                     activity?.runOnUiThread {
                         view?.findViewById<TextView>(R.id.device_name)?.text =
-                            "$deviceName ($deviceAddress)"
+                            "$deviceName"
                     }
 
                     if (!deviceAddress.isNullOrEmpty() && deviceAddress != "Unknown Address") {
@@ -306,6 +309,13 @@ class HomeFragment : Fragment() {
                 Log.e(TAG, "Coordinates are null. Cannot open maps.")
             }
         }
+
+        val dayTextView = view.findViewById<TextView>(R.id.day)
+        val currentDate = Calendar.getInstance().time
+        val dateFormat = SimpleDateFormat("dd-MMM-yyyy", Locale.getDefault())
+        val formattedDate = dateFormat.format(currentDate)
+
+        dayTextView.text = "This Day, $formattedDate"
 
         checkLocationPermissionAndUpdateMaps()
     }
