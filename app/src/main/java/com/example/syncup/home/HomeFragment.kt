@@ -8,10 +8,12 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
 import android.util.Log
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.ProgressBar
@@ -21,6 +23,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import com.example.syncup.R
 import com.example.syncup.ble.BluetoothLeService
+import com.example.syncup.search.SearchPatientFragment
 import com.example.syncup.viewmodel.HeartRateViewModel
 import com.example.syncup.welcome.WelcomeActivity
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -82,11 +85,21 @@ class HomeFragment : Fragment() {
         }
 
         // Tambahkan listener agar keyboard turun saat EditText kehilangan fokus
-        searchDoctor.setOnFocusChangeListener { _, hasFocus ->
-            if (!hasFocus) {
-                hideKeyboard()
+        searchDoctor.setOnEditorActionListener { _, actionId, event ->
+            if (actionId == EditorInfo.IME_ACTION_SEARCH ||
+                (event?.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_ENTER)) {
+
+                val searchText = searchDoctor.text.toString().trim()
+                if (searchText.isNotEmpty()) {
+                    hideKeyboard() // Sembunyikan keyboard setelah enter ditekan
+                    navigateToSearchFragment(searchText) // Navigasi ke SearchPatientFragment
+                }
+                true
+            } else {
+                false
             }
         }
+
     }
 
     private fun hideKeyboard() {
@@ -100,6 +113,15 @@ class HomeFragment : Fragment() {
         progressBar = view.findViewById(R.id.progress_loading)
 
         searchDoctor = view.findViewById(R.id.search_doctor)
+
+        searchDoctor.setOnEditorActionListener { _, _, _ ->
+            val searchText = searchDoctor.text.toString().trim()
+            if (searchText.isNotEmpty()) {
+                navigateToSearchFragment(searchText)
+            }
+            true
+        }
+
 
         // Panggil fungsi untuk menutup keyboard saat klik di luar EditText
         setupUI(view)
@@ -146,6 +168,20 @@ class HomeFragment : Fragment() {
 
         return view
     }
+
+    private fun navigateToSearchFragment(query: String) {
+        val bundle = Bundle().apply {
+            putString("searchQuery", query) // Kirim keyword ke fragment tujuan
+        }
+        val fragment = SearchPatientFragment()
+        fragment.arguments = bundle
+
+        requireActivity().supportFragmentManager.beginTransaction()
+            .replace(R.id.frame, fragment) // Pastikan ID sesuai dengan container yang digunakan
+            .addToBackStack(null) // Tambahkan ke backstack agar bisa kembali ke Home
+            .commit()
+    }
+
     private fun startLiveLocationUpdates() {
         val mapsTextView = view?.findViewById<TextView>(R.id.maps)
 

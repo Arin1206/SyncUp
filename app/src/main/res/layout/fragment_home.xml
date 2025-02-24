@@ -116,9 +116,10 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:fontFamily="@font/bold_font"
-
+                    android:imeOptions="actionSearch"
                     android:hint="Search your doctor"
                     android:paddingStart="48dp"
+                    android:inputType="text"
                     android:background="@android:color/transparent"
                     android:paddingEnd="16dp"
                     android:textColor="@color/black"

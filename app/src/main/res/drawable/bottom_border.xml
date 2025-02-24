@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+
+    <!-- Background putih -->
+    <solid android:color="@color/white"/>
+
+    <!-- Border hanya di bagian bawah -->
+    <stroke android:width="2dp" android:color="@color/purple_dark"/>
+
+    <!-- Pastikan hanya bawah yang punya border -->
+    <padding android:bottom="2dp"/>
+</shape>

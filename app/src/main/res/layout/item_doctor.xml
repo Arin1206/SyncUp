@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:cardCornerRadius="0dp"
+    app:cardElevation="0dp"
+  >
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/white"
+        android:padding="5dp">
+
+        <!-- Foto Dokter -->
+        <ImageView
+            android:id="@+id/doctor_image"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/sample_doctor"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintVertical_bias="0.5"
+            android:scaleType="centerCrop"
+            android:background="@drawable/circle_background"/>
+
+        <!-- Nama Dokter -->
+        <TextView
+            android:id="@+id/doctor_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Dr. Yanuar"
+            android:textColor="@color/purple_dark"
+            android:textSize="16sp"
+            android:fontFamily="@font/bold_font"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toEndOf="@id/doctor_image"
+            android:layout_marginStart="12dp"/>
+
+        <!-- Deskripsi Dokter -->
+
+        <!-- Icon Chat -->
+
+        <!-- Tombol Request -->
+
+        <TextView
+            android:id="@+id/doctor_description"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Lorem ipsum dolor sit amet..."
+            android:textColor="@color/black"
+            android:textSize="14sp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            app:layout_constraintEnd_toStartOf="@+id/request_button"
+            app:layout_constraintStart_toStartOf="@id/doctor_name"
+            app:layout_constraintTop_toBottomOf="@id/doctor_name" />
+
+
+        <ImageView
+            android:id="@+id/chat_icon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginTop="4dp"
+
+
+            android:layout_marginEnd="8dp"
+            android:src="@drawable/_p"
+            app:layout_constraintBottom_toTopOf="@+id/request_button"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.986"
+            app:layout_constraintStart_toEndOf="@+id/doctor_name"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_bias="0.0" />
+
+        <TextView
+            android:id="@+id/request_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="4dp"
+            android:background="@drawable/button_background"
+            android:fontFamily="@font/regular_font"
+            android:paddingHorizontal="5dp"
+            android:text="Request"
+            android:textColor="@color/black"
+            android:textSize="8sp"
+            app:layout_constraintBottom_toBottomOf="@id/doctor_description"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@id/doctor_name"
+            app:layout_constraintVertical_bias="1.0" />
+
+        <View
+            android:id="@+id/bottom_border"
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="4dp"
+            android:background="@color/purple_light"
+            app:layout_constraintTop_toBottomOf="@+id/doctor_description"
+            tools:layout_editor_absoluteX="0dp" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.cardview.widget.CardView>
