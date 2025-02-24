@@ -101,6 +101,11 @@ class BluetoothLeService : Service() {
         }
 
 
+        private fun broadcastBatteryUpdate(battery: Int) {
+            val intent = Intent(ACTION_BATTERY_LEVEL_MEASUREMENT)
+            intent.putExtra(EXTRA_BATTERY_LEVEL, battery)
+            sendBroadcast(intent)
+        }
 
 
         @SuppressLint("MissingPermission")
@@ -151,7 +156,7 @@ class BluetoothLeService : Service() {
                     batteryLevel = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 0) ?:
                             characteristic.value?.get(0)?.toInt() ?: -1
                     Log.i(TAG, "Battery level received via READ: $batteryLevel%")
-
+                    broadcastBatteryUpdate(batteryLevel)
                 }
             } else {
                 Log.e(TAG, "Failed to read Battery Level characteristic. Status: $status")
@@ -222,7 +227,7 @@ class BluetoothLeService : Service() {
 
                 batteryLevel = tempBatteryLevel
                 Log.i(TAG, "Battery level updated via NOTIFY: $batteryLevel%")
-
+                broadcastBatteryUpdate(batteryLevel)
                 if (batteryLevel in 0..100) {
                     saveToFirestore(lastHeartRate, previousSBP, previousDBP, batteryLevel, System.currentTimeMillis())
                 } else {
@@ -443,6 +448,9 @@ class BluetoothLeService : Service() {
         private const val CLIENT_CHARACTERISTIC_CONFIG = "00002902-0000-1000-8000-00805f9b34fb"
 
         private const val BATTERY_SERVICE_UUID = "0000180f-0000-1000-8000-00805f9b34fb"
+
+        const val ACTION_BATTERY_LEVEL_MEASUREMENT = "com.example.syncup.ACTION_BATTERY_LEVEL_MEASUREMENT"
+        const val EXTRA_BATTERY_LEVEL = "com.example.syncup.EXTRA_BATTERY_LEVEL"
 
         // ✅ UUID untuk Battery Level Characteristic
         private const val BATTERY_CHARACTERISTIC_UUID = "00002a19-0000-1000-8000-00805f9b34fb"

@@ -395,11 +395,23 @@ class HomeFragment : Fragment() {
     }
 
 
+    private val batteryReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == BluetoothLeService.ACTION_BATTERY_LEVEL_MEASUREMENT) {
+                val battery = intent.getIntExtra(BluetoothLeService.EXTRA_BATTERY_LEVEL, -1)
+                Log.d(TAG, "Battery level received: $battery")
+                view?.findViewById<TextView>(R.id.battery_value)?.text = "$battery%"
+            }
+        }
+    }
 
 
 
     override fun onResume() {
         super.onResume()
+
+        val batteryFilter = IntentFilter(BluetoothLeService.ACTION_BATTERY_LEVEL_MEASUREMENT)
+        requireContext().registerReceiver(batteryReceiver, batteryFilter)
 
         if (!hasHandledDisconnect) {
             progressBar?.visibility = View.VISIBLE
@@ -444,6 +456,7 @@ class HomeFragment : Fragment() {
     override fun onPause() {
         super.onPause()
 
+        requireContext().unregisterReceiver(batteryReceiver)
         requireContext().unregisterReceiver(deviceDisconnectReceiver)
         requireContext().unregisterReceiver(deviceReconnectReceiver)
         requireContext().unregisterReceiver(locationModeReceiver)
@@ -453,11 +466,17 @@ class HomeFragment : Fragment() {
     private fun listenToBloodPressureUpdates() {
         val bpTextView = view?.findViewById<TextView>(R.id.bp_value)
 
-        // 🔹 Saat perangkat terkoneksi, tampilkan teks "Process"
+        // Tampilkan teks "Process" saat perangkat terkoneksi
         bpTextView?.text = "Process"
 
-        // 🔹 Tunggu 5 menit sebelum mengambil data terbaru
+        // Tunggu 5 menit sebelum mengambil data terbaru
         Handler(Looper.getMainLooper()).postDelayed({
+            // Jika perangkat sudah disconnect, jangan lakukan fetch data
+            if (isDeviceDisconnected) {
+                Log.d(TAG, "Perangkat terputus; lewati pengambilan data BP.")
+                return@postDelayed
+            }
+
             val firestore = FirebaseFirestore.getInstance()
             val bpRef = firestore.collection("patient_heart_rate")
                 .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
@@ -465,31 +484,28 @@ class HomeFragment : Fragment() {
 
             bpRef.addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    Log.e(TAG, "Failed to fetch BP data: ${error.message}")
+                    Log.e(TAG, "Gagal mengambil data BP: ${error.message}")
                     activity?.runOnUiThread { bpTextView?.text = "Error" }
                     return@addSnapshotListener
                 }
 
                 if (snapshot != null && !snapshot.isEmpty) {
                     val latestData = snapshot.documents[0]
-
-                    // 🔹 Ambil SBP dan DBP terbaru
                     val sbp = latestData.getDouble("systolicBP") ?: 0.0
                     val dbp = latestData.getDouble("diastolicBP") ?: 0.0
-
                     Log.d(TAG, "BP Data Live Update: SBP = $sbp, DBP = $dbp")
 
-                    // 🔹 Update tampilan UI langsung saat data berubah
                     activity?.runOnUiThread {
                         bpTextView?.text = "$sbp / $dbp"
                     }
                 } else {
-                    Log.e(TAG, "No BP data found!")
+                    Log.e(TAG, "Data BP tidak ditemukan!")
                     activity?.runOnUiThread { bpTextView?.text = "No Data" }
                 }
             }
-        }, 300000) // 🔹 Delay 5 menit (300.000 ms)
+        }, 300000) // Delay 5 menit (300.000 ms)
     }
+
 
 
 
