@@ -14,6 +14,7 @@ object BloodPressureRepository {
 
     val bloodPressureLiveData: LiveData<BloodPressure> get() = _bloodPressureLiveData
 
+
     private val firestore = FirebaseFirestore.getInstance()
     private val bpCollection = firestore.collection("patient_heart_rate")
 
@@ -32,12 +33,15 @@ object BloodPressureRepository {
 
     private fun fetchLatestBloodPressure() {
         val currentTime = System.currentTimeMillis()
-        if (cachedBloodPressure != null && (currentTime - lastUpdatedTime) < 300000) { // 300000 ms = 5 menit
+
+        // **Jika cache masih valid (kurang dari 5 menit), gunakan langsung**
+        if (cachedBloodPressure != null && (currentTime - lastUpdatedTime) < 300000) {
             Log.d("BloodPressureRepository", "🟢 Menggunakan cached BP: ${cachedBloodPressure}")
             _bloodPressureLiveData.postValue(cachedBloodPressure)
             return
         }
 
+        // **Jika cache tidak valid, ambil data terbaru dari Firestore**
         bpCollection.orderBy("timestamp", Query.Direction.DESCENDING)
             .limit(5)
             .get()
@@ -46,14 +50,19 @@ object BloodPressureRepository {
                     for (data in snapshot.documents) {
                         val hr = data.getDouble("heartRate")?.roundToInt() ?: 0
                         if (hr > 0) {
-                            val sbp = data.getDouble("systolicBP")?.roundToInt() ?: -1
-                            val dbp = data.getDouble("diastolicBP")?.roundToInt() ?: -1
-                            val newBP = BloodPressure(sbp, dbp)
+                            val sbp = data.get("systolicBP")?.toString()?.toDoubleOrNull()?.roundToInt() ?: -1
+                            val dbp = data.get("diastolicBP")?.toString()?.toDoubleOrNull()?.roundToInt() ?: -1
 
-                            cachedBloodPressure = newBP
-                            lastUpdatedTime = System.currentTimeMillis()
-                            Log.d("BloodPressureRepository", "🔥 BP Terbaru: $newBP")
-                            _bloodPressureLiveData.postValue(newBP)
+                            if (sbp > 0 && dbp > 0) {
+                                val newBP = BloodPressure(sbp, dbp)
+                                cachedBloodPressure = newBP
+                                lastUpdatedTime = System.currentTimeMillis()
+                                Log.d("BloodPressureRepository", "🔥 BP Terbaru: $newBP")
+                                _bloodPressureLiveData.postValue(newBP)
+                            } else {
+                                Log.e("BloodPressureRepository", "❌ Data BP tidak valid")
+                                _bloodPressureLiveData.postValue(BloodPressure(-1, -1))
+                            }
                             return@addOnSuccessListener
                         }
                     }
@@ -64,6 +73,7 @@ object BloodPressureRepository {
                 Log.e("BloodPressureRepository", "🔥 Gagal polling data BP: ${error.message}")
             }
     }
+
 
     fun startPolling() {
         Log.d("BloodPressureRepository", "▶ Memulai polling BP...")

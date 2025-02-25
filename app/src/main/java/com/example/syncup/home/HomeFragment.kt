@@ -351,6 +351,11 @@ class HomeFragment : Fragment() {
             }
         }
 
+        // **Pastikan LiveData dari Repository diobservasi**
+        BloodPressureRepository.bloodPressureLiveData.observe(viewLifecycleOwner) { bp ->
+            homeViewModel.setBloodPressure(bp)
+        }
+
 
         heartRateViewModel = ViewModelProvider(requireActivity()).get(HeartRateViewModel::class.java)
         heartRateViewModel.heartRate.observe(viewLifecycleOwner) { rate ->
@@ -464,11 +469,15 @@ class HomeFragment : Fragment() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == BluetoothLeService.ACTION_BATTERY_LEVEL_MEASUREMENT) {
                 val battery = intent.getIntExtra(BluetoothLeService.EXTRA_BATTERY_LEVEL, -1)
-                Log.d(TAG, "Battery level received: $battery")
-                view?.findViewById<TextView>(R.id.battery_value)?.text = "$battery%"
+                Log.d(TAG, "🔋 Battery level received in HomeFragment: $battery%")
+
+                activity?.runOnUiThread {
+                    view?.findViewById<TextView>(R.id.battery_value)?.text = "$battery%"
+                }
             }
         }
     }
+
 
 
 
@@ -477,6 +486,7 @@ class HomeFragment : Fragment() {
 
         val batteryFilter = IntentFilter(BluetoothLeService.ACTION_BATTERY_LEVEL_MEASUREMENT)
         requireContext().registerReceiver(batteryReceiver, batteryFilter)
+        Log.d(TAG, "🔄 Battery receiver registered")
 
         if (!hasHandledDisconnect) {
             progressBar?.visibility = View.VISIBLE
@@ -491,6 +501,13 @@ class HomeFragment : Fragment() {
                     view?.findViewById<TextView>(R.id.bp_value)?.visibility = View.VISIBLE
                     view?.findViewById<TextView>(R.id.indicator_value)?.visibility = View.VISIBLE
                     view?.findViewById<TextView>(R.id.battery_value)?.visibility = View.VISIBLE
+
+                    // **Pastikan polling BP dimulai ulang jika perlu**
+                    if (!BloodPressureRepository.bloodPressureLiveData.hasActiveObservers()) {
+                        Log.d(TAG, "🔄 Restarting BP polling...")
+                        BloodPressureRepository.startPolling()
+                    }
+
                 } else {
                     Log.d(TAG, "Device is disconnected, setting values to 'null'.")
                     progressBar?.visibility = View.GONE
@@ -504,7 +521,6 @@ class HomeFragment : Fragment() {
         }
 
         requireContext().registerReceiver(locationModeReceiver, IntentFilter(android.location.LocationManager.PROVIDERS_CHANGED_ACTION))
-
         checkLocationPermissionAndUpdateMaps()
 
         val filter = IntentFilter().apply {
@@ -515,18 +531,40 @@ class HomeFragment : Fragment() {
         requireContext().registerReceiver(deviceReconnectReceiver, filter)
     }
 
-
-
-
     override fun onPause() {
         super.onPause()
 
-        requireContext().unregisterReceiver(batteryReceiver)
-        requireContext().unregisterReceiver(deviceDisconnectReceiver)
-        requireContext().unregisterReceiver(deviceReconnectReceiver)
-        requireContext().unregisterReceiver(locationModeReceiver)
+        try {
+            requireContext().unregisterReceiver(batteryReceiver)
+            Log.d(TAG, "🔄 Battery receiver unregistered")
+        } catch (e: IllegalArgumentException) {
+            Log.w(TAG, "⚠ Battery receiver was not registered, skipping...")
+        }
+
+        try {
+            requireContext().unregisterReceiver(deviceDisconnectReceiver)
+            Log.d(TAG, "🔄 Device Disconnect receiver unregistered")
+        } catch (e: IllegalArgumentException) {
+            Log.w(TAG, "⚠ Device Disconnect receiver was not registered, skipping...")
+        }
+
+        try {
+            requireContext().unregisterReceiver(deviceReconnectReceiver)
+            Log.d(TAG, "🔄 Device Reconnect receiver unregistered")
+        } catch (e: IllegalArgumentException) {
+            Log.w(TAG, "⚠ Device Reconnect receiver was not registered, skipping...")
+        }
+
+        try {
+            requireContext().unregisterReceiver(locationModeReceiver)
+            Log.d(TAG, "🔄 Location Mode receiver unregistered")
+        } catch (e: IllegalArgumentException) {
+            Log.w(TAG, "⚠ Location Mode receiver was not registered, skipping...")
+        }
+
         stopLiveLocationUpdates()
     }
+
 
 
     override fun onDestroyView() {
