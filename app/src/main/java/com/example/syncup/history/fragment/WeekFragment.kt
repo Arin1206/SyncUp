@@ -9,6 +9,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import android.widget.Toast
+import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.constraintlayout.widget.ConstraintSet
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.syncup.R
@@ -47,6 +49,21 @@ class WeekFragment : Fragment() {
         healthDataAdapter = WeekHealthAdapter(emptyList())
         recyclerView.adapter = healthDataAdapter
 
+        // Pindahkan Scroll Listener ke sini setelah inisialisasi RecyclerView
+        recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+
+                val layoutManager = recyclerView.layoutManager as LinearLayoutManager
+                val totalItems = layoutManager.itemCount
+                val visibleItems = layoutManager.findLastVisibleItemPosition()
+
+                if (visibleItems >= totalItems / 2) {
+                    recyclerView.smoothScrollToPosition(0)
+                }
+            }
+        })
+
         fetchHealthData()
 
         return view
@@ -68,6 +85,8 @@ class WeekFragment : Fragment() {
 
                 for (doc in documents) {
                     val heartRate = doc.getLong("heartRate")?.toInt() ?: 0
+                    if (heartRate == 0) continue  // 🚀 Skip jika heart rate = 0
+
                     val systolicBP = doc.getDouble("systolicBP")?.toInt() ?: 0
                     val diastolicBP = doc.getDouble("diastolicBP")?.toInt() ?: 0
                     val batteryLevel = doc.getLong("batteryLevel")?.toInt() ?: 0
@@ -90,8 +109,23 @@ class WeekFragment : Fragment() {
                 val groupedItems = mutableListOf<WeekHealthItem>()
 
                 for ((week, dataList) in sortedWeeks) {
+                    // **Hitung rata-rata untuk week ini**
+                    val avgHeartRate = dataList.map { it.heartRate }.average().toInt()
+                    val avgSystolicBP = dataList.map { it.bloodPressure.split("/")[0].toInt() }.average().toInt()
+                    val avgDiastolicBP = dataList.map { it.bloodPressure.split("/")[1].toInt() }.average().toInt()
+                    val avgBatteryLevel = dataList.map { it.batteryLevel }.average().toInt()
+
+                    // **Simpan hanya 1 list per week dengan rata-rata**
+                    val avgHealthData = HealthData(
+                        heartRate = avgHeartRate,
+                        bloodPressure = "$avgSystolicBP/$avgDiastolicBP",
+                        batteryLevel = avgBatteryLevel,
+                        timestamp = week,
+                        fullTimestamp = week
+                    )
+
                     groupedItems.add(WeekHealthItem.WeekHeader(week))
-                    groupedItems.addAll(dataList.map { WeekHealthItem.DataItem(it) })
+                    groupedItems.add(WeekHealthItem.DataItem(avgHealthData))
                 }
 
                 // **Menghitung rata-rata untuk minggu ini**
@@ -104,28 +138,66 @@ class WeekFragment : Fragment() {
                     val avgDiastolicBP = currentWeekData.map { it.bloodPressure.split("/")[1].toInt() }.average().toInt()
                     val avgBatteryLevel = currentWeekData.map { it.batteryLevel }.average().toInt()
 
-                    avgHeartRateTextView.text = "$avgHeartRate BPM"
+                    avgHeartRateTextView.text = "$avgHeartRate"
                     avgBloodPressureTextView.text = "$avgSystolicBP/$avgDiastolicBP"
                     avgBatteryTextView.text = "$avgBatteryLevel%"
                 }
 
                 healthDataAdapter.updateData(groupedItems)
+
+                // 🔹 Update tinggi RecyclerView
+                updateRecyclerViewHeight()
             }
     }
 
+    private fun updateRecyclerViewHeight() {
+        recyclerView.post {
+            val constraintLayout = view?.findViewById<ConstraintLayout>(R.id.main) ?: return@post
+            val constraintSet = ConstraintSet()
+            constraintSet.clone(constraintLayout)
+
+            if (healthDataAdapter.itemCount > 0) {
+                // Jika ada data, atur tinggi WRAP_CONTENT agar menyesuaikan isi
+                constraintSet.constrainHeight(R.id.recycler_view_health, ConstraintLayout.LayoutParams.WRAP_CONTENT)
+            } else {
+                // Jika tidak ada data, biarkan tingginya menyesuaikan dengan parent (agar tidak kosong)
+                constraintSet.constrainHeight(R.id.recycler_view_health, 0)
+            }
+
+            constraintSet.applyTo(constraintLayout)
+        }
+    }
     private fun getWeekOfMonth(timestamp: String): String {
         val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         val date = inputFormat.parse(timestamp) ?: return "Unknown Week"
         val calendar = Calendar.getInstance().apply { time = date }
+
         val weekOfMonth = calendar.get(Calendar.WEEK_OF_MONTH)
-        val month = SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(date)
-        return "Week $weekOfMonth ($month)"
+        val monthYear = SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(date)
+
+        // Tentukan awal dan akhir minggu
+        calendar.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+        val startDate = SimpleDateFormat("dd MMM", Locale.getDefault()).format(calendar.time)
+
+        calendar.add(Calendar.DAY_OF_WEEK, 6)
+        val endDate = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(calendar.time)
+
+        return "Week $weekOfMonth ($startDate - $endDate)"
     }
 
     private fun getCurrentWeek(): String {
         val calendar = Calendar.getInstance()
         val weekOfMonth = calendar.get(Calendar.WEEK_OF_MONTH)
-        val month = SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(calendar.time)
-        return "Week $weekOfMonth ($month)"
+        val monthYear = SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(calendar.time)
+
+        // Tentukan awal dan akhir minggu
+        calendar.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+        val startDate = SimpleDateFormat("dd MMM", Locale.getDefault()).format(calendar.time)
+
+        calendar.add(Calendar.DAY_OF_WEEK, 6)
+        val endDate = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(calendar.time)
+
+        return "Week $weekOfMonth ($startDate - $endDate)"
     }
+
 }
