@@ -26,9 +26,9 @@ class HistoryPatientFragment : Fragment() {
 
         val tabLayout = view.findViewById<TabLayout>(R.id.tabLayout)
         val viewPager = view.findViewById<ViewPager2>(R.id.viewPager)
-        val btnScrollUp = view.findViewById<ImageView>(R.id.btnScrollUp)
-
-        val scrollView = view.findViewById<ScrollView>(R.id.scroll_container)
+//        val btnScrollUp = view.findViewById<ImageView>(R.id.btnScrollUp)
+//
+//        val scrollView = view.findViewById<ScrollView>(R.id.scroll_container)
         val adapter = HistoryPagerAdapter(this)
         viewPager.adapter = adapter
 
@@ -40,22 +40,22 @@ class HistoryPatientFragment : Fragment() {
             getString(R.string.tab_year)
         )
 
-        scrollView?.viewTreeObserver?.addOnScrollChangedListener {
-            if (scrollView != null) { // Hindari NullPointerException
-                val scrollY = scrollView.scrollY
-                if (scrollY > 300) {
-                    if (!btnScrollUp.isVisible) btnScrollUp.animate().alpha(1f).setDuration(300).withStartAction { btnScrollUp.isVisible = true }
-                } else {
-                    if (btnScrollUp.isVisible) btnScrollUp.animate().alpha(0f).setDuration(300).withEndAction { btnScrollUp.isVisible = false }
-                }
-            }
-        }
+//        scrollView?.viewTreeObserver?.addOnScrollChangedListener {
+//            if (scrollView != null) { // Hindari NullPointerException
+//                val scrollY = scrollView.scrollY
+//                if (scrollY > 300) {
+//                    if (!btnScrollUp.isVisible) btnScrollUp.animate().alpha(1f).setDuration(300).withStartAction { btnScrollUp.isVisible = true }
+//                } else {
+//                    if (btnScrollUp.isVisible) btnScrollUp.animate().alpha(0f).setDuration(300).withEndAction { btnScrollUp.isVisible = false }
+//                }
+//            }
+//        }
 
 
-        // Mengatur klik pada tombol panah ke atas
-        btnScrollUp.setOnClickListener {
-            scrollView.smoothScrollTo(0, 0)
-        }
+//        // Mengatur klik pada tombol panah ke atas
+//        btnScrollUp.setOnClickListener {
+//            scrollView.smoothScrollTo(0, 0)
+//        }
 
         // Sambungkan TabLayout dengan ViewPager2
         TabLayoutMediator(tabLayout, viewPager) { tab, position ->

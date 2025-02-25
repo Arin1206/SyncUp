@@ -7,6 +7,7 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -26,6 +27,7 @@ class DateFragment : Fragment() {
     private lateinit var avgHeartRateTextView: TextView
     private lateinit var avgBloodPressureTextView: TextView
     private lateinit var avgBatteryTextView: TextView
+    private lateinit var btnScrollUp: ImageView
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var healthDataAdapter: HealthAdapter
@@ -37,21 +39,59 @@ class DateFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View? {
         val view = inflater.inflate(R.layout.fragment_date, container, false)
+
+        btnScrollUp = view.findViewById(R.id.btnScrollUp)
+        btnScrollUp.setOnClickListener {
+            recyclerView.smoothScrollToPosition(0) // Scroll ke atas saat tombol diklik
+        }
+
+
         avgHeartRateTextView = view.findViewById(R.id.avg_heartrate)
         avgBloodPressureTextView = view.findViewById(R.id.avg_bloodpressure)
         avgBatteryTextView = view.findViewById(R.id.textView13)
 
         recyclerView = view.findViewById(R.id.recycler_view_health)
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
-        heartRateChart = view.findViewById(R.id.heartRateChart)
 
+        heartRateChart = view.findViewById(R.id.heartRateChart)
         healthDataAdapter = HealthAdapter(emptyList())
         recyclerView.adapter = healthDataAdapter
+
+        // **Tambahkan Scroll Listener**
+        setupScrollListener()
 
         fetchHealthData()
 
         return view
     }
+
+    private fun setupScrollListener() {
+        recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+
+                val layoutManager = recyclerView.layoutManager as LinearLayoutManager
+                val totalItems = layoutManager.itemCount
+                val visibleItems = layoutManager.findLastVisibleItemPosition()
+
+                // **Jika sudah mencapai setengah daftar, tampilkan tombol**
+                if (visibleItems >= totalItems / 2) {
+                    if (btnScrollUp.visibility == View.GONE) {
+                        btnScrollUp.visibility = View.VISIBLE
+                        btnScrollUp.animate().alpha(1f).setDuration(300)
+                    }
+                } else {
+                    if (btnScrollUp.visibility == View.VISIBLE) {
+                        btnScrollUp.animate().alpha(0f).setDuration(300).withEndAction {
+                            btnScrollUp.visibility = View.GONE
+                        }
+                    }
+                }
+            }
+        })
+    }
+
+
 
     private fun fetchHealthData() {
         val currentUser = auth.currentUser
