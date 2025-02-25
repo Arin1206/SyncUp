@@ -105,11 +105,12 @@ class WeekFragment : Fragment() {
                     weekMap.getOrPut(weekNumber) { mutableListOf() }.add(healthData)
                 }
 
-                val sortedWeeks = weekMap.toSortedMap()
+                // **Urutkan minggu dari terbaru ke terlama**
+                val sortedWeeks = weekMap.toSortedMap(compareByDescending { it })
                 val groupedItems = mutableListOf<WeekHealthItem>()
 
                 for ((week, dataList) in sortedWeeks) {
-                    // **Hitung rata-rata untuk week ini**
+                    // **Hitung rata-rata untuk setiap minggu**
                     val avgHeartRate = dataList.map { it.heartRate }.average().toInt()
                     val avgSystolicBP = dataList.map { it.bloodPressure.split("/")[0].toInt() }.average().toInt()
                     val avgDiastolicBP = dataList.map { it.bloodPressure.split("/")[1].toInt() }.average().toInt()
@@ -128,15 +129,15 @@ class WeekFragment : Fragment() {
                     groupedItems.add(WeekHealthItem.DataItem(avgHealthData))
                 }
 
-                // **Menghitung rata-rata untuk minggu ini**
-                val currentWeek = getCurrentWeek()
-                val currentWeekData = weekMap[currentWeek] ?: emptyList()
+                // **Ambil data dari minggu terbaru**
+                val latestWeek = sortedWeeks.keys.firstOrNull()
+                val latestWeekData = weekMap[latestWeek] ?: emptyList()
 
-                if (currentWeekData.isNotEmpty()) {
-                    val avgHeartRate = currentWeekData.map { it.heartRate }.average().toInt()
-                    val avgSystolicBP = currentWeekData.map { it.bloodPressure.split("/")[0].toInt() }.average().toInt()
-                    val avgDiastolicBP = currentWeekData.map { it.bloodPressure.split("/")[1].toInt() }.average().toInt()
-                    val avgBatteryLevel = currentWeekData.map { it.batteryLevel }.average().toInt()
+                if (latestWeekData.isNotEmpty()) {
+                    val avgHeartRate = latestWeekData.map { it.heartRate }.average().toInt()
+                    val avgSystolicBP = latestWeekData.map { it.bloodPressure.split("/")[0].toInt() }.average().toInt()
+                    val avgDiastolicBP = latestWeekData.map { it.bloodPressure.split("/")[1].toInt() }.average().toInt()
+                    val avgBatteryLevel = latestWeekData.map { it.batteryLevel }.average().toInt()
 
                     avgHeartRateTextView.text = "$avgHeartRate"
                     avgBloodPressureTextView.text = "$avgSystolicBP/$avgDiastolicBP"
