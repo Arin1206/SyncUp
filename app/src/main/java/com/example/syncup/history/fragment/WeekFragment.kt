@@ -79,8 +79,14 @@ class WeekFragment : Fragment() {
         val userId = currentUser.uid
         firestore.collection("patient_heart_rate")
             .whereEqualTo("userId", userId)
-            .get()
-            .addOnSuccessListener { documents ->
+            .addSnapshotListener { documents, error ->
+                if (error != null) {
+                    Log.e("WeekFragment", "Error fetching health data", error)
+                    return@addSnapshotListener
+                }
+
+                if (documents == null || documents.isEmpty) return@addSnapshotListener
+
                 val weekMap = LinkedHashMap<String, MutableList<HealthData>>()
 
                 for (doc in documents) {
@@ -139,6 +145,7 @@ class WeekFragment : Fragment() {
                     val avgDiastolicBP = latestWeekData.map { it.bloodPressure.split("/")[1].toInt() }.average().toInt()
                     val avgBatteryLevel = latestWeekData.map { it.batteryLevel }.average().toInt()
 
+                    // 🔹 **Update UI secara real-time**
                     avgHeartRateTextView.text = "$avgHeartRate"
                     avgBloodPressureTextView.text = "$avgSystolicBP/$avgDiastolicBP"
                     avgBatteryTextView.text = "$avgBatteryLevel%"
@@ -146,10 +153,11 @@ class WeekFragment : Fragment() {
 
                 healthDataAdapter.updateData(groupedItems)
 
-                // 🔹 Update tinggi RecyclerView
+                // 🔹 **Update tinggi RecyclerView**
                 updateRecyclerViewHeight()
             }
     }
+
 
     private fun updateRecyclerViewHeight() {
         recyclerView.post {
