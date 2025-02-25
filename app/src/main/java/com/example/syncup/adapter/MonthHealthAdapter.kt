@@ -1,5 +1,8 @@
 package com.example.syncup.adapter
 
+import android.graphics.Color
+import android.os.Handler
+import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -7,6 +10,8 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.example.syncup.R
 import com.example.syncup.model.MonthHealthItem
+import java.text.SimpleDateFormat
+import java.util.*
 
 class MonthHealthAdapter(private var monthData: List<MonthHealthItem>) :
     RecyclerView.Adapter<RecyclerView.ViewHolder>() {
@@ -63,11 +68,39 @@ class MonthHealthAdapter(private var monthData: List<MonthHealthItem>) :
         private val avgHeartRate: TextView = view.findViewById(R.id.tv_heart_rate)
         private val avgBloodPressure: TextView = view.findViewById(R.id.tv_blood_pressure)
         private val avgBattery: TextView = view.findViewById(R.id.tv_battery)
+        private val indicatorStatus: View = view.findViewById(R.id.indicator_status)
+        private val tvTime: TextView = view.findViewById(R.id.tv_time)
+
+        private val handler = Handler(Looper.getMainLooper()) // **Handler untuk update waktu live**
+        private val timeUpdateRunnable = object : Runnable {
+            override fun run() {
+                tvTime.text = getCurrentTime() // **Perbarui waktu setiap detik**
+                handler.postDelayed(this, 1000) // **Jalankan ulang setiap 1 detik**
+            }
+        }
 
         fun bind(item: MonthHealthItem.MonthData) {
             avgHeartRate.text = item.avgHeartRate.toString()
             avgBloodPressure.text = item.avgBloodPressure
             avgBattery.text = "${item.avgBattery}%"
+
+            // **Set indikator warna berdasarkan heart rate**
+            val statusColor = if (item.avgHeartRate in 60..100) {
+                Color.GREEN  // **Healthy**
+            } else {
+                Color.RED  // **Danger**
+            }
+            indicatorStatus.setBackgroundColor(statusColor)
+
+            // **Mulai update waktu secara live**
+            handler.removeCallbacks(timeUpdateRunnable) // **Pastikan handler tidak dobel**
+            handler.post(timeUpdateRunnable)
+        }
+
+        // **Fungsi untuk mendapatkan waktu lokal perangkat dalam format HH:MM:SS**
+        private fun getCurrentTime(): String {
+            val sdf = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+            return sdf.format(Date())
         }
     }
 }

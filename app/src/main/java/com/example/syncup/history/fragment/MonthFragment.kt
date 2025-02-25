@@ -5,6 +5,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -21,6 +22,10 @@ class MonthFragment : Fragment() {
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var healthDataAdapter: MonthHealthAdapter
+    private lateinit var avgHeartRateTextView: TextView
+    private lateinit var avgBloodPressureTextView: TextView
+    private lateinit var avgBatteryTextView: TextView
+
     private val firestore = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
 
@@ -35,6 +40,10 @@ class MonthFragment : Fragment() {
 
         healthDataAdapter = MonthHealthAdapter(emptyList())
         recyclerView.adapter = healthDataAdapter
+
+        avgHeartRateTextView = view.findViewById(R.id.avg_heartrate)
+        avgBloodPressureTextView = view.findViewById(R.id.avg_bloodpressure)
+        avgBatteryTextView = view.findViewById(R.id.textView13)
 
         fetchHealthData()
 
@@ -60,6 +69,7 @@ class MonthFragment : Fragment() {
                 if (documents == null || documents.isEmpty) {
                     Log.w("MonthFragment", "No health data found")
                     healthDataAdapter.updateData(emptyList())
+                    updateAverageUI(null, null, null) // **Reset tampilan jika tidak ada data**
                     return@addSnapshotListener
                 }
 
@@ -74,9 +84,8 @@ class MonthFragment : Fragment() {
                     val systolicBP = doc.getDouble("systolicBP")?.toInt() ?: 0
                     val diastolicBP = doc.getDouble("diastolicBP")?.toInt() ?: 0
                     val batteryLevel = doc.getLong("batteryLevel")?.toInt() ?: 0
-                    val timestamp = doc.getString("timestamp") ?: continue
 
-                    val month = extractMonth(timestamp)
+                    val month = getCurrentMonth() // **Gunakan waktu realtime perangkat**
 
                     monthMap.getOrPut(month) { mutableListOf() }.add(heartRate)
                     bpMap.getOrPut(month) { mutableListOf() }.add("$systolicBP/$diastolicBP")
@@ -85,16 +94,37 @@ class MonthFragment : Fragment() {
 
                 val monthItems = mutableListOf<MonthHealthItem>()
 
-                // **Urutkan bulan dari yang terlama ke terbaru**
-                monthMap.entries.sortedBy { parseMonth(it.key) }.forEach { (month, heartRates) ->
-                    val monthOnly = month.split(" ")[0] // **Ambil hanya bulan tanpa tahun**
-                    monthItems.add(MonthHealthItem.MonthHeader(monthOnly)) // **Tambahkan Header untuk Bulan**
+                val sortedMonths = monthMap.entries.sortedBy { parseMonth(it.key) }
 
-                    val avgHeartRate = heartRates.average().toInt()
+                sortedMonths.forEach { (month, heartRates) ->
+                    val monthOnly = month.split(" ")[0] // **Ambil hanya bulan tanpa tahun**
+                    monthItems.add(MonthHealthItem.MonthHeader(monthOnly))
+
+                    val avgHeartRate = heartRates.ifEmpty { listOf(0) }.average().toInt() // **Pastikan tidak kosong**
                     val avgBloodPressure = bpMap[month]?.groupingBy { it }?.eachCount()?.maxByOrNull { it.value }?.key ?: "N/A"
-                    val avgBattery = batteryMap[month]?.average()?.toInt() ?: 0
+                    val avgBattery = batteryMap[month]?.ifEmpty { listOf(0) }?.average()?.toInt() ?: 0
 
                     monthItems.add(MonthHealthItem.MonthData(avgHeartRate, avgBloodPressure, avgBattery))
+                }
+
+                // **Ambil bulan terbaru**
+                val latestMonth = sortedMonths.lastOrNull()
+                if (latestMonth != null) {
+                    val latestHeartRates = latestMonth.value
+                    val latestBloodPressure = bpMap[latestMonth.key]?.groupingBy { it }?.eachCount()?.maxByOrNull { it.value }?.key ?: "N/A"
+                    val latestBattery = batteryMap[latestMonth.key]?.ifEmpty { listOf(0) }?.average()?.toInt() ?: 0
+
+                    val avgLatestHeartRate = latestHeartRates.ifEmpty { listOf(0) }.average().toInt()
+
+                    Log.d("MonthFragment", "Latest Avg Heart Rate: $avgLatestHeartRate")
+                    Log.d("MonthFragment", "Latest Avg Blood Pressure: $latestBloodPressure")
+                    Log.d("MonthFragment", "Latest Avg Battery: $latestBattery")
+
+                    // **Update TextView dengan rata-rata dari bulan terbaru secara real-time**
+                    updateAverageUI(avgLatestHeartRate, latestBloodPressure, latestBattery)
+                } else {
+                    Log.w("MonthFragment", "No valid month data found")
+                    updateAverageUI(null, null, null)
                 }
 
                 // **Update RecyclerView dengan data terbaru**
@@ -102,16 +132,17 @@ class MonthFragment : Fragment() {
             }
     }
 
-    private fun extractMonth(timestamp: String): String {
-        return try {
-            val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-            val outputFormat = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
-            val date = inputFormat.parse(timestamp)
-            outputFormat.format(date ?: Date())
-        } catch (e: Exception) {
-            Log.e("DateFormatError", "Error parsing timestamp: ${e.message}")
-            "Unknown Month"
+    private fun updateAverageUI(heartRate: Int?, bloodPressure: String?, battery: Int?) {
+        requireActivity().runOnUiThread {
+            avgHeartRateTextView.text = heartRate?.toString() ?: "N/A"
+            avgBloodPressureTextView.text = bloodPressure ?: "N/A"
+            avgBatteryTextView.text = battery?.let { "$it%" } ?: "N/A"
         }
+    }
+
+    private fun getCurrentMonth(): String {
+        val outputFormat = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
+        return outputFormat.format(Date()) // **Gunakan waktu realtime perangkat**
     }
 
     private fun parseMonth(monthText: String): Date {
