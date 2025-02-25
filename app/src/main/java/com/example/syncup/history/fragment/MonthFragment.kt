@@ -12,6 +12,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.syncup.R
 import com.example.syncup.adapter.MonthHealthAdapter
+import com.example.syncup.chart.MonthChartView
 import com.example.syncup.model.MonthHealthItem
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -25,6 +26,7 @@ class MonthFragment : Fragment() {
     private lateinit var avgHeartRateTextView: TextView
     private lateinit var avgBloodPressureTextView: TextView
     private lateinit var avgBatteryTextView: TextView
+    private lateinit var monthChartView: MonthChartView  // **Tambahkan referensi chart**
 
     private val firestore = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
@@ -44,6 +46,7 @@ class MonthFragment : Fragment() {
         avgHeartRateTextView = view.findViewById(R.id.avg_heartrate)
         avgBloodPressureTextView = view.findViewById(R.id.avg_bloodpressure)
         avgBatteryTextView = view.findViewById(R.id.textView13)
+        monthChartView = view.findViewById(R.id.heartRateChart) // **Tambahkan referensi chart**
 
         fetchHealthData()
 
@@ -69,7 +72,8 @@ class MonthFragment : Fragment() {
                 if (documents == null || documents.isEmpty) {
                     Log.w("MonthFragment", "No health data found")
                     healthDataAdapter.updateData(emptyList())
-                    updateAverageUI(null, null, null) // **Reset tampilan jika tidak ada data**
+                    updateAverageUI(null, null, null)
+                    updateChartData(emptyMap()) // **Reset grafik jika tidak ada data**
                     return@addSnapshotListener
                 }
 
@@ -93,6 +97,7 @@ class MonthFragment : Fragment() {
                 }
 
                 val monthItems = mutableListOf<MonthHealthItem>()
+                val monthAverages = mutableMapOf<String, Int>() // **Data untuk chart**
 
                 val sortedMonths = monthMap.entries.sortedBy { parseMonth(it.key) }
 
@@ -100,11 +105,12 @@ class MonthFragment : Fragment() {
                     val monthOnly = month.split(" ")[0] // **Ambil hanya bulan tanpa tahun**
                     monthItems.add(MonthHealthItem.MonthHeader(monthOnly))
 
-                    val avgHeartRate = heartRates.ifEmpty { listOf(0) }.average().toInt() // **Pastikan tidak kosong**
+                    val avgHeartRate = heartRates.ifEmpty { listOf(0) }.average().toInt()
                     val avgBloodPressure = bpMap[month]?.groupingBy { it }?.eachCount()?.maxByOrNull { it.value }?.key ?: "N/A"
                     val avgBattery = batteryMap[month]?.ifEmpty { listOf(0) }?.average()?.toInt() ?: 0
 
                     monthItems.add(MonthHealthItem.MonthData(avgHeartRate, avgBloodPressure, avgBattery))
+                    monthAverages[monthOnly] = avgHeartRate // **Tambahkan ke chart**
                 }
 
                 // **Ambil bulan terbaru**
@@ -129,6 +135,7 @@ class MonthFragment : Fragment() {
 
                 // **Update RecyclerView dengan data terbaru**
                 healthDataAdapter.updateData(monthItems)
+                updateChartData(monthAverages) // **Update grafik dengan data terbaru**
             }
     }
 
@@ -137,6 +144,12 @@ class MonthFragment : Fragment() {
             avgHeartRateTextView.text = heartRate?.toString() ?: "N/A"
             avgBloodPressureTextView.text = bloodPressure ?: "N/A"
             avgBatteryTextView.text = battery?.let { "$it%" } ?: "N/A"
+        }
+    }
+
+    private fun updateChartData(monthAverages: Map<String, Int>) {
+        requireActivity().runOnUiThread {
+            monthChartView.setData(monthAverages) // **Update grafik dengan data terbaru**
         }
     }
 
