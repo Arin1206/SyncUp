@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.syncup.R
 import com.example.syncup.adapter.WeekHealthAdapter
+import com.example.syncup.chart.WeekChartView
 import com.example.syncup.model.WeekHealthItem
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -27,7 +28,7 @@ class WeekFragment : Fragment() {
     private lateinit var avgHeartRateTextView: TextView
     private lateinit var avgBloodPressureTextView: TextView
     private lateinit var avgBatteryTextView: TextView
-
+    private lateinit var weekChartView: WeekChartView
     private lateinit var recyclerView: RecyclerView
     private lateinit var healthDataAdapter: WeekHealthAdapter
     private val firestore = FirebaseFirestore.getInstance()
@@ -48,6 +49,8 @@ class WeekFragment : Fragment() {
 
         healthDataAdapter = WeekHealthAdapter(emptyList())
         recyclerView.adapter = healthDataAdapter
+
+        weekChartView = view.findViewById(R.id.heartRateChart)
 
         // Pindahkan Scroll Listener ke sini setelah inisialisasi RecyclerView
         recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
@@ -111,6 +114,14 @@ class WeekFragment : Fragment() {
                     weekMap.getOrPut(weekNumber) { mutableListOf() }.add(healthData)
                 }
 
+                val weekAverages = mutableMapOf<String, Int>()
+                for ((week, dataList) in weekMap) {
+                    val avgHeartRate = dataList.map { it.heartRate }.average().toInt()
+                    weekAverages[week] = avgHeartRate
+                }
+
+                // **Update Chart**
+                weekChartView.setData(weekAverages)
                 // **Urutkan minggu dari terbaru ke terlama**
                 val sortedWeeks = weekMap.toSortedMap(compareByDescending { it })
                 val groupedItems = mutableListOf<WeekHealthItem>()
