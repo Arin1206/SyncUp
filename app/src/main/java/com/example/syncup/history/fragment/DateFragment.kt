@@ -7,11 +7,13 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.viewpager2.widget.ViewPager2
 import com.example.syncup.R
 import com.example.syncup.chart.HeartRateChartView
 import com.example.syncup.model.HealthAdapter
@@ -206,8 +208,32 @@ class DateFragment : Fragment() {
                 }
 
                 healthDataAdapter.updateData(groupedItems)
+                updateRecyclerViewHeight()
+                updateViewPagerHeight()
             }
     }
+
+    private fun updateViewPagerHeight() {
+        view?.post {
+            val parentViewPager = requireActivity().findViewById<ViewPager2>(R.id.viewPager)
+            val bottomNav = requireActivity().findViewById<View>(R.id.bottom_navigation)
+            val scanButtonContainer = requireActivity().findViewById<FrameLayout>(R.id.scanButtonContainer)
+
+            parentViewPager?.let {
+                val layoutParams = it.layoutParams
+                val bottomNavHeight = bottomNav?.height ?: 0
+                val fabScanHeight = scanButtonContainer?.height ?: 0
+
+                // **Hanya sesuaikan tinggi tanpa menambah container utama**
+                layoutParams.height = recyclerView.measuredHeight + bottomNavHeight + (fabScanHeight / 4)
+                it.layoutParams = layoutParams
+            }
+        }
+    }
+
+
+
+
 
 
     // **Fungsi untuk mengambil hanya tanggal (misalnya "24 Jan 2025")**
@@ -235,4 +261,23 @@ class DateFragment : Fragment() {
             timestamp
         }
     }
+
+    private fun updateRecyclerViewHeight() {
+        recyclerView.post {
+            val layoutParams = recyclerView.layoutParams
+            layoutParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
+            recyclerView.layoutParams = layoutParams
+
+            // **Kurangi padding bawah agar tidak terlalu jauh dari Bottom Navigation**
+            val bottomNavHeight = requireActivity().findViewById<View>(R.id.bottom_navigation)?.height ?: 0
+            val scanButtonHeight = requireActivity().findViewById<View>(R.id.scanButtonContainer)?.height ?: 0
+
+            // **Tambahkan sedikit padding agar item terakhir tidak tertutup, tapi tidak terlalu jauh**
+            recyclerView.setPadding(0, 0, 0, bottomNavHeight + (scanButtonHeight / 3)) // Kurangi jarak tambahan
+        }
+    }
+
+
+
+
 }
