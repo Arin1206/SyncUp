@@ -1,60 +1,124 @@
 package com.example.syncup.history.fragment
 
 import android.os.Bundle
-import androidx.fragment.app.Fragment
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
+import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.example.syncup.R
+import com.example.syncup.adapter.MonthHealthAdapter
+import com.example.syncup.model.MonthHealthItem
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import java.text.SimpleDateFormat
+import java.util.*
 
-// TODO: Rename parameter arguments, choose names that match
-// the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-private const val ARG_PARAM1 = "param1"
-private const val ARG_PARAM2 = "param2"
-
-/**
- * A simple [Fragment] subclass.
- * Use the [MonthFragment.newInstance] factory method to
- * create an instance of this fragment.
- */
 class MonthFragment : Fragment() {
-    // TODO: Rename and change types of parameters
-    private var param1: String? = null
-    private var param2: String? = null
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        arguments?.let {
-            param1 = it.getString(ARG_PARAM1)
-            param2 = it.getString(ARG_PARAM2)
-        }
-    }
+    private lateinit var recyclerView: RecyclerView
+    private lateinit var healthDataAdapter: MonthHealthAdapter
+    private val firestore = FirebaseFirestore.getInstance()
+    private val auth = FirebaseAuth.getInstance()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_month, container, false)
+        val view = inflater.inflate(R.layout.fragment_month, container, false)
+
+        recyclerView = view.findViewById(R.id.recycler_view_health)
+        recyclerView.layoutManager = LinearLayoutManager(requireContext())
+
+        healthDataAdapter = MonthHealthAdapter(emptyList())
+        recyclerView.adapter = healthDataAdapter
+
+        fetchHealthData()
+
+        return view
     }
 
-    companion object {
-        /**
-         * Use this factory method to create a new instance of
-         * this fragment using the provided parameters.
-         *
-         * @param param1 Parameter 1.
-         * @param param2 Parameter 2.
-         * @return A new instance of fragment MonthFragment.
-         */
-        // TODO: Rename and change types and number of parameters
-        @JvmStatic
-        fun newInstance(param1: String, param2: String) =
-            MonthFragment().apply {
-                arguments = Bundle().apply {
-                    putString(ARG_PARAM1, param1)
-                    putString(ARG_PARAM2, param2)
+    private fun fetchHealthData() {
+        val currentUser = auth.currentUser
+        if (currentUser == null) {
+            Toast.makeText(requireContext(), "User not logged in", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val userId = currentUser.uid
+        firestore.collection("patient_heart_rate")
+            .whereEqualTo("userId", userId)
+            .addSnapshotListener { documents, error ->
+                if (error != null) {
+                    Log.e("MonthFragment", "Error fetching health data", error)
+                    return@addSnapshotListener
                 }
+
+                if (documents == null || documents.isEmpty) {
+                    Log.w("MonthFragment", "No health data found")
+                    healthDataAdapter.updateData(emptyList())
+                    return@addSnapshotListener
+                }
+
+                val monthMap = mutableMapOf<String, MutableList<Int>>()
+                val bpMap = mutableMapOf<String, MutableList<String>>()
+                val batteryMap = mutableMapOf<String, MutableList<Int>>()
+
+                for (doc in documents) {
+                    val heartRate = doc.getLong("heartRate")?.toInt() ?: continue
+                    if (heartRate == 0) continue // **Abaikan heart rate 0 saat menghitung rata-rata**
+
+                    val systolicBP = doc.getDouble("systolicBP")?.toInt() ?: 0
+                    val diastolicBP = doc.getDouble("diastolicBP")?.toInt() ?: 0
+                    val batteryLevel = doc.getLong("batteryLevel")?.toInt() ?: 0
+                    val timestamp = doc.getString("timestamp") ?: continue
+
+                    val month = extractMonth(timestamp)
+
+                    monthMap.getOrPut(month) { mutableListOf() }.add(heartRate)
+                    bpMap.getOrPut(month) { mutableListOf() }.add("$systolicBP/$diastolicBP")
+                    batteryMap.getOrPut(month) { mutableListOf() }.add(batteryLevel)
+                }
+
+                val monthItems = mutableListOf<MonthHealthItem>()
+
+                // **Urutkan bulan dari yang terlama ke terbaru**
+                monthMap.entries.sortedBy { parseMonth(it.key) }.forEach { (month, heartRates) ->
+                    val monthOnly = month.split(" ")[0] // **Ambil hanya bulan tanpa tahun**
+                    monthItems.add(MonthHealthItem.MonthHeader(monthOnly)) // **Tambahkan Header untuk Bulan**
+
+                    val avgHeartRate = heartRates.average().toInt()
+                    val avgBloodPressure = bpMap[month]?.groupingBy { it }?.eachCount()?.maxByOrNull { it.value }?.key ?: "N/A"
+                    val avgBattery = batteryMap[month]?.average()?.toInt() ?: 0
+
+                    monthItems.add(MonthHealthItem.MonthData(avgHeartRate, avgBloodPressure, avgBattery))
+                }
+
+                // **Update RecyclerView dengan data terbaru**
+                healthDataAdapter.updateData(monthItems)
             }
+    }
+
+    private fun extractMonth(timestamp: String): String {
+        return try {
+            val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            val outputFormat = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
+            val date = inputFormat.parse(timestamp)
+            outputFormat.format(date ?: Date())
+        } catch (e: Exception) {
+            Log.e("DateFormatError", "Error parsing timestamp: ${e.message}")
+            "Unknown Month"
+        }
+    }
+
+    private fun parseMonth(monthText: String): Date {
+        return try {
+            SimpleDateFormat("MMMM yyyy", Locale.ENGLISH).parse(monthText) ?: Date()
+        } catch (e: Exception) {
+            Date()
+        }
     }
 }
