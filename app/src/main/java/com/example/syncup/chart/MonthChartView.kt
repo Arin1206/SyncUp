@@ -7,6 +7,7 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.View
+import java.util.Locale
 
 class MonthChartView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null
@@ -49,7 +50,7 @@ class MonthChartView @JvmOverloads constructor(
     private var monthData: MutableMap<String, Int?> = mutableMapOf()
 
     fun setData(data: Map<String, Int>) {
-        val filteredData = data.mapKeys { extractMonthName(it.key) }
+        val filteredData = data.mapKeys { convertMonthToEnglish(it.key) }
 
         // **Pastikan ada 12 bulan dalam setahun, meskipun tidak ada data**
         val allMonths = listOf(
@@ -66,14 +67,14 @@ class MonthChartView @JvmOverloads constructor(
 
         if (monthData.isEmpty()) return
 
-        val maxHeartRate = 150f
+        val maxHeartRate = monthData.values.filterNotNull().maxOrNull()?.toFloat() ?: 150f
         val minHeartRate = 0f
         val chartWidth = width.toFloat() - 50f // **Kurangi lebar agar muat dalam 300dp**
-        val chartHeight = height.toFloat() - 30f // **Kurangi tinggi agar angka 150 terlihat**
+        val chartHeight = height.toFloat() - 20f // **Kurangi tinggi agar angka 150 terlihat**
         val axisY = chartHeight - 40f // **Naikkan sumbu X sedikit agar tidak terpotong**
 
         val barCount = 12
-        val barWidth = 14f // **Kecilkan ukuran bar**
+        val barWidth = 30f // **Kecilkan ukuran bar**
         val barSpacing = 10f // **Kurangi spasi antar bar**
 
         val totalChartWidth = (barCount * (barWidth + barSpacing))
@@ -116,21 +117,21 @@ class MonthChartView @JvmOverloads constructor(
         }
     }
 
-    private fun extractMonthName(monthText: String): String {
-        return when (monthText.split(" ")[0]) {
-            "January" -> "Jan"
-            "Februari" -> "Feb"
-            "March" -> "Mar"
-            "April" -> "Apr"
-            "May" -> "May"
-            "June" -> "Jun"
-            "July" -> "Jul"
-            "August" -> "Aug"
-            "September" -> "Sep"
-            "October" -> "Oct"
-            "November" -> "Nov"
-            "December" -> "Dec"
-            else -> monthText
+    private fun convertMonthToEnglish(month: String): String {
+        return when (month.lowercase(Locale.ENGLISH)) {
+            "januari", "january" -> "Jan"
+            "februari", "february" -> "Feb"
+            "maret", "march" -> "Mar"
+            "april" -> "Apr"
+            "mei", "may" -> "May"
+            "juni", "june" -> "Jun"
+            "juli", "july" -> "Jul"
+            "agustus", "august" -> "Aug"
+            "september" -> "Sep"
+            "oktober", "october" -> "Oct"
+            "november" -> "Nov"
+            "desember", "december" -> "Dec"
+            else -> month // **Jika sudah dalam bahasa Inggris, biarkan tetap**
         }
     }
 }

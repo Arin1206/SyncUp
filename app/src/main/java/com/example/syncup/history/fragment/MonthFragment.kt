@@ -53,6 +53,24 @@ class MonthFragment : Fragment() {
         return view
     }
 
+    private fun convertMonthToEnglish(month: String): String {
+        return when (month.lowercase(Locale.ENGLISH)) {
+            "januari", "january" -> "January"
+            "februari", "february" -> "February"
+            "maret", "march" -> "March"
+            "april" -> "April"
+            "mei", "may" -> "May"
+            "juni", "june" -> "June"
+            "juli", "july" -> "July"
+            "agustus", "august" -> "August"
+            "september" -> "September"
+            "oktober", "october" -> "October"
+            "november" -> "November"
+            "desember", "december" -> "December"
+            else -> month // **Biarkan tetap jika sudah dalam bahasa Inggris**
+        }
+    }
+
     private fun fetchHealthData() {
         val currentUser = auth.currentUser
         if (currentUser == null) {
@@ -102,8 +120,8 @@ class MonthFragment : Fragment() {
                 val sortedMonths = monthMap.entries.sortedBy { parseMonth(it.key) }
 
                 sortedMonths.forEach { (month, heartRates) ->
-                    val monthOnly = month.split(" ")[0] // **Ambil hanya bulan tanpa tahun**
-                    monthItems.add(MonthHealthItem.MonthHeader(monthOnly))
+                    val monthOnly = convertMonthToEnglish(month.split(" ")[0]) // **Konversi ke bahasa Inggris**
+                    monthItems.add(MonthHealthItem.MonthHeader(monthOnly)) // **Tambahkan Header untuk Bulan**
 
                     val avgHeartRate = heartRates.ifEmpty { listOf(0) }.average().toInt()
                     val avgBloodPressure = bpMap[month]?.groupingBy { it }?.eachCount()?.maxByOrNull { it.value }?.key ?: "N/A"
@@ -112,6 +130,7 @@ class MonthFragment : Fragment() {
                     monthItems.add(MonthHealthItem.MonthData(avgHeartRate, avgBloodPressure, avgBattery))
                     monthAverages[monthOnly] = avgHeartRate // **Tambahkan ke chart**
                 }
+
 
                 // **Ambil bulan terbaru**
                 val latestMonth = sortedMonths.lastOrNull()
@@ -154,9 +173,10 @@ class MonthFragment : Fragment() {
     }
 
     private fun getCurrentMonth(): String {
-        val outputFormat = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
+        val outputFormat = SimpleDateFormat("MMMM yyyy", Locale.ENGLISH) // **Ubah ke bahasa Inggris**
         return outputFormat.format(Date()) // **Gunakan waktu realtime perangkat**
     }
+
 
     private fun parseMonth(monthText: String): Date {
         return try {
