@@ -304,8 +304,8 @@
             android:id="@+id/indicator_box"
             android:layout_width="64dp"
             android:layout_height="60dp"
-            android:layout_marginTop="10dp"
             android:layout_marginStart="10dp"
+            android:layout_marginTop="10dp"
             android:background="@drawable/bg_purple_box"
             android:padding="5dp"
             app:layout_constraintEnd_toEndOf="parent"
@@ -346,6 +346,40 @@
             app:layout_constraintHorizontal_bias="0.432"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/cardView" />
+
+        <TextView
+            android:id="@+id/textView5"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:background="@drawable/rounded_background"
+            android:fontFamily="@font/bold_font"
+            android:paddingHorizontal="20dp"
+            android:paddingVertical="2dp"
+            android:text="Week"
+            android:textColor="@color/black"
+            android:textSize="16sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.192"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/device_name" />
+
+        <com.example.syncup.chart.MonthChartViewHome
+            android:id="@+id/heartRateChart2"
+            android:layout_width="163dp"
+            android:layout_height="101dp"
+            android:layout_marginTop="348dp"
+            android:layout_marginBottom="10dp"
+            android:background="@android:color/white"
+            android:clickable="true"
+            android:focusable="true"
+            app:layout_constraintBottom_toTopOf="@+id/textView8"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.934"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_bias="0.0" />
+
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
