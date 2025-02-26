@@ -3,15 +3,17 @@ package com.example.syncup.data
 import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
 
 object HeartRateRepository {
     private val _heartRateLiveData = MutableLiveData<Int>()
     val heartRateLiveData: LiveData<Int> get() = _heartRateLiveData
 
-    // Mengambil referensi ke node "heart_rate" lalu ke child "latest"
+    private val userId = FirebaseAuth.getInstance().currentUser?.uid ?: "unknown_user"
+
     private val heartRateDatabase: DatabaseReference =
-        FirebaseDatabase.getInstance().reference.child("heart_rate").child("latest")
+        FirebaseDatabase.getInstance().reference.child("heart_rate").child(userId).child("latest")
 
     private val heartRateListener = object : ValueEventListener {
         override fun onDataChange(snapshot: DataSnapshot) {

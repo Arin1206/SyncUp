@@ -77,14 +77,17 @@ class BluetoothLeService : Service() {
                 Log.w(TAG, "Disconnected from GATT server. Status: $status")
 
                 if (isManualDisconnect) {
-                    // ✅ Jika Disconnect Manual → Hapus data dari Firebase
-                    FirebaseDatabase.getInstance().reference.child("connected_device").removeValue()
-                        .addOnSuccessListener { Log.i(TAG, "Connected device removed from Firebase.") }
-                        .addOnFailureListener { e -> Log.e(TAG, "Failed to remove connected device: ${e.message}") }
+                    val currentUser = FirebaseAuth.getInstance().currentUser
+                    if (currentUser != null) {
+                        val userId = currentUser.uid
+                        FirebaseDatabase.getInstance().reference.child("connected_device").child(userId).removeValue()
+                            .addOnSuccessListener { Log.i(TAG, "Connected device removed for user $userId.") }
+                            .addOnFailureListener { e -> Log.e(TAG, "Failed to remove connected device: ${e.message}") }
+                    }
                 } else {
-                    // 🔹 Jika Disconnect Otomatis, hanya kirim broadcast ke UI tanpa hapus data
                     Log.w(TAG, "Auto-disconnected, hiding UI without removing device from Firebase.")
                 }
+
 
                 // 🔹 Kirim broadcast ke UI agar bisa menyembunyikan tampilan
                 val intent = Intent(ACTION_DEVICE_DISCONNECTED)
@@ -188,13 +191,19 @@ class BluetoothLeService : Service() {
                 heartRateBuffer.add(heartRate)
 
 // Update Firebase Realtime (contoh: menyimpan ke node "heart_rate/latest")
-                realtimeDatabase.child("latest").setValue(heartRate)
-                    .addOnSuccessListener {
-                        Log.i(TAG, "Live heart rate updated: $heartRate BPM")
-                    }
-                    .addOnFailureListener { e ->
-                        Log.e(TAG, "Failed to update live heart rate: ${e.message}")
-                    }
+                val currentUser = FirebaseAuth.getInstance().currentUser
+                if (currentUser != null) {
+                    val userId = currentUser.uid
+                    val userHeartRateDatabase = realtimeDatabase.child(userId).child("latest")
+
+                    userHeartRateDatabase.setValue(heartRate)
+                        .addOnSuccessListener {
+                            Log.i(TAG, "Live heart rate updated for user $userId: $heartRate BPM")
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e(TAG, "Failed to update live heart rate for user $userId: ${e.message}")
+                        }
+                }
 
 
                 // **Broadcast ke UI atau komponen lain**

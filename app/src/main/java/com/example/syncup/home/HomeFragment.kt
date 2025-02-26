@@ -140,8 +140,9 @@ class HomeFragment : Fragment() {
 
         // Panggil fungsi untuk menutup keyboard saat klik di luar EditText
         setupUI(view)
-        database = FirebaseDatabase.getInstance().reference.child("connected_device")
-        heartRateDatabase = FirebaseDatabase.getInstance().reference.child("heart_rate")
+        database = FirebaseDatabase.getInstance().reference.child("connected_device").child(FirebaseAuth.getInstance().currentUser?.uid ?: "unknown_user")
+        heartRateDatabase = FirebaseDatabase.getInstance().reference.child("heart_rate").child(FirebaseAuth.getInstance().currentUser?.uid ?: "unknown_user").child("latest")
+
 
         // **Pencegahan Force Close: Tambahkan Listener dengan Cek isAdded**
         deviceEventListener = object : ValueEventListener {
@@ -591,17 +592,17 @@ class HomeFragment : Fragment() {
                 heartRateTextView?.text = "$heartRate bpm"
 
                 heartRateChartView?.addHeartRate(heartRate)
-
                 updateIndicator(heartRate)
 
-                FirebaseDatabase.getInstance()
-                    .reference
-                    .child("heart_rate")
-                    .child("latest")
-                    .setValue(heartRate)
+                val currentUser = FirebaseAuth.getInstance().currentUser
+                if (currentUser != null) {
+                    val userId = currentUser.uid
+                    FirebaseDatabase.getInstance().reference.child("heart_rate").child(userId).child("latest").setValue(heartRate)
+                }
             }
         }
     }
+
 
     private fun makeGattUpdateIntentFilter(): IntentFilter {
         return IntentFilter().apply {

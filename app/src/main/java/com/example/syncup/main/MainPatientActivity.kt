@@ -104,12 +104,17 @@ class MainPatientActivity : AppCompatActivity() {
         }
     }
     private fun saveToFirebase(deviceName: String, deviceAddress: String) {
-        val deviceInfo = mapOf(
-            "deviceName" to deviceName,
-            "deviceAddress" to deviceAddress
-        )
-        database.setValue(deviceInfo) // Simpan ke Firebase
+        val currentUser = auth.currentUser
+        if (currentUser != null) {
+            val userId = currentUser.uid  // **Gunakan UID pengguna saat ini**
+            val deviceInfo = mapOf(
+                "deviceName" to deviceName,
+                "deviceAddress" to deviceAddress
+            )
+            database.child(userId).setValue(deviceInfo) // **Simpan berdasarkan UID**
+        }
     }
+
 
 
     fun replaceFragment(fragment: Fragment, hideBottomNavigation: Boolean = false) {
