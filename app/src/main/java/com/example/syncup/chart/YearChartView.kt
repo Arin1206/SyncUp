@@ -7,6 +7,7 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.View
+import java.util.Calendar
 import java.util.Locale
 
 class YearChartView @JvmOverloads constructor(
@@ -19,7 +20,7 @@ class YearChartView @JvmOverloads constructor(
     }
 
     private val nullBarPaint = Paint().apply {
-        color = Color.GRAY // Warna abu-abu untuk bulan yang kosong
+        color = Color.GRAY // Warna abu-abu untuk tahun yang tidak memiliki data
         style = Paint.Style.FILL
     }
 
@@ -47,17 +48,22 @@ class YearChartView @JvmOverloads constructor(
         textAlign = Paint.Align.CENTER
     }
 
-    private var monthData: MutableMap<String, Int?> = mutableMapOf()
+    private var yearData: MutableMap<String, Int?> = mutableMapOf()
 
     fun setData(data: Map<String, Int>) {
-        val filteredData = data.mapKeys { convertMonthToEnglish(it.key) }
+        val currentYear = getCurrentYear().toInt()
 
-        // **Pastikan ada 12 bulan dalam setahun, meskipun tidak ada data**
-        val allMonths = listOf(
-            "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-        )
-        monthData = allMonths.associateWith { month -> filteredData[month] }.toMutableMap()
+        // **Pastikan hanya menampilkan tahun dari saat ini ke belakang**
+        val availableYears = data.keys.map { it.toInt() }.filter { it <= currentYear }.sorted()
+
+        // **Jika tidak ada data, tampilkan hanya tahun saat ini**
+        val allYears = if (availableYears.isEmpty()) {
+            listOf(currentYear.toString())
+        } else {
+            availableYears.map { it.toString() }
+        }
+
+        yearData = allYears.associateWith { year -> data[year] }.toMutableMap()
 
         invalidate() // **Refresh tampilan grafik**
     }
@@ -65,15 +71,15 @@ class YearChartView @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
-        if (monthData.isEmpty()) return
+        if (yearData.isEmpty()) return
 
-        val maxHeartRate = monthData.values.filterNotNull().maxOrNull()?.toFloat() ?: 150f
+        val maxHeartRate = yearData.values.filterNotNull().maxOrNull()?.toFloat() ?: 150f
         val minHeartRate = 0f
         val chartWidth = width.toFloat() - 50f // **Kurangi lebar agar muat dalam 300dp**
         val chartHeight = height.toFloat() - 20f // **Kurangi tinggi agar angka 150 terlihat**
         val axisY = chartHeight - 40f // **Naikkan sumbu X sedikit agar tidak terpotong**
 
-        val barCount = 12
+        val barCount = yearData.size
         val barWidth = 30f // **Kecilkan ukuran bar**
         val barSpacing = 10f // **Kurangi spasi antar bar**
 
@@ -92,7 +98,7 @@ class YearChartView @JvmOverloads constructor(
 
         var xPosition = startX
 
-        monthData.forEach { (month, avgHeartRate) ->
+        yearData.forEach { (year, avgHeartRate) ->
             val barHeight = if (avgHeartRate != null) {
                 ((avgHeartRate - minHeartRate) / (maxHeartRate - minHeartRate)) * (axisY - 50)
             } else {
@@ -103,11 +109,11 @@ class YearChartView @JvmOverloads constructor(
             val paint = if (avgHeartRate != null) barPaint else nullBarPaint
 
             canvas.drawRect(rect, paint)
-            canvas.drawText(month, xPosition + barWidth / 2, axisY + 15, textPaint)
+            canvas.drawText(year, xPosition + barWidth / 2, axisY + 15, textPaint)
 
             if (avgHeartRate != null) {
-                // **Tambahkan tulisan nilai heart rate di atas bar**
-                canvas.drawText("$avgHeartRate", xPosition + barWidth / 2, axisY - barHeight - 5, labelPaint)
+                // **Tambahkan tulisan nilai heart rate di atas bar dengan "bpm"**
+                canvas.drawText("$avgHeartRate bpm", xPosition + barWidth / 2, axisY - barHeight - 5, labelPaint)
             } else {
                 // **Tampilkan "null" jika data kosong**
                 canvas.drawText("null", xPosition + barWidth / 2, axisY - 10, textPaint)
@@ -117,21 +123,7 @@ class YearChartView @JvmOverloads constructor(
         }
     }
 
-    private fun convertMonthToEnglish(month: String): String {
-        return when (month.lowercase(Locale.ENGLISH)) {
-            "januari", "january" -> "Jan"
-            "februari", "february" -> "Feb"
-            "maret", "march" -> "Mar"
-            "april" -> "Apr"
-            "mei", "may" -> "May"
-            "juni", "june" -> "Jun"
-            "juli", "july" -> "Jul"
-            "agustus", "august" -> "Aug"
-            "september" -> "Sep"
-            "oktober", "october" -> "Oct"
-            "november" -> "Nov"
-            "desember", "december" -> "Dec"
-            else -> month // **Jika sudah dalam bahasa Inggris, biarkan tetap**
-        }
+    private fun getCurrentYear(): String {
+        return Calendar.getInstance().get(Calendar.YEAR).toString()
     }
 }
