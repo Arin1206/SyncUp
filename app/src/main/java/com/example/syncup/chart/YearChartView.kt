@@ -1,0 +1,137 @@
+package com.example.syncup.chart
+
+import android.content.Context
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.RectF
+import android.util.AttributeSet
+import android.view.View
+import java.util.Locale
+
+class YearChartView @JvmOverloads constructor(
+    context: Context, attrs: AttributeSet? = null
+) : View(context, attrs) {
+
+    private val barPaint = Paint().apply {
+        color = Color.parseColor("#6200EE") // Warna ungu Telkom
+        style = Paint.Style.FILL
+    }
+
+    private val nullBarPaint = Paint().apply {
+        color = Color.GRAY // Warna abu-abu untuk bulan yang kosong
+        style = Paint.Style.FILL
+    }
+
+    private val axisPaint = Paint().apply {
+        color = Color.BLACK
+        strokeWidth = 3f
+        style = Paint.Style.STROKE
+    }
+
+    private val gridPaint = Paint().apply {
+        color = Color.LTGRAY
+        strokeWidth = 1.5f
+        style = Paint.Style.STROKE
+    }
+
+    private val textPaint = Paint().apply {
+        color = Color.BLACK
+        textSize = 12f // **Ukuran teks diperkecil agar semua muat**
+        textAlign = Paint.Align.CENTER
+    }
+
+    private val labelPaint = Paint().apply {
+        color = Color.BLACK
+        textSize = 10f // **Ukuran label lebih kecil**
+        textAlign = Paint.Align.CENTER
+    }
+
+    private var monthData: MutableMap<String, Int?> = mutableMapOf()
+
+    fun setData(data: Map<String, Int>) {
+        val filteredData = data.mapKeys { convertMonthToEnglish(it.key) }
+
+        // **Pastikan ada 12 bulan dalam setahun, meskipun tidak ada data**
+        val allMonths = listOf(
+            "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+        )
+        monthData = allMonths.associateWith { month -> filteredData[month] }.toMutableMap()
+
+        invalidate() // **Refresh tampilan grafik**
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+
+        if (monthData.isEmpty()) return
+
+        val maxHeartRate = monthData.values.filterNotNull().maxOrNull()?.toFloat() ?: 150f
+        val minHeartRate = 0f
+        val chartWidth = width.toFloat() - 50f // **Kurangi lebar agar muat dalam 300dp**
+        val chartHeight = height.toFloat() - 20f // **Kurangi tinggi agar angka 150 terlihat**
+        val axisY = chartHeight - 40f // **Naikkan sumbu X sedikit agar tidak terpotong**
+
+        val barCount = 12
+        val barWidth = 30f // **Kecilkan ukuran bar**
+        val barSpacing = 10f // **Kurangi spasi antar bar**
+
+        val totalChartWidth = (barCount * (barWidth + barSpacing))
+        val startX = (chartWidth - totalChartWidth) / 2 + 25f // **Pusatkan chart agar lebih rapi**
+
+        // **Gambar Garis sumbu X**
+        canvas.drawLine(startX, axisY, startX + totalChartWidth, axisY, axisPaint)
+
+        // **Gambar Garis sumbu Y (grid horizontal)**
+        for (i in 0..3) {
+            val y = axisY - (i * (axisY / 3.5f))
+            canvas.drawLine(startX, y, startX + totalChartWidth, y, gridPaint)
+            canvas.drawText("${i * 50}", startX - 15f, y + 5f, textPaint)
+        }
+
+        var xPosition = startX
+
+        monthData.forEach { (month, avgHeartRate) ->
+            val barHeight = if (avgHeartRate != null) {
+                ((avgHeartRate - minHeartRate) / (maxHeartRate - minHeartRate)) * (axisY - 50)
+            } else {
+                0f
+            }
+
+            val rect = RectF(xPosition, axisY - barHeight, xPosition + barWidth, axisY)
+            val paint = if (avgHeartRate != null) barPaint else nullBarPaint
+
+            canvas.drawRect(rect, paint)
+            canvas.drawText(month, xPosition + barWidth / 2, axisY + 15, textPaint)
+
+            if (avgHeartRate != null) {
+                // **Tambahkan tulisan nilai heart rate di atas bar**
+                canvas.drawText("$avgHeartRate", xPosition + barWidth / 2, axisY - barHeight - 5, labelPaint)
+            } else {
+                // **Tampilkan "null" jika data kosong**
+                canvas.drawText("null", xPosition + barWidth / 2, axisY - 10, textPaint)
+            }
+
+            xPosition += (barWidth + barSpacing)
+        }
+    }
+
+    private fun convertMonthToEnglish(month: String): String {
+        return when (month.lowercase(Locale.ENGLISH)) {
+            "januari", "january" -> "Jan"
+            "februari", "february" -> "Feb"
+            "maret", "march" -> "Mar"
+            "april" -> "Apr"
+            "mei", "may" -> "May"
+            "juni", "june" -> "Jun"
+            "juli", "july" -> "Jul"
+            "agustus", "august" -> "Aug"
+            "september" -> "Sep"
+            "oktober", "october" -> "Oct"
+            "november" -> "Nov"
+            "desember", "december" -> "Dec"
+            else -> month // **Jika sudah dalam bahasa Inggris, biarkan tetap**
+        }
+    }
+}

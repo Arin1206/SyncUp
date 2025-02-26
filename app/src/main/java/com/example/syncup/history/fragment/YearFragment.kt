@@ -1,60 +1,138 @@
 package com.example.syncup.history.fragment
 
 import android.os.Bundle
-import androidx.fragment.app.Fragment
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
+import android.widget.Toast
+import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.example.syncup.R
+import com.example.syncup.adapter.YearHealthAdapter
+import com.example.syncup.chart.YearChartView
+import com.example.syncup.model.YearHealthItem
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import java.text.SimpleDateFormat
+import java.util.*
 
-// TODO: Rename parameter arguments, choose names that match
-// the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-private const val ARG_PARAM1 = "param1"
-private const val ARG_PARAM2 = "param2"
-
-/**
- * A simple [Fragment] subclass.
- * Use the [YearFragment.newInstance] factory method to
- * create an instance of this fragment.
- */
 class YearFragment : Fragment() {
-    // TODO: Rename and change types of parameters
-    private var param1: String? = null
-    private var param2: String? = null
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        arguments?.let {
-            param1 = it.getString(ARG_PARAM1)
-            param2 = it.getString(ARG_PARAM2)
-        }
-    }
+    private lateinit var recyclerView: RecyclerView
+    private lateinit var healthDataAdapter: YearHealthAdapter
+    private lateinit var avgHeartRateTextView: TextView
+    private lateinit var avgBloodPressureTextView: TextView
+    private lateinit var avgBatteryTextView: TextView
+    private lateinit var yearChartView: YearChartView
+
+    private val firestore = FirebaseFirestore.getInstance()
+    private val auth = FirebaseAuth.getInstance()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_year, container, false)
+        val view = inflater.inflate(R.layout.fragment_year, container, false)
+
+        recyclerView = view.findViewById(R.id.recycler_view_health)
+        recyclerView.layoutManager = LinearLayoutManager(requireContext())
+
+        healthDataAdapter = YearHealthAdapter(emptyList())
+        recyclerView.adapter = healthDataAdapter
+
+        avgHeartRateTextView = view.findViewById(R.id.avg_heartrate)
+        avgBloodPressureTextView = view.findViewById(R.id.avg_bloodpressure)
+        avgBatteryTextView = view.findViewById(R.id.textView13)
+        yearChartView = view.findViewById(R.id.heartRateChart)
+
+        fetchHealthData()
+
+        return view
     }
 
-    companion object {
-        /**
-         * Use this factory method to create a new instance of
-         * this fragment using the provided parameters.
-         *
-         * @param param1 Parameter 1.
-         * @param param2 Parameter 2.
-         * @return A new instance of fragment YearFragment.
-         */
-        // TODO: Rename and change types and number of parameters
-        @JvmStatic
-        fun newInstance(param1: String, param2: String) =
-            YearFragment().apply {
-                arguments = Bundle().apply {
-                    putString(ARG_PARAM1, param1)
-                    putString(ARG_PARAM2, param2)
+    private fun fetchHealthData() {
+        val currentUser = auth.currentUser ?: return
+
+        firestore.collection("patient_heart_rate")
+            .whereEqualTo("userId", currentUser.uid)
+            .addSnapshotListener { documents, error ->
+                if (error != null) {
+                    Log.e("YearFragment", "Error fetching health data", error)
+                    return@addSnapshotListener
                 }
+
+                if (documents == null || documents.isEmpty) {
+                    Log.w("YearFragment", "No health data found")
+                    healthDataAdapter.updateData(emptyList())
+                    updateAverageUI(null, null, null)
+                    updateChartData(emptyMap())
+                    return@addSnapshotListener
+                }
+
+                val yearMap = mutableMapOf<String, MutableList<Int>>()
+                val bpMap = mutableMapOf<String, MutableList<String>>()
+                val batteryMap = mutableMapOf<String, MutableList<Int>>()
+                val yearAverages = mutableMapOf<String, Int>()
+
+                for (doc in documents) {
+                    val heartRate = doc.getLong("heartRate")?.toInt() ?: continue
+                    if (heartRate == 0) continue
+
+                    val systolicBP = doc.getDouble("systolicBP")?.toInt() ?: 0
+                    val diastolicBP = doc.getDouble("diastolicBP")?.toInt() ?: 0
+                    val batteryLevel = doc.getLong("batteryLevel")?.toInt() ?: 0
+
+                    val year = getCurrentYear()
+                    yearMap.getOrPut(year) { mutableListOf() }.add(heartRate)
+                    bpMap.getOrPut(year) { mutableListOf() }.add("$systolicBP/$diastolicBP")
+                    batteryMap.getOrPut(year) { mutableListOf() }.add(batteryLevel)
+                }
+
+                val yearItems = mutableListOf<YearHealthItem>()
+                val sortedYears = yearMap.entries.sortedBy { it.key.toInt() }
+
+                sortedYears.forEach { (year, heartRates) ->
+                    yearItems.add(YearHealthItem.YearHeader(year))
+                    val avgHeartRate = heartRates.average().toInt()
+                    val avgBloodPressure = bpMap[year]?.groupingBy { it }?.eachCount()?.maxByOrNull { it.value }?.key ?: "N/A"
+                    val avgBattery = batteryMap[year]?.ifEmpty { listOf(0) }?.average()?.toInt() ?: 0
+
+                    yearItems.add(YearHealthItem.YearData(avgHeartRate, avgBloodPressure, avgBattery))
+                    yearAverages[year] = avgHeartRate
+                }
+
+                val latestYear = sortedYears.lastOrNull()?.key
+                latestYear?.let {
+                    val avgLatestHeartRate = yearAverages[it] ?: 0
+                    val avgLatestBloodPressure = bpMap[it]?.groupingBy { it }?.eachCount()?.maxByOrNull { it.value }?.key ?: "N/A"
+                    val avgLatestBattery = batteryMap[it]?.ifEmpty { listOf(0) }?.average()?.toInt() ?: 0
+
+                    updateAverageUI(avgLatestHeartRate, avgLatestBloodPressure, avgLatestBattery)
+                }
+
+                healthDataAdapter.updateData(yearItems)
+                updateChartData(yearAverages)
             }
+    }
+
+    private fun updateAverageUI(heartRate: Int?, bloodPressure: String?, battery: Int?) {
+        requireActivity().runOnUiThread {
+            avgHeartRateTextView.text = heartRate?.let { "$it" } ?: "N/A" // **Tambahkan "bpm"**
+            avgBloodPressureTextView.text = bloodPressure ?: "N/A"
+            avgBatteryTextView.text = battery?.let { "$it%" } ?: "N/A" // **Tambahkan "%"**
+        }
+    }
+
+    private fun updateChartData(yearAverages: Map<String, Int>) {
+        requireActivity().runOnUiThread {
+            yearChartView.setData(yearAverages)
+        }
+    }
+
+    private fun getCurrentYear(): String {
+        return SimpleDateFormat("yyyy", Locale.ENGLISH).format(Date())
     }
 }
