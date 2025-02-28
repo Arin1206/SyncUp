@@ -1,5 +1,6 @@
 package com.example.syncup.home
 
+import HealthData
 import android.Manifest
 import android.content.*
 import android.content.pm.PackageManager
@@ -336,11 +337,108 @@ class HomeFragment : Fragment() {
         }
     }
 
+    private fun fetchWeeklyAverages() {
+        val db = FirebaseFirestore.getInstance()
+        val currentUser = FirebaseAuth.getInstance().currentUser
+        val userId = currentUser?.uid ?: return
+
+        // Ambil semua data pengguna dari Firestore
+        db.collection("patient_heart_rate")
+            .whereEqualTo("userId", userId)
+            .addSnapshotListener { documents, error ->
+                if (error != null) {
+                    Log.e(TAG, "Error fetching health data", error)
+                    return@addSnapshotListener
+                }
+
+                if (documents == null || documents.isEmpty) {
+                    Log.d(TAG, "No data found for this week.")
+                    updateUI(0, 0.0, 0.0, 0)
+                    return@addSnapshotListener
+                }
+
+                val weekMap = LinkedHashMap<String, MutableList<HealthData>>()
+
+                for (doc in documents) {
+                    val heartRate = doc.getLong("heartRate")?.toInt() ?: 0
+                    if (heartRate == 0) continue // Skip jika heart rate = 0
+
+                    val systolicBP = doc.getDouble("systolicBP")?.toInt() ?: 0
+                    val diastolicBP = doc.getDouble("diastolicBP")?.toInt() ?: 0
+                    val batteryLevel = doc.getLong("batteryLevel")?.toInt() ?: 0
+                    val timestamp = doc.getString("timestamp") ?: continue
+
+                    val weekNumber = getWeekOfMonth(timestamp)
+
+                    val healthData = HealthData(
+                        heartRate = heartRate,
+                        bloodPressure = "$systolicBP/$diastolicBP",
+                        batteryLevel = batteryLevel,
+                        timestamp = timestamp,
+                        fullTimestamp = timestamp
+                    )
+
+                    weekMap.getOrPut(weekNumber) { mutableListOf() }.add(healthData)
+                }
+
+                // Ambil minggu terbaru yang sedang berjalan
+                val latestWeek = weekMap.keys.maxByOrNull { it }
+                val latestWeekData = weekMap[latestWeek] ?: emptyList()
+
+                if (latestWeekData.isNotEmpty()) {
+                    val avgHeartRate = latestWeekData.map { it.heartRate }.average().toInt()
+                    val avgSystolicBP = latestWeekData.map { it.bloodPressure.split("/")[0].toInt() }.average().toInt()
+                    val avgDiastolicBP = latestWeekData.map { it.bloodPressure.split("/")[1].toInt() }.average().toInt()
+                    val avgBatteryLevel = latestWeekData.map { it.batteryLevel }.average().toInt()
+
+                    Log.d(TAG, "✅ Latest Week Averages -> HeartRate: $avgHeartRate, BP: $avgSystolicBP/$avgDiastolicBP, Battery: $avgBatteryLevel")
+                    updateUI(avgHeartRate, avgSystolicBP.toDouble(), avgDiastolicBP.toDouble(), avgBatteryLevel)
+                } else {
+                    Log.d(TAG, "No valid data found for the latest week.")
+                    updateUI(0, 0.0, 0.0, 0)
+                }
+            }
+    }
+
+    private fun getWeekOfMonth(timestamp: String): String {
+        val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        val date = inputFormat.parse(timestamp) ?: return "Unknown Week"
+        val calendar = Calendar.getInstance().apply { time = date }
+
+        val weekOfMonth = calendar.get(Calendar.WEEK_OF_MONTH)
+        val monthYear = SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(date)
+
+        // Tentukan awal dan akhir minggu
+        calendar.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+        val startDate = SimpleDateFormat("dd MMM", Locale.getDefault()).format(calendar.time)
+
+        calendar.add(Calendar.DAY_OF_WEEK, 6)
+        val endDate = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(calendar.time)
+
+        return "Week $weekOfMonth ($startDate - $endDate)"
+    }
+
+
+    private fun updateUI(heartRate: Int, systolic: Double, diastolic: Double, battery: Int) {
+        Log.d(TAG, "Updating UI with -> HeartRate: $heartRate, BP: ${systolic.roundToInt()} / ${diastolic.roundToInt()}, Battery: $battery%")
+
+        view?.findViewById<TextView>(R.id.avg_week_heartrate)?.text =
+            if (heartRate > 0) "$heartRate" else "No Data"
+
+        view?.findViewById<TextView>(R.id.avg_week_bloodpressure)?.text =
+            if (systolic > 0 && diastolic > 0) "${systolic.roundToInt()} / ${diastolic.roundToInt()}" else "No Data"
+
+        view?.findViewById<TextView>(R.id.avg_week_battery)?.text =
+            if (battery > 0) "$battery %" else "No Data"
+    }
+
+
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         homeViewModel = ViewModelProvider(requireActivity()).get(HomeViewModel::class.java)
 
+        fetchWeeklyAverages()
         bpTextView = view.findViewById(R.id.bp_value)
 
         // **Gunakan ViewModel untuk menyimpan BP saat pindah fragment**

@@ -438,13 +438,13 @@
             android:id="@+id/avg_week_bloodpressure"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="28dp"
+            android:layout_marginStart="20dp"
             android:layout_marginTop="12dp"
             android:fontFamily="@font/bold_font"
             android:text="110/95"
             android:textColor="@color/black"
             android:textSize="18sp"
-            app:layout_constraintEnd_toStartOf="@+id/textView18"
+            app:layout_constraintEnd_toStartOf="@+id/avg_week_battery"
             app:layout_constraintHorizontal_bias="0.0"
             app:layout_constraintStart_toEndOf="@+id/avg_week_heartrate"
             app:layout_constraintTop_toBottomOf="@+id/textView14" />
@@ -465,7 +465,7 @@
             app:layout_constraintTop_toBottomOf="@+id/textView11" />
 
         <TextView
-            android:id="@+id/textView18"
+            android:id="@+id/avg_week_battery"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="20dp"
@@ -483,7 +483,7 @@
             android:id="@+id/textView19"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="8dp"
             android:layout_marginLeft="10dp"
             android:textColor="@color/black"
             android:textSize="12sp"
