@@ -148,7 +148,7 @@ class HomeFragment : Fragment() {
             News("Inovasi Teknologi dalam Deteksi Penyakit Jantung", R.drawable.sample_news_image)
         )
 
-        val newsAdapter = NewsAdapter(newsList)
+        val newsAdapter = NewsAdapter(newsList, requireActivity())
         recyclerViewNews.adapter = newsAdapter
 
         // Inisialisasi RecyclerView untuk dot indicator
@@ -166,6 +166,7 @@ class HomeFragment : Fragment() {
             }
         })
     }
+
 
     private fun hideKeyboard() {
         val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
