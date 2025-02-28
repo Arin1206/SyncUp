@@ -22,7 +22,7 @@ class DoctorAdapter(private val doctorList: List<Doctor>) :
         val doctor = doctorList[position]
         holder.nameTextView.text = doctor.name
 
-        // Jika tidak menggunakan Glide, atur gambar default dari drawable
+        // Gambar default jika tidak menggunakan Glide/Picasso
         holder.imageView.setImageResource(R.drawable.doctor)
     }
 

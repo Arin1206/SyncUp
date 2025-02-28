@@ -23,14 +23,17 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.syncup.R
 import com.example.syncup.adapter.DoctorAdapter
+import com.example.syncup.adapter.NewsAdapter
 import com.example.syncup.ble.BluetoothLeService
 import com.example.syncup.data.BloodPressureRepository
 import com.example.syncup.data.HomeViewModel
 import com.example.syncup.model.Doctor
+import com.example.syncup.model.News
 import com.example.syncup.search.SearchPatientFragment
 import com.example.syncup.viewmodel.HeartRateViewModel
 import com.example.syncup.welcome.WelcomeActivity
@@ -70,6 +73,9 @@ class HomeFragment : Fragment() {
     private var monthChartView: com.example.syncup.chart.MonthChartViewHome? = null
     private var currentLon: Double? = null
     private var bpTextView: TextView? = null
+    private lateinit var recyclerViewNews: RecyclerView
+    private lateinit var newsAdapter: NewsAdapter
+    private val newsList = mutableListOf<News>()
     private lateinit var homeViewModel: HomeViewModel
     private var heartRateChartView: com.example.syncup.chart.HeartRateChartViewHome? = null
 
@@ -124,6 +130,19 @@ class HomeFragment : Fragment() {
 
     }
 
+    private fun setupNewsRecyclerView(view: View) {
+        recyclerViewNews = view.findViewById(R.id.recycler_view_news)
+        recyclerViewNews.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+
+        // Tambahkan berita secara manual
+        newsList.add(News("Studi Temukan Kerusakan Jantung pada Penyintas Covid-19", R.drawable.sample_news_image))
+        newsList.add(News("Gaya Hidup Sehat untuk Mencegah Penyakit Jantung", R.drawable.sample_news_image))
+        newsList.add(News("Inovasi Teknologi dalam Deteksi Penyakit Jantung", R.drawable.sample_news_image))
+
+        newsAdapter = NewsAdapter(newsList)
+        recyclerViewNews.adapter = newsAdapter
+    }
+
     private fun hideKeyboard() {
         val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imm.hideSoftInputFromWindow(view?.windowToken, 0)
@@ -175,7 +194,11 @@ class HomeFragment : Fragment() {
         searchDoctor = view.findViewById(R.id.search_doctor)
 
         recyclerViewDoctors = view.findViewById(R.id.recycler_view_doctors)
-        recyclerViewDoctors.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+
+        // Gunakan GridLayoutManager dengan spanCount 3
+        val layoutManager = GridLayoutManager(requireContext(), 3)
+        recyclerViewDoctors.layoutManager = layoutManager
+
 
         doctorAdapter = DoctorAdapter(doctorList)
         recyclerViewDoctors.adapter = doctorAdapter
@@ -563,6 +586,8 @@ class HomeFragment : Fragment() {
 
         monthChartView = view.findViewById(R.id.monthHeartRateChart)
         fetchMonthlyAverages()
+
+        setupNewsRecyclerView(view)
 
         fetchWeeklyAverages()
         bpTextView = view.findViewById(R.id.bp_value)
