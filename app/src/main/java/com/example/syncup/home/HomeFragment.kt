@@ -18,6 +18,7 @@ import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.core.content.ContextCompat
@@ -35,6 +36,7 @@ import com.example.syncup.data.BloodPressureRepository
 import com.example.syncup.data.HomeViewModel
 import com.example.syncup.model.Doctor
 import com.example.syncup.model.News
+import com.example.syncup.profile.ProfilePatientFragment
 import com.example.syncup.search.SearchPatientFragment
 import com.example.syncup.viewmodel.HeartRateViewModel
 import com.example.syncup.welcome.WelcomeActivity
@@ -604,6 +606,13 @@ class HomeFragment : Fragment() {
         return calendar.get(Calendar.MONTH) // 0 = Januari, 11 = Desember
     }
 
+    private fun navigateToPatientFragment() {
+        val fragment = ProfilePatientFragment()
+        requireActivity().supportFragmentManager.beginTransaction()
+            .replace(R.id.frame, fragment) // Sesuaikan dengan container di layout
+            .addToBackStack(null) // Tambahkan ke backstack agar bisa kembali ke Home
+            .commit()
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -612,6 +621,10 @@ class HomeFragment : Fragment() {
         monthChartView = view.findViewById(R.id.monthHeartRateChart)
         fetchMonthlyAverages()
 
+        val profileImage = view.findViewById<ImageView>(R.id.profile)
+        profileImage.setOnClickListener {
+            navigateToPatientFragment()
+        }
         setupNewsRecyclerView(view)
 
         fetchWeeklyAverages()
