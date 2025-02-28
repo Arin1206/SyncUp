@@ -60,6 +60,7 @@ class HomeFragment : Fragment() {
     private var heartRateTextView: TextView? = null
     private var currentLat: Double? = null
     private lateinit var searchDoctor: EditText
+    private var monthChartView: com.example.syncup.chart.MonthChartViewHome? = null
     private var currentLon: Double? = null
     private var bpTextView: TextView? = null
     private lateinit var homeViewModel: HomeViewModel
@@ -432,11 +433,85 @@ class HomeFragment : Fragment() {
             if (battery > 0) "$battery %" else "No Data"
     }
 
+    private fun getMonthName(timestamp: String): String {
+        val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        val date = inputFormat.parse(timestamp) ?: return "Unknown"
+        return SimpleDateFormat("MMM", Locale.getDefault()).format(date)
+    }
+
+
+    private fun fetchMonthlyAverages() {
+        val db = FirebaseFirestore.getInstance()
+        val currentUser = FirebaseAuth.getInstance().currentUser
+        val userId = currentUser?.uid ?: return
+
+        db.collection("patient_heart_rate")
+            .whereEqualTo("userId", userId)
+            .addSnapshotListener { documents, error ->
+                if (error != null) {
+                    Log.e(TAG, "Error fetching monthly data: ", error)
+                    return@addSnapshotListener
+                }
+
+                val monthMap = mutableMapOf<String, MutableList<Int>>()
+                val calendar = Calendar.getInstance()
+                val currentMonthIndex = calendar.get(Calendar.MONTH) // 0 - Januari, 11 - Desember
+
+                if (documents != null) {
+                    for (doc in documents) {
+                        val heartRate = doc.getLong("heartRate")?.toInt() ?: continue
+                        if (heartRate == 0) continue // Skip jika heart rate = 0
+
+                        val timestamp = doc.getString("timestamp") ?: continue
+                        val monthName = getMonthName(timestamp)
+                        val monthIndex = getMonthIndex(timestamp)
+
+                        // Hanya simpan data dari bulan berjalan dan 3 bulan sebelumnya
+                        if (monthIndex in (currentMonthIndex - 3)..currentMonthIndex) {
+                            monthMap.getOrPut(monthName) { mutableListOf() }.add(heartRate)
+                        }
+                    }
+                }
+
+                // Hitung rata-rata heart rate untuk setiap bulan
+                val monthAverages = monthMap.mapValues { (_, values) ->
+                    values.average().toInt()
+                }
+
+                // Ambil bulan berjalan dan 3 bulan sebelumnya
+                val last4Months = (0..3).map {
+                    val monthIndex = (currentMonthIndex - it + 12) % 12
+                    getMonthNameByIndex(monthIndex)
+                }.reversed()
+
+                // Pastikan setiap bulan dalam 4 bulan terakhir memiliki nilai
+                val completeData = last4Months.associateWith { monthAverages[it] ?: null }
+
+                Log.d(TAG, "✅ Filtered Monthly Averages (Last 4 months): $completeData")
+                monthChartView?.setData(completeData)
+            }
+    }
+    private fun getMonthNameByIndex(index: Int): String {
+        return listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")[index]
+    }
+
+
+
+    private fun getMonthIndex(timestamp: String): Int {
+        val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        val date = inputFormat.parse(timestamp) ?: return -1
+        val calendar = Calendar.getInstance()
+        calendar.time = date
+        return calendar.get(Calendar.MONTH) // 0 = Januari, 11 = Desember
+    }
 
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         homeViewModel = ViewModelProvider(requireActivity()).get(HomeViewModel::class.java)
+
+        monthChartView = view.findViewById(R.id.monthHeartRateChart)
+        fetchMonthlyAverages()
 
         fetchWeeklyAverages()
         bpTextView = view.findViewById(R.id.bp_value)
