@@ -23,10 +23,14 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.example.syncup.R
+import com.example.syncup.adapter.DoctorAdapter
 import com.example.syncup.ble.BluetoothLeService
 import com.example.syncup.data.BloodPressureRepository
 import com.example.syncup.data.HomeViewModel
+import com.example.syncup.model.Doctor
 import com.example.syncup.search.SearchPatientFragment
 import com.example.syncup.viewmodel.HeartRateViewModel
 import com.example.syncup.welcome.WelcomeActivity
@@ -60,6 +64,9 @@ class HomeFragment : Fragment() {
     private var heartRateTextView: TextView? = null
     private var currentLat: Double? = null
     private lateinit var searchDoctor: EditText
+    private lateinit var recyclerViewDoctors: RecyclerView
+    private lateinit var doctorAdapter: DoctorAdapter
+    private val doctorList = mutableListOf<Doctor>()
     private var monthChartView: com.example.syncup.chart.MonthChartViewHome? = null
     private var currentLon: Double? = null
     private var bpTextView: TextView? = null
@@ -122,6 +129,42 @@ class HomeFragment : Fragment() {
         imm.hideSoftInputFromWindow(view?.windowToken, 0)
     }
 
+    private fun fetchDoctorsFromFirestore() {
+        val db = FirebaseFirestore.getInstance()
+        val doctorList = mutableListOf<Doctor>()
+
+        // Ambil data dari users_doctor_email
+        db.collection("users_doctor_email")
+            .get()
+            .addOnSuccessListener { emailDocuments ->
+                for (document in emailDocuments) {
+                    val fullName = document.getString("fullName") ?: "Unknown"
+                    doctorList.add(Doctor(fullName, "")) // Gambar kosong karena tidak ada di koleksi ini
+                }
+
+                // Ambil data dari users_doctor_phonenumber
+                db.collection("users_doctor_phonenumber")
+                    .get()
+                    .addOnSuccessListener { phoneDocuments ->
+                        for (document in phoneDocuments) {
+                            val fullName = document.getString("fullName") ?: "Unknown"
+                            doctorList.add(Doctor(fullName, "")) // Gambar kosong karena tidak ada di koleksi ini
+                        }
+
+                        // Perbarui adapter setelah kedua koleksi diambil
+                        doctorAdapter = DoctorAdapter(doctorList)
+                        recyclerViewDoctors.adapter = doctorAdapter
+                        doctorAdapter.notifyDataSetChanged()
+                    }
+                    .addOnFailureListener { exception ->
+                        Log.e("Firestore", "Error fetching phone doctors: ", exception)
+                    }
+            }
+            .addOnFailureListener { exception ->
+                Log.e("Firestore", "Error fetching email doctors: ", exception)
+            }
+    }
+
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         val view = inflater.inflate(R.layout.fragment_home, container, false)
@@ -130,6 +173,14 @@ class HomeFragment : Fragment() {
         progressBar = view.findViewById(R.id.progress_loading)
 
         searchDoctor = view.findViewById(R.id.search_doctor)
+
+        recyclerViewDoctors = view.findViewById(R.id.recycler_view_doctors)
+        recyclerViewDoctors.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+
+        doctorAdapter = DoctorAdapter(doctorList)
+        recyclerViewDoctors.adapter = doctorAdapter
+
+        fetchDoctorsFromFirestore()
 
         searchDoctor.setOnEditorActionListener { _, _, _ ->
             val searchText = searchDoctor.text.toString().trim()
