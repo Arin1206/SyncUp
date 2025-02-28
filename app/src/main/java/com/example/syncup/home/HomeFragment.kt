@@ -28,6 +28,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.syncup.R
 import com.example.syncup.adapter.DoctorAdapter
+import com.example.syncup.adapter.DotIndicatorAdapter
 import com.example.syncup.adapter.NewsAdapter
 import com.example.syncup.ble.BluetoothLeService
 import com.example.syncup.data.BloodPressureRepository
@@ -72,6 +73,8 @@ class HomeFragment : Fragment() {
     private val doctorList = mutableListOf<Doctor>()
     private var monthChartView: com.example.syncup.chart.MonthChartViewHome? = null
     private var currentLon: Double? = null
+    private lateinit var recyclerViewDots: RecyclerView
+    private lateinit var dotIndicatorAdapter: DotIndicatorAdapter
     private var bpTextView: TextView? = null
     private lateinit var recyclerViewNews: RecyclerView
     private lateinit var newsAdapter: NewsAdapter
@@ -131,16 +134,37 @@ class HomeFragment : Fragment() {
     }
 
     private fun setupNewsRecyclerView(view: View) {
-        recyclerViewNews = view.findViewById(R.id.recycler_view_news)
-        recyclerViewNews.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+        val recyclerViewNews = view.findViewById<RecyclerView>(R.id.recycler_view_news)
+        recyclerViewDots = view.findViewById(R.id.recycler_view_dots)
 
-        // Tambahkan berita secara manual
-        newsList.add(News("Studi Temukan Kerusakan Jantung pada Penyintas Covid-19", R.drawable.sample_news_image))
-        newsList.add(News("Gaya Hidup Sehat untuk Mencegah Penyakit Jantung", R.drawable.sample_news_image))
-        newsList.add(News("Inovasi Teknologi dalam Deteksi Penyakit Jantung", R.drawable.sample_news_image))
+        // Atur RecyclerView horizontal untuk berita
+        val layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+        recyclerViewNews.layoutManager = layoutManager
 
-        newsAdapter = NewsAdapter(newsList)
+        // Tambahkan contoh berita
+        val newsList = mutableListOf(
+            News("Studi Temukan Kerusakan Jantung pada Penyintas Covid-19", R.drawable.sample_news_image),
+            News("Gaya Hidup Sehat untuk Mencegah Penyakit Jantung", R.drawable.sample_news_image),
+            News("Inovasi Teknologi dalam Deteksi Penyakit Jantung", R.drawable.sample_news_image)
+        )
+
+        val newsAdapter = NewsAdapter(newsList)
         recyclerViewNews.adapter = newsAdapter
+
+        // Inisialisasi RecyclerView untuk dot indicator
+        dotIndicatorAdapter = DotIndicatorAdapter(newsList.size, 0)
+        recyclerViewDots.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+        recyclerViewDots.adapter = dotIndicatorAdapter
+
+        // Tambahkan listener untuk mengganti dot indikator saat user scroll
+        recyclerViewNews.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+                val layoutManager = recyclerView.layoutManager as LinearLayoutManager
+                val currentPosition = layoutManager.findFirstVisibleItemPosition()
+                dotIndicatorAdapter.updateSelectedIndex(currentPosition)
+            }
+        })
     }
 
     private fun hideKeyboard() {
