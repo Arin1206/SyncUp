@@ -199,18 +199,46 @@ class DateFragment : Fragment() {
                 }
 
                 // 🔹 **Urutkan groupedMap berdasarkan tanggal dari yang terbaru ke terlama**
-                val sortedGroupedMap = groupedMap.toSortedMap(compareByDescending { it })
+// 🔹 **Urutkan groupedMap berdasarkan bulan & tahun terbaru ke terlama**
+                val sortedGroupedMap = groupedMap.toSortedMap(compareByDescending { parseDateToSortableFormat(it) })
 
                 // 🔹 **Masukkan ke dalam RecyclerView dengan urutan yang benar**
                 for ((date, items) in sortedGroupedMap) {
                     groupedItems.add(HealthItem.DateHeader(date))
-                    groupedItems.addAll(items.sortedByDescending { it.healthData.fullTimestamp }) // ✅ Urutkan dalam setiap grup dari timestamp terbaru ke terlama
+                    groupedItems.addAll(items.sortedByDescending { it.healthData.fullTimestamp }) // ✅ Urutkan dari yang terbaru
                 }
+
+
+
 
                 healthDataAdapter.updateData(groupedItems)
                 updateRecyclerViewHeight()
                 updateViewPagerHeight()
             }
+    }
+    private fun parseDateToSortableFormat(date: String): String {
+        return try {
+            val inputFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+            val outputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())  // 🔹 Format "2025-03-01"
+            val parsedDate = inputFormat.parse(date)
+            outputFormat.format(parsedDate ?: "")
+        } catch (e: Exception) {
+            Log.e("DateFormatError", "Error parsing date: ${e.message}")
+            date  // Jika gagal parsing, tetap gunakan tanggal asli agar tidak hilang
+        }
+    }
+
+
+    private fun extractMonthYear(date: String): String {
+        return try {
+            val inputFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+            val outputFormat = SimpleDateFormat("yyyy-MM", Locale.getDefault())  // 🔹 Format: "2025-01"
+            val parsedDate = inputFormat.parse(date)
+            outputFormat.format(parsedDate ?: "")
+        } catch (e: Exception) {
+            Log.e("DateFormatError", "Error parsing date: ${e.message}")
+            date  // Jika gagal, gunakan tanggal asli
+        }
     }
 
     private fun updateViewPagerHeight() {

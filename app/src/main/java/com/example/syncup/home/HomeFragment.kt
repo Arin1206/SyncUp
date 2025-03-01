@@ -656,19 +656,27 @@ class HomeFragment : Fragment() {
         val mapsTextView = view.findViewById<TextView>(R.id.maps)
         mapsTextView.setOnClickListener {
             if (currentLat != null && currentLon != null) {
-                val gmmIntentUri = Uri.parse("geo:${currentLat},${currentLon}?q=${currentLat},${currentLon}")
-                val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
-                mapIntent.setPackage("com.google.android.apps.maps")
-
-                if (mapIntent.resolveActivity(requireContext().packageManager) != null) {
+                try {
+                    // Coba buka dengan Google Maps
+                    val gmmIntentUri = Uri.parse("geo:${currentLat},${currentLon}?q=${currentLat},${currentLon}")
+                    val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
+                    mapIntent.setPackage("com.google.android.apps.maps")
                     startActivity(mapIntent)
-                } else {
-                    Log.e(TAG, "Google Maps app is not installed.")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Google Maps failed, trying web URL.")
+
+                    // Jika gagal, buka dengan URL Maps
+                    val webIntent = Intent(
+                        Intent.ACTION_VIEW,
+                        Uri.parse("https://www.google.com/maps/search/?api=1&query=$currentLat,$currentLon")
+                    )
+                    startActivity(webIntent)
                 }
             } else {
                 Log.e(TAG, "Coordinates are null. Cannot open maps.")
             }
         }
+
 
         val dayTextView = view.findViewById<TextView>(R.id.day)
         val currentDate = Calendar.getInstance().time
