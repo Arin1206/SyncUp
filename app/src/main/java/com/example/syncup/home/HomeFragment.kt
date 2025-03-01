@@ -145,9 +145,9 @@ class HomeFragment : Fragment() {
 
         // Tambahkan contoh berita
         val newsList = mutableListOf(
-            News("Studi Temukan Kerusakan Jantung pada Penyintas Covid-19", R.drawable.sample_news_image),
-            News("Gaya Hidup Sehat untuk Mencegah Penyakit Jantung", R.drawable.sample_news_image),
-            News("Inovasi Teknologi dalam Deteksi Penyakit Jantung", R.drawable.sample_news_image)
+            News("Studi Temukan Kerusakan Jantung pada Penyintas Covid-19", R.drawable.sample_news_image,0),
+            News("Gaya Hidup Sehat untuk Mencegah Penyakit Jantung", R.drawable.sample_news_image,1),
+            News("Inovasi Teknologi dalam Deteksi Penyakit Jantung", R.drawable.sample_news_image,2)
         )
 
         val newsAdapter = NewsAdapter(newsList, requireActivity())
@@ -525,13 +525,13 @@ class HomeFragment : Fragment() {
         Log.d(TAG, "Updating UI with -> HeartRate: $heartRate, BP: ${systolic.roundToInt()} / ${diastolic.roundToInt()}, Battery: $battery%")
 
         view?.findViewById<TextView>(R.id.avg_week_heartrate)?.text =
-            if (heartRate > 0) "$heartRate" else "No Data"
+            if (heartRate > 0) "$heartRate" else " "
 
         view?.findViewById<TextView>(R.id.avg_week_bloodpressure)?.text =
-            if (systolic > 0 && diastolic > 0) "${systolic.roundToInt()} / ${diastolic.roundToInt()}" else "No Data"
+            if (systolic > 0 && diastolic > 0) "${systolic.roundToInt()} / ${diastolic.roundToInt()}" else " "
 
         view?.findViewById<TextView>(R.id.avg_week_battery)?.text =
-            if (battery > 0) "$battery %" else "No Data"
+            if (battery > 0) "$battery %" else " "
     }
 
     private fun getMonthName(timestamp: String): String {

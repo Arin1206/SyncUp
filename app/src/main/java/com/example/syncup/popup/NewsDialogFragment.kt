@@ -22,12 +22,20 @@ class NewsDialogFragment(private val news: News) : DialogFragment() {
         val newsImage = view.findViewById<ImageView>(R.id.newsImage)
         val newsTitle = view.findViewById<TextView>(R.id.newsTitle)
         val newsDescription = view.findViewById<TextView>(R.id.newsDescription)
-        val closeButton = view.findViewById<Button>(R.id.closeButton)
+        val closeButton = view.findViewById<TextView>(R.id.closeButton)
 
         // Set data
         newsImage.setImageResource(news.imageRes)
         newsTitle.text = news.title
-        newsDescription.text = "Ini adalah deskripsi detail dari berita ini. Tambahkan informasi lengkap di sini."
+        // Set deskripsi sesuai indeks
+        val descriptions = listOf(
+            "Penelitian terbaru mengungkap bahwa penyintas Covid-19 memiliki risiko lebih tinggi mengalami kerusakan jantung, bahkan setelah sembuh. Studi ini menunjukkan adanya perubahan pada struktur dan fungsi jantung yang dapat berdampak jangka panjang.",
+            "Menjaga kesehatan jantung bisa dilakukan dengan menerapkan pola hidup sehat. Mulai dari konsumsi makanan bergizi, rutin berolahraga, hingga mengelola stres. Simak tips dan kebiasaan sehat untuk menjaga jantung tetap prima.",
+            "Dengan kemajuan teknologi medis, deteksi dini penyakit jantung semakin mudah. Berbagai inovasi seperti wearable devices dan AI dalam diagnosis jantung membantu tenaga medis memberikan perawatan yang lebih efektif dan cepat."
+        )
+
+        newsDescription.text = descriptions[news.index]
+
 
         // Close button listener
         closeButton.setOnClickListener {
