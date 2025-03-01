@@ -52,21 +52,6 @@ class WeekFragment : Fragment() {
 
         weekChartView = view.findViewById(R.id.heartRateChart)
 
-        // Pindahkan Scroll Listener ke sini setelah inisialisasi RecyclerView
-        recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                super.onScrolled(recyclerView, dx, dy)
-
-                val layoutManager = recyclerView.layoutManager as LinearLayoutManager
-                val totalItems = layoutManager.itemCount
-                val visibleItems = layoutManager.findLastVisibleItemPosition()
-
-                if (visibleItems >= totalItems / 2) {
-                    recyclerView.smoothScrollToPosition(0)
-                }
-            }
-        })
-
         fetchHealthData()
 
         return view
@@ -88,13 +73,18 @@ class WeekFragment : Fragment() {
                     return@addSnapshotListener
                 }
 
-                if (documents == null || documents.isEmpty) return@addSnapshotListener
+                if (documents == null || documents.isEmpty) {
+                    Log.w("WeekFragment", "No health data found in Firestore")
+                    return@addSnapshotListener
+                }
+
+                Log.d("WeekFragment", "Total documents retrieved: ${documents.size()}")
 
                 val weekMap = LinkedHashMap<String, MutableList<HealthData>>()
 
                 for (doc in documents) {
                     val heartRate = doc.getLong("heartRate")?.toInt() ?: 0
-                    if (heartRate == 0) continue  // 🚀 Skip jika heart rate = 0
+                    if (heartRate == 0) continue
 
                     val systolicBP = doc.getDouble("systolicBP")?.toInt() ?: 0
                     val diastolicBP = doc.getDouble("diastolicBP")?.toInt() ?: 0
@@ -102,6 +92,8 @@ class WeekFragment : Fragment() {
                     val timestamp = doc.getString("timestamp") ?: continue
 
                     val weekNumber = getWeekOfMonth(timestamp)
+
+                    Log.d("WeekFragment", "Data: HR=$heartRate, BP=$systolicBP/$diastolicBP, Battery=$batteryLevel, Week=$weekNumber")
 
                     val healthData = HealthData(
                         heartRate = heartRate,
@@ -114,26 +106,36 @@ class WeekFragment : Fragment() {
                     weekMap.getOrPut(weekNumber) { mutableListOf() }.add(healthData)
                 }
 
-                val weekAverages = mutableMapOf<String, Int>()
-                for ((week, dataList) in weekMap) {
-                    val avgHeartRate = dataList.map { it.heartRate }.average().toInt()
-                    weekAverages[week] = avgHeartRate
+                val currentMonthYear = getCurrentMonthYear()
+                val firstWeekOfMarch = getFirstWeekOfCurrentMonth() // Mendapatkan rentang tanggal Week 1 di bulan Maret
+                val filteredWeekMap = weekMap.filterKeys { week ->
+                    val extractedMonthYear = extractMonthYearFromWeek(week)
+                    val weekStartEnd = extractStartEndDateFromWeek(week)
+
+                    Log.d("WeekFragment", "Checking week: $week, Month Extracted: $extractedMonthYear, Current: $currentMonthYear")
+
+                    // Pastikan Week 1 juga termasuk dalam filter
+                    extractedMonthYear == currentMonthYear || weekStartEnd.first.contains("Mar") || weekStartEnd.second.contains("Mar")
                 }
 
-                // **Update Chart**
-                weekChartView.setData(weekAverages)
-                // **Urutkan minggu dari terbaru ke terlama**
-                val sortedWeeks = weekMap.toSortedMap(compareByDescending { it })
+                val chartData = filteredWeekMap.mapValues { (_, dataList) ->
+                    dataList.map { it.heartRate }.average().toInt()
+                }
+
+                weekChartView.setData(chartData)
+                weekChartView.invalidate()
+                Log.d("WeekFragment", "Chart data set: $chartData")
+
+                val sortedWeeks = filteredWeekMap.toSortedMap(compareByDescending { it })
+
                 val groupedItems = mutableListOf<WeekHealthItem>()
 
                 for ((week, dataList) in sortedWeeks) {
-                    // **Hitung rata-rata untuk setiap minggu**
                     val avgHeartRate = dataList.map { it.heartRate }.average().toInt()
                     val avgSystolicBP = dataList.map { it.bloodPressure.split("/")[0].toInt() }.average().toInt()
                     val avgDiastolicBP = dataList.map { it.bloodPressure.split("/")[1].toInt() }.average().toInt()
                     val avgBatteryLevel = dataList.map { it.batteryLevel }.average().toInt()
 
-                    // **Simpan hanya 1 list per week dengan rata-rata**
                     val avgHealthData = HealthData(
                         heartRate = avgHeartRate,
                         bloodPressure = "$avgSystolicBP/$avgDiastolicBP",
@@ -146,78 +148,103 @@ class WeekFragment : Fragment() {
                     groupedItems.add(WeekHealthItem.DataItem(avgHealthData))
                 }
 
-                // **Ambil data dari minggu terbaru**
-                val latestWeek = sortedWeeks.keys.firstOrNull()
-                val latestWeekData = weekMap[latestWeek] ?: emptyList()
-
-                if (latestWeekData.isNotEmpty()) {
-                    val avgHeartRate = latestWeekData.map { it.heartRate }.average().toInt()
-                    val avgSystolicBP = latestWeekData.map { it.bloodPressure.split("/")[0].toInt() }.average().toInt()
-                    val avgDiastolicBP = latestWeekData.map { it.bloodPressure.split("/")[1].toInt() }.average().toInt()
-                    val avgBatteryLevel = latestWeekData.map { it.batteryLevel }.average().toInt()
-
-                    // 🔹 **Update UI secara real-time**
-                    avgHeartRateTextView.text = "$avgHeartRate"
-                    avgBloodPressureTextView.text = "$avgSystolicBP/$avgDiastolicBP"
-                    avgBatteryTextView.text = "$avgBatteryLevel%"
-                }
-
                 healthDataAdapter.updateData(groupedItems)
-
-                // 🔹 **Update tinggi RecyclerView**
-                updateRecyclerViewHeight()
             }
     }
+    private fun extractStartEndDateFromWeek(weekText: String): Pair<String, String> {
+        return try {
+            val regex = """\((\d{2} \w{3} \d{4}) - (\d{2} \w{3} \d{4})\)""".toRegex()
+            val matchResult = regex.find(weekText)
 
-
-    private fun updateRecyclerViewHeight() {
-        recyclerView.post {
-            val constraintLayout = view?.findViewById<ConstraintLayout>(R.id.main) ?: return@post
-            val constraintSet = ConstraintSet()
-            constraintSet.clone(constraintLayout)
-
-            if (healthDataAdapter.itemCount > 0) {
-                // Jika ada data, atur tinggi WRAP_CONTENT agar menyesuaikan isi
-                constraintSet.constrainHeight(R.id.recycler_view_health, ConstraintLayout.LayoutParams.WRAP_CONTENT)
-            } else {
-                // Jika tidak ada data, biarkan tingginya menyesuaikan dengan parent (agar tidak kosong)
-                constraintSet.constrainHeight(R.id.recycler_view_health, 0)
+            if (matchResult != null) {
+                val startDate = matchResult.groupValues[1]
+                val endDate = matchResult.groupValues[2]
+                return Pair(startDate, endDate)
             }
 
-            constraintSet.applyTo(constraintLayout)
+            Log.e("WeekParsing", "Failed to extract start/end date from: $weekText")
+            Pair("01 Jan 1900", "01 Jan 1900") // Return nilai default aman
+        } catch (e: Exception) {
+            Log.e("WeekParsing", "Error extracting start/end date from week: ${e.message}")
+            Pair("01 Jan 1900", "01 Jan 1900") // Return nilai default aman
         }
     }
+
+
+    private fun getFirstWeekOfCurrentMonth(): Pair<String, String> {
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.DAY_OF_MONTH, 1)
+
+        // Geser ke hari Senin pertama dalam bulan ini
+        while (calendar.get(Calendar.DAY_OF_WEEK) != Calendar.MONDAY) {
+            calendar.add(Calendar.DAY_OF_MONTH, 1)
+        }
+
+        val startOfWeek = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(calendar.time)
+
+        // Tambahkan 6 hari untuk mendapatkan akhir minggu
+        calendar.add(Calendar.DAY_OF_WEEK, 6)
+        val endOfWeek = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(calendar.time)
+
+        Log.d("WeekCalculation", "First Week of Current Month: $startOfWeek - $endOfWeek")
+
+        return Pair(startOfWeek, endOfWeek)
+    }
+
+
+
+    private fun getCurrentMonthYear(): String {
+        val calendar = Calendar.getInstance()
+        return SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(calendar.time)
+    }
+
+    private fun extractMonthYearFromWeek(weekText: String): String {
+        return try {
+            val regex = """\((\d{2} \w{3} \d{4}) - (\d{2} \w{3} \d{4})\)""".toRegex()
+            val matchResult = regex.find(weekText)
+
+            if (matchResult != null) {
+                val startMonthYear = matchResult.groupValues[1].split(" ").takeLast(2).joinToString(" ")
+                val endMonthYear = matchResult.groupValues[2].split(" ").takeLast(2).joinToString(" ")
+
+                val currentMonthYear = getCurrentMonthYear()
+
+                // Jika minggu ini berakhir di bulan yang sedang berjalan, anggap sebagai bulan berjalan
+                return if (endMonthYear == currentMonthYear) endMonthYear else startMonthYear
+            }
+
+            Log.e("WeekParsing", "Failed to extract month from: $weekText")
+            "Unknown Month"
+        } catch (e: Exception) {
+            Log.e("WeekParsing", "Error extracting month from week: ${e.message}")
+            "Unknown Month"
+        }
+    }
+
     private fun getWeekOfMonth(timestamp: String): String {
         val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         val date = inputFormat.parse(timestamp) ?: return "Unknown Week"
         val calendar = Calendar.getInstance().apply { time = date }
 
         val weekOfMonth = calendar.get(Calendar.WEEK_OF_MONTH)
-        val monthYear = SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(date)
+        val month = calendar.get(Calendar.MONTH)
 
-        // Tentukan awal dan akhir minggu
-        calendar.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
-        val startDate = SimpleDateFormat("dd MMM", Locale.getDefault()).format(calendar.time)
+        calendar.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)  // Set ke awal minggu
+        val startDate = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(calendar.time)
 
-        calendar.add(Calendar.DAY_OF_WEEK, 6)
+        calendar.add(Calendar.DAY_OF_WEEK, 6)  // Tambah 6 hari ke akhir minggu
         val endDate = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(calendar.time)
 
-        return "Week $weekOfMonth ($startDate - $endDate)"
+        val isPartOfCurrentMonth = (calendar.get(Calendar.MONTH) == month)
+        val weekLabel = if (isPartOfCurrentMonth) "Week $weekOfMonth ($startDate - $endDate)"
+        else "Week 1 ($startDate - $endDate)"  // Jika masuk ke Maret, tetap dihitung Week 1
+
+        Log.d("WeekCalculation", "Computed Week: $weekLabel, Original Date: $timestamp")
+
+        return weekLabel
     }
 
-    private fun getCurrentWeek(): String {
-        val calendar = Calendar.getInstance()
-        val weekOfMonth = calendar.get(Calendar.WEEK_OF_MONTH)
-        val monthYear = SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(calendar.time)
 
-        // Tentukan awal dan akhir minggu
-        calendar.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
-        val startDate = SimpleDateFormat("dd MMM", Locale.getDefault()).format(calendar.time)
 
-        calendar.add(Calendar.DAY_OF_WEEK, 6)
-        val endDate = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(calendar.time)
-
-        return "Week $weekOfMonth ($startDate - $endDate)"
-    }
 
 }
