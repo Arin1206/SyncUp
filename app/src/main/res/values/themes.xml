@@ -13,5 +13,14 @@
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
 
+    <!-- styles.xml -->
+    <style name="CustomDialogTheme" parent="Theme.MaterialComponents.Light.Dialog.Alert">
+        <item name="android:background">@color/purple_dark</item> <!-- Ubah warna latar belakang dialog -->
+        <item name="android:windowBackground">@color/purple_dark</item>
+        <item name="android:windowMinWidthMajor">90%</item> <!-- Lebarkan dialog -->
+        <item name="android:windowMinWidthMinor">90%</item>
+    </style>
+
+
     <style name="Theme.SyncUp" parent="Base.Theme.SyncUp" />
 </resources>
