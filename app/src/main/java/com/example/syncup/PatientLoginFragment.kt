@@ -159,18 +159,19 @@ class PatientLoginFragment : Fragment() {
     private fun sendOTP(phoneNumber: String) {
         var formattedPhoneNumber = phoneNumber.trim()
 
-        // **Jika nomor dimulai dengan '0', ganti dengan '+62'**
+        // Jika nomor dimulai dengan '0', ganti dengan '+62'
         if (formattedPhoneNumber.startsWith("0")) {
             formattedPhoneNumber = "+62" + formattedPhoneNumber.substring(1)
         }
 
         val options = PhoneAuthOptions.newBuilder(auth)
-            .setPhoneNumber(formattedPhoneNumber)  // **Gunakan nomor yang sudah diformat**
+            .setPhoneNumber(formattedPhoneNumber)
             .setTimeout(60L, TimeUnit.SECONDS)
             .setActivity(requireActivity())
             .setCallbacks(object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
                 override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-                    signInWithCredential(credential)
+                    // **HAPUS BAGIAN INI supaya tidak langsung verifikasi otomatis**
+                    // signInWithCredential(credential)
                 }
 
                 override fun onVerificationFailed(e: FirebaseException) {
@@ -180,7 +181,7 @@ class PatientLoginFragment : Fragment() {
                 override fun onCodeSent(verificationId: String, token: PhoneAuthProvider.ForceResendingToken) {
                     this@PatientLoginFragment.verificationId = verificationId
                     val intent = Intent(requireContext(), OtpPatientActivity::class.java)
-                    intent.putExtra("phoneNumber", formattedPhoneNumber)  // **Gunakan nomor yang diformat**
+                    intent.putExtra("phoneNumber", formattedPhoneNumber)
                     intent.putExtra("verificationId", verificationId)
                     startActivity(intent)
 

@@ -104,6 +104,11 @@ class OtpPatientActivity : AppCompatActivity() {
     }
 
     private fun verifyOtp(code: String) {
+        if (verificationId == null) {
+            Toast.makeText(this, "Verification ID is missing!", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         val credential = PhoneAuthProvider.getCredential(verificationId!!, code)
         auth.signInWithCredential(credential)
             .addOnCompleteListener { task ->
@@ -116,6 +121,7 @@ class OtpPatientActivity : AppCompatActivity() {
                 }
             }
     }
+
 
     private fun hideKeyboardWhenClickedOutside() {
         binding.main.setOnTouchListener { _, event ->

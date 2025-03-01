@@ -22,6 +22,7 @@ import androidx.fragment.app.Fragment
 import com.bumptech.glide.Glide
 import com.example.syncup.R
 import com.example.syncup.databinding.FragmentProfilePatientBinding
+import com.example.syncup.welcome.WelcomeActivity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
@@ -46,6 +47,10 @@ class ProfilePatientFragment : Fragment() {
     ): View {
         _binding = FragmentProfilePatientBinding.inflate(inflater, container, false)
         val view = binding.root
+
+        binding.logoutbutton.setOnClickListener {
+            showLogoutDialog()
+        }
 
         fetchUserData()
         binding.photoprofile.setOnClickListener {
@@ -100,6 +105,30 @@ class ProfilePatientFragment : Fragment() {
             Toast.makeText(requireContext(), "Failed to load user data", Toast.LENGTH_SHORT).show()
         }
     }
+
+    private fun showLogoutDialog() {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Logout")
+            .setMessage("Are you sure you want to log out?")
+            .setPositiveButton("Yes") { _, _ ->
+                performLogout()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun performLogout() {
+        FirebaseAuth.getInstance().signOut()
+
+        Toast.makeText(requireContext(), "Logged out successfully", Toast.LENGTH_SHORT).show()
+
+        // Arahkan pengguna ke halaman login
+        val intent = Intent(requireContext(), WelcomeActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        startActivity(intent)
+        requireActivity().finish()
+    }
+
 
     private fun showImagePickerDialog() {
         val options = arrayOf("Take Photo", "Choose from Gallery", "Cancel")
