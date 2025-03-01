@@ -130,6 +130,30 @@ class WeekFragment : Fragment() {
 
                 val groupedItems = mutableListOf<WeekHealthItem>()
 
+                val latestWeek = filteredWeekMap.keys.maxByOrNull { week ->
+                    extractStartEndDateFromWeek(week).first
+                }  // Ambil minggu terbaru berdasarkan tanggal mulai
+
+                val currentWeekData = latestWeek?.let { filteredWeekMap[it] }
+
+                if (!currentWeekData.isNullOrEmpty()) {
+                    val avgHeartRate = currentWeekData.map { it.heartRate }.average().toInt()
+                    val avgSystolicBP = currentWeekData.map { it.bloodPressure.split("/")[0].toInt() }.average().toInt()
+                    val avgDiastolicBP = currentWeekData.map { it.bloodPressure.split("/")[1].toInt() }.average().toInt()
+                    val avgBatteryLevel = currentWeekData.map { it.batteryLevel }.average().toInt()
+
+                    // Update UI
+                    avgHeartRateTextView.text = "$avgHeartRate"
+                    avgBloodPressureTextView.text = "$avgSystolicBP/$avgDiastolicBP"
+                    avgBatteryTextView.text = "$avgBatteryLevel%"
+
+                    Log.d("WeekFragment", "Updated Avg: HR=$avgHeartRate, BP=$avgSystolicBP/$avgDiastolicBP, Battery=$avgBatteryLevel, Week=$latestWeek")
+                } else {
+                    Log.w("WeekFragment", "No data found for the latest week ($latestWeek) to calculate averages.")
+                }
+
+
+
                 for ((week, dataList) in sortedWeeks) {
                     val avgHeartRate = dataList.map { it.heartRate }.average().toInt()
                     val avgSystolicBP = dataList.map { it.bloodPressure.split("/")[0].toInt() }.average().toInt()
