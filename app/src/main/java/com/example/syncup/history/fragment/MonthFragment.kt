@@ -32,7 +32,7 @@ class MonthFragment : Fragment() {
     private val firestore = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
 
-    private var healthDataListener: ListenerRegistration? = null // **Simpan listener untuk bisa dihapus**
+    private var healthDataListener: ListenerRegistration? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -65,7 +65,6 @@ class MonthFragment : Fragment() {
 
         val userId = currentUser.uid
 
-        // **Hapus listener sebelumnya jika ada untuk mencegah duplikasi**
         healthDataListener?.remove()
 
         healthDataListener = firestore.collection("patient_heart_rate")
@@ -76,14 +75,14 @@ class MonthFragment : Fragment() {
                     return@addSnapshotListener
                 }
 
-                if (!isAdded) return@addSnapshotListener // **Pastikan fragment masih aktif sebelum update UI**
+                if (!isAdded) return@addSnapshotListener
 
                 if (documents == null || documents.isEmpty) {
                     Log.w("MonthFragment", "No health data found")
                     requireActivity().runOnUiThread {
                         healthDataAdapter.updateData(emptyList())
                         updateAverageUI(null, null, null)
-                        updateChartData(emptyMap()) // **Reset grafik jika tidak ada data**
+                        updateChartData(emptyMap())
                     }
                     return@addSnapshotListener
                 }
@@ -100,17 +99,18 @@ class MonthFragment : Fragment() {
                     val diastolicBP = doc.getDouble("diastolicBP")?.toInt() ?: 0
                     val batteryLevel = doc.getLong("batteryLevel")?.toInt() ?: 0
 
-                    val month = getCurrentMonth()
+                    val timestamp = doc.getString("timestamp") ?: continue
+                    val monthYear = extractMonthYearFromTimestamp(timestamp)
 
-                    monthMap.getOrPut(month) { mutableListOf() }.add(heartRate)
-                    bpMap.getOrPut(month) { mutableListOf() }.add("$systolicBP/$diastolicBP")
-                    batteryMap.getOrPut(month) { mutableListOf() }.add(batteryLevel)
+                    monthMap.getOrPut(monthYear) { mutableListOf() }.add(heartRate)
+                    bpMap.getOrPut(monthYear) { mutableListOf() }.add("$systolicBP/$diastolicBP")
+                    batteryMap.getOrPut(monthYear) { mutableListOf() }.add(batteryLevel)
                 }
 
                 val monthItems = mutableListOf<MonthHealthItem>()
                 val monthAverages = mutableMapOf<String, Int>()
 
-                val sortedMonths = monthMap.entries.sortedBy { parseMonth(it.key) }
+                val sortedMonths = monthMap.entries.sortedByDescending { parseMonth(it.key) }
 
                 sortedMonths.forEach { (month, heartRates) ->
                     val monthOnly = convertMonthToEnglish(month.split(" ")[0])
@@ -124,21 +124,16 @@ class MonthFragment : Fragment() {
                     monthAverages[monthOnly] = avgHeartRate
                 }
 
-                val latestMonth = sortedMonths.lastOrNull()
-                if (latestMonth != null) {
-                    val latestHeartRates = latestMonth.value
-                    val latestBloodPressure = bpMap[latestMonth.key]?.groupingBy { it }?.eachCount()?.maxByOrNull { it.value }?.key ?: "N/A"
-                    val latestBattery = batteryMap[latestMonth.key]?.ifEmpty { listOf(0) }?.average()?.toInt() ?: 0
+                val currentMonth = getCurrentMonth()
+                val currentMonthData = monthMap[currentMonth]
 
-                    val avgLatestHeartRate = latestHeartRates.ifEmpty { listOf(0) }.average().toInt()
-
-                    Log.d("MonthFragment", "Latest Avg Heart Rate: $avgLatestHeartRate")
-                    Log.d("MonthFragment", "Latest Avg Blood Pressure: $latestBloodPressure")
-                    Log.d("MonthFragment", "Latest Avg Battery: $latestBattery")
+                if (!currentMonthData.isNullOrEmpty()) {
+                    val avgLatestHeartRate = currentMonthData.average().toInt()
+                    val latestBloodPressure = bpMap[currentMonth]?.groupingBy { it }?.eachCount()?.maxByOrNull { it.value }?.key ?: "N/A"
+                    val latestBattery = batteryMap[currentMonth]?.ifEmpty { listOf(0) }?.average()?.toInt() ?: 0
 
                     updateAverageUI(avgLatestHeartRate, latestBloodPressure, latestBattery)
                 } else {
-                    Log.w("MonthFragment", "No valid month data found")
                     updateAverageUI(null, null, null)
                 }
 
@@ -150,7 +145,7 @@ class MonthFragment : Fragment() {
     }
 
     private fun updateAverageUI(heartRate: Int?, bloodPressure: String?, battery: Int?) {
-        if (!isAdded) return // **Cegah crash jika fragment tidak terpasang**
+        if (!isAdded) return
 
         requireActivity().runOnUiThread {
             avgHeartRateTextView.text = heartRate?.toString() ?: "N/A"
@@ -160,7 +155,7 @@ class MonthFragment : Fragment() {
     }
 
     private fun updateChartData(monthAverages: Map<String, Int>) {
-        if (!isAdded) return // **Cegah update jika Fragment sudah tidak aktif**
+        if (!isAdded) return
 
         requireActivity().runOnUiThread {
             monthChartView.setData(monthAverages)
@@ -169,7 +164,7 @@ class MonthFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        healthDataListener?.remove() // **Hapus listener saat fragment dihancurkan**
+        healthDataListener?.remove()
     }
 
     private fun getCurrentMonth(): String {
@@ -198,8 +193,20 @@ class MonthFragment : Fragment() {
             "september" -> "September"
             "oktober", "october" -> "October"
             "november" -> "November"
-            "desember" -> "December"
+            "desember", "december" -> "December"
             else -> month
+        }
+    }
+
+    private fun extractMonthYearFromTimestamp(timestamp: String): String {
+        return try {
+            val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            val date = inputFormat.parse(timestamp) ?: return "Unknown Month"
+            val outputFormat = SimpleDateFormat("MMMM yyyy", Locale.ENGLISH)
+            outputFormat.format(date)
+        } catch (e: Exception) {
+            Log.e("MonthFragment", "Error parsing timestamp: ${e.message}")
+            "Unknown Month"
         }
     }
 }
