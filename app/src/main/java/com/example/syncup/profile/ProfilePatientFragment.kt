@@ -1,27 +1,43 @@
 package com.example.syncup.profile
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.AlertDialog
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.net.Uri
 import android.os.Bundle
+import android.provider.MediaStore
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.Toast
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import com.bumptech.glide.Glide
 import com.example.syncup.R
 import com.example.syncup.databinding.FragmentProfilePatientBinding
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
+import java.io.ByteArrayOutputStream
 
 class ProfilePatientFragment : Fragment() {
 
     private var _binding: FragmentProfilePatientBinding? = null
     private val binding get() = _binding!!
 
+    private val storage = FirebaseStorage.getInstance()
+    private var imageUri: Uri? = null // Menyimpan URI foto yang dipilih
+
     private val firestore = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
+    private var activeDialog: AlertDialog? = null
     private var documentId: String? = null // Simpan ID dokumen untuk update Firestore
 
     override fun onCreateView(
@@ -32,6 +48,10 @@ class ProfilePatientFragment : Fragment() {
         val view = binding.root
 
         fetchUserData()
+        binding.photoprofile.setOnClickListener {
+            showImagePickerDialog()
+        }
+
 
         // Tambahkan fungsi edit ketika tombol edit ditekan
         binding.edit.setOnClickListener {
@@ -81,6 +101,133 @@ class ProfilePatientFragment : Fragment() {
         }
     }
 
+    private fun showImagePickerDialog() {
+        val options = arrayOf("Take Photo", "Choose from Gallery", "Cancel")
+        AlertDialog.Builder(requireContext())
+            .setTitle("Upload Profile Picture")
+            .setItems(options) { dialog, which ->
+                when (options[which]) {
+                    "Take Photo" -> openCamera()
+                    "Choose from Gallery" -> openGallery()
+                    "Cancel" -> dialog.dismiss()
+                }
+            }
+            .show()
+    }
+
+    private fun openCamera() {
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CAMERA)
+            != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(requireActivity(), arrayOf(Manifest.permission.CAMERA), 100)
+        } else {
+            val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+            startActivityForResult(takePictureIntent, 101)
+        }
+    }
+
+    private fun openGallery() {
+        val pickPhoto = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+        startActivityForResult(pickPhoto, 102)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (requestCode == 101 && data != null) { // Kamera
+            val bitmap = data.extras?.get("data") as Bitmap
+            imageUri = getImageUri(bitmap)
+            showConfirmDialog(bitmap)
+        } else if (requestCode == 102 && data != null) { // Galeri
+            imageUri = data.data
+            showConfirmDialog(null)
+        }
+    }
+
+    private fun getImageUri(bitmap: Bitmap): Uri {
+        val bytes = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, bytes)
+        val path = MediaStore.Images.Media.insertImage(requireActivity().contentResolver, bitmap, "ProfilePicture", null)
+        return Uri.parse(path)
+    }
+
+    @SuppressLint("MissingInflatedId")
+    private fun showConfirmDialog(bitmap: Bitmap?) {
+        activeDialog?.dismiss()
+        val context = requireContext()
+        val dialogView = LayoutInflater.from(context).inflate(R.layout.dialog_confirm_photo, null)
+        val imagePreview = dialogView.findViewById<ImageView>(R.id.image_preview)
+        val btnCancel = dialogView.findViewById<View>(R.id.btn_cancel)
+        val btnSave = dialogView.findViewById<View>(R.id.btn_save)
+
+        val dialog = AlertDialog.Builder(context)
+            .setView(dialogView)
+            .setCancelable(false) // Jangan biarkan dialog tertutup otomatis
+            .create()
+
+        if (bitmap != null) {
+            imagePreview.setImageBitmap(bitmap)
+        } else {
+            imageUri?.let { uri ->
+                imagePreview.setImageURI(uri)
+            }
+        }
+
+        btnCancel.setOnClickListener {
+            dialog.dismiss()
+            fetchUserData() // Reload gambar sebelumnya
+        }
+
+        btnSave.setOnClickListener {
+            btnSave.isEnabled = false // Mencegah multi-klik
+            uploadImageToFirebase {
+                btnSave.isEnabled = true
+                dialog.dismiss()
+            }
+        }
+
+        dialog.show()
+    }
+
+
+    private fun uploadImageToFirebase(function: () -> Unit) {
+        val currentUser = auth.currentUser ?: return
+        val userId = currentUser.uid
+        val storageRef = storage.reference.child("profile_images/$userId.jpg")
+
+        imageUri?.let { uri ->
+            storageRef.putFile(uri)
+                .addOnSuccessListener {
+                    storageRef.downloadUrl.addOnSuccessListener { downloadUri ->
+                        savePhotoUrlToFirestore(downloadUri.toString())
+                    }
+                }
+                .addOnFailureListener { e ->
+                    Toast.makeText(requireContext(), "Upload failed", Toast.LENGTH_SHORT).show()
+                    Log.e("ProfilePatient", "Error uploading image", e)
+                }
+        }
+    }
+
+    private fun savePhotoUrlToFirestore(photoUrl: String) {
+        val currentUser = auth.currentUser ?: return
+        val userId = currentUser.uid
+
+        val photoData = hashMapOf(
+            "userId" to userId,
+            "photoUrl" to photoUrl
+        )
+
+        firestore.collection("patient_photoprofile").document(userId)
+            .set(photoData)
+            .addOnSuccessListener {
+                Toast.makeText(requireContext(), "Profile picture updated", Toast.LENGTH_SHORT).show()
+                Glide.with(this).load(photoUrl).into(binding.photoprofile)
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(requireContext(), "Failed to update profile picture", Toast.LENGTH_SHORT).show()
+                Log.e("ProfilePatient", "Error saving photo URL", e)
+            }
+    }
     @SuppressLint("MissingInflatedId")
     private fun showEditDialog() {
         val context = requireContext()
