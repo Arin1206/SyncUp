@@ -76,11 +76,12 @@ class HistoryPatientFragment : Fragment() {
     private fun updateViewPagerHeight() {
         viewPager.post {
             val layoutParams = viewPager.layoutParams
-            layoutParams.height = ViewGroup.LayoutParams.MATCH_PARENT
+            layoutParams.height = ViewGroup.LayoutParams.WRAP_CONTENT // Ikuti tinggi konten
             viewPager.layoutParams = layoutParams
-            viewPager.requestLayout() // 🔥 Pastikan perubahan langsung diterapkan
+            viewPager.requestLayout()
         }
     }
+
 
     private fun formatText(text: String): String {
         return text.lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }

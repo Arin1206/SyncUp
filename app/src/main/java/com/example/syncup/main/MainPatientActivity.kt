@@ -29,6 +29,7 @@ import com.example.syncup.R
 import com.example.syncup.ble.BluetoothLeService
 import com.example.syncup.ble.DeviceControlActivity
 import com.example.syncup.databinding.ActivityMainPatientBinding
+import com.example.syncup.faq.FaqFragment
 import com.example.syncup.history.HistoryPatientFragment
 import com.example.syncup.home.HomeFragment
 import com.example.syncup.welcome.WelcomeActivity
@@ -98,6 +99,7 @@ class MainPatientActivity : AppCompatActivity() {
             when (it.itemId) {
                 R.id.homepage -> replaceFragment(HomeFragment())
                 R.id.history-> replaceFragment(HistoryPatientFragment())
+                R.id.faq->replaceFragment(FaqFragment())
                 else -> {}
             }
             true
