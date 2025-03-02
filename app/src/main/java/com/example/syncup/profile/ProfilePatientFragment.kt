@@ -22,6 +22,7 @@ import androidx.fragment.app.Fragment
 import com.bumptech.glide.Glide
 import com.example.syncup.R
 import com.example.syncup.databinding.FragmentProfilePatientBinding
+import com.example.syncup.main.MainPatientActivity
 import com.example.syncup.welcome.WelcomeActivity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -58,6 +59,11 @@ class ProfilePatientFragment : Fragment() {
         }
 
 
+        binding.arrow.setOnClickListener {
+            requireActivity().supportFragmentManager.popBackStack()
+        }
+
+
         // Tambahkan fungsi edit ketika tombol edit ditekan
         binding.edit.setOnClickListener {
             showEditDialog()
@@ -76,40 +82,50 @@ class ProfilePatientFragment : Fragment() {
         val userEmail = currentUser.email
         var userPhone = currentUser.phoneNumber?.let { formatNomorTelepon(it) } // Format nomor sebelum query
 
-        Log.d("ProfilePatient", "User Phone (Formatted): $userPhone")
+        Log.d("ProfilePatient", "User Email: $userEmail | User Phone (Formatted): $userPhone")
 
-        val query = when {
-            !userEmail.isNullOrEmpty() -> firestore.collection("users_patient_email").whereEqualTo("email", userEmail)
-            !userPhone.isNullOrEmpty() -> firestore.collection("users_patient_phonenumber").whereEqualTo("phoneNumber", userPhone)
-            else -> {
-                Toast.makeText(requireContext(), "No email or phone found", Toast.LENGTH_SHORT).show()
-                return
-            }
+        val query: Pair<String, String>? = when {
+            !userEmail.isNullOrEmpty() -> Pair("users_patient_email", userEmail)
+            !userPhone.isNullOrEmpty() -> Pair("users_patient_phonenumber", userPhone)
+            else -> null
         }
 
-        query.get().addOnSuccessListener { documents ->
-            if (!documents.isEmpty) {
-                val document = documents.documents[0]
-                documentId = document.id
-                val fullName = document.getString("fullName") ?: "Unknown Name"
-                val age = document.getString("age") ?: "Unknown Age"
-                val gender = document.getString("gender") ?: "Unknown Gender"
-
-                binding.fullname.text = fullName
-                binding.ageGender.text = "$age years - $gender"
-
-                Log.d("ProfilePatient", "User Data Loaded: $fullName, $age, $gender")
-
-                // **Ambil foto profil dari Firestore jika ada**
-                loadProfilePicture(currentUser.uid)
-            } else {
-                Toast.makeText(requireContext(), "No user data found", Toast.LENGTH_SHORT).show()
-            }
-        }.addOnFailureListener { e ->
-            Log.e("ProfilePatient", "Error fetching user data", e)
-            Toast.makeText(requireContext(), "Failed to load user data", Toast.LENGTH_SHORT).show()
+        if (query == null) {
+            Toast.makeText(requireContext(), "No email or phone found", Toast.LENGTH_SHORT).show()
+            return
         }
+
+        val (collection, identifier) = query
+        firestore.collection(collection).whereEqualTo(if (collection == "users_patient_email") "email" else "phoneNumber", identifier)
+            .get()
+            .addOnSuccessListener { documents ->
+                if (!documents.isEmpty) {
+                    val document = documents.documents[0]
+                    documentId = document.id
+                    val fullName = document.getString("fullName") ?: "Unknown Name"
+                    val age = document.getString("age") ?: "Unknown Age"
+                    val gender = document.getString("gender") ?: "Unknown Gender"
+
+                    binding.fullname.text = fullName
+                    binding.ageGender.text = "$age years - $gender"
+
+                    // **Tambahkan email atau nomor telepon ke UI**
+                    binding.phoneoremail.text = identifier
+                    binding.emailOrPhonenumber.text = if (collection == "users_patient_email") "Email" else "Phone Number"
+
+                    Log.d("ProfilePatient", "User Data Loaded: $fullName, $age, $gender, Identifier: $identifier")
+
+                    // **Ambil foto profil dari Firestore jika ada**
+                    loadProfilePicture(currentUser.uid)
+                } else {
+                    Toast.makeText(requireContext(), "No user data found", Toast.LENGTH_SHORT).show()
+                }
+            }.addOnFailureListener { e ->
+                Log.e("ProfilePatient", "Error fetching user data", e)
+                Toast.makeText(requireContext(), "Failed to load user data", Toast.LENGTH_SHORT).show()
+            }
     }
+
     private fun loadProfilePicture(userId: String) {
         firestore.collection("patient_photoprofile").document(userId).get()
             .addOnSuccessListener { document ->
