@@ -74,21 +74,23 @@ class ProfilePatientFragment : Fragment() {
         }
 
         val userEmail = currentUser.email
-        val userPhone = currentUser.phoneNumber
+        var userPhone = currentUser.phoneNumber?.let { formatNomorTelepon(it) } // Format nomor sebelum query
 
-        val query = if (!userEmail.isNullOrEmpty()) {
-            firestore.collection("users_patient_email").whereEqualTo("email", userEmail)
-        } else if (!userPhone.isNullOrEmpty()) {
-            firestore.collection("users_patient_phonenumber").whereEqualTo("phonenumber", userPhone)
-        } else {
-            Toast.makeText(requireContext(), "No email or phone found", Toast.LENGTH_SHORT).show()
-            return
+        Log.d("ProfilePatient", "User Phone (Formatted): $userPhone")
+
+        val query = when {
+            !userEmail.isNullOrEmpty() -> firestore.collection("users_patient_email").whereEqualTo("email", userEmail)
+            !userPhone.isNullOrEmpty() -> firestore.collection("users_patient_phonenumber").whereEqualTo("phoneNumber", userPhone)
+            else -> {
+                Toast.makeText(requireContext(), "No email or phone found", Toast.LENGTH_SHORT).show()
+                return
+            }
         }
 
         query.get().addOnSuccessListener { documents ->
             if (!documents.isEmpty) {
                 val document = documents.documents[0]
-                documentId = document.id // Simpan ID dokumen untuk update nanti
+                documentId = document.id
                 val fullName = document.getString("fullName") ?: "Unknown Name"
                 val age = document.getString("age") ?: "Unknown Age"
                 val gender = document.getString("gender") ?: "Unknown Gender"
@@ -97,6 +99,9 @@ class ProfilePatientFragment : Fragment() {
                 binding.ageGender.text = "$age years - $gender"
 
                 Log.d("ProfilePatient", "User Data Loaded: $fullName, $age, $gender")
+
+                // **Ambil foto profil dari Firestore jika ada**
+                loadProfilePicture(currentUser.uid)
             } else {
                 Toast.makeText(requireContext(), "No user data found", Toast.LENGTH_SHORT).show()
             }
@@ -105,6 +110,33 @@ class ProfilePatientFragment : Fragment() {
             Toast.makeText(requireContext(), "Failed to load user data", Toast.LENGTH_SHORT).show()
         }
     }
+    private fun loadProfilePicture(userId: String) {
+        firestore.collection("patient_photoprofile").document(userId).get()
+            .addOnSuccessListener { document ->
+                if (document.exists()) {
+                    val photoUrl = document.getString("photoUrl")
+                    if (!photoUrl.isNullOrEmpty()) {
+                        Glide.with(this).load(photoUrl).into(binding.photoprofile)
+                        Log.d("ProfilePatient", "Profile picture loaded: $photoUrl")
+                    }
+                } else {
+                    Log.d("ProfilePatient", "No profile picture found for user.")
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e("ProfilePatient", "Error loading profile picture", e)
+            }
+    }
+
+
+    private fun formatNomorTelepon(phoneNumber: String): String {
+        return if (phoneNumber.startsWith("+62")) {
+            "0" + phoneNumber.substring(3) // Ganti +62 dengan 0
+        } else {
+            phoneNumber // Jika tidak diawali +62, biarkan apa adanya
+        }
+    }
+
 
     private fun showLogoutDialog() {
         AlertDialog.Builder(requireContext())
@@ -250,13 +282,14 @@ class ProfilePatientFragment : Fragment() {
             .set(photoData)
             .addOnSuccessListener {
                 Toast.makeText(requireContext(), "Profile picture updated", Toast.LENGTH_SHORT).show()
-                Glide.with(this).load(photoUrl).into(binding.photoprofile)
+                Glide.with(this).load(photoUrl).into(binding.photoprofile) // **Tampilkan langsung**
             }
             .addOnFailureListener { e ->
                 Toast.makeText(requireContext(), "Failed to update profile picture", Toast.LENGTH_SHORT).show()
                 Log.e("ProfilePatient", "Error saving photo URL", e)
             }
     }
+
     @SuppressLint("MissingInflatedId")
     private fun showEditDialog() {
         val context = requireContext()
