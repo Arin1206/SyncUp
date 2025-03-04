@@ -439,12 +439,16 @@ class HomeFragment : Fragment() {
         }
     }
 
+    private fun getCurrentMonthYear(): String {
+        val calendar = Calendar.getInstance()
+        return SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(calendar.time)
+    }
+
     private fun fetchWeeklyAverages() {
         val db = FirebaseFirestore.getInstance()
         val currentUser = FirebaseAuth.getInstance().currentUser
         val userId = currentUser?.uid ?: return
 
-        // Ambil semua data pengguna dari Firestore
         db.collection("patient_heart_rate")
             .whereEqualTo("userId", userId)
             .addSnapshotListener { documents, error ->
@@ -460,17 +464,29 @@ class HomeFragment : Fragment() {
                 }
 
                 val weekMap = LinkedHashMap<String, MutableList<HealthData>>()
+                val firstWeekRange = getFirstWeekOfCurrentMonth() // Ambil rentang minggu pertama
+                val currentMonthYear = getCurrentMonthYear() // Bulan & tahun berjalan
 
                 for (doc in documents) {
-                    val heartRate = doc.getLong("heartRate")?.toInt() ?: 0
-                    if (heartRate == 0) continue // Skip jika heart rate = 0
+                    val heartRate = doc.getLong("heartRate")?.toInt() ?: continue
+                    if (heartRate == 0) continue // Abaikan data heart rate = 0
 
                     val systolicBP = doc.getDouble("systolicBP")?.toInt() ?: 0
                     val diastolicBP = doc.getDouble("diastolicBP")?.toInt() ?: 0
                     val batteryLevel = doc.getLong("batteryLevel")?.toInt() ?: 0
                     val timestamp = doc.getString("timestamp") ?: continue
 
-                    val weekNumber = getWeekOfMonth(timestamp)
+                    // Filter hanya untuk bulan & tahun berjalan
+                    val dataMonthYear = extractMonthYearFromTimestamp(timestamp)
+                    if (dataMonthYear != currentMonthYear) {
+                        Log.d(TAG, "📌 Data diabaikan (bukan bulan berjalan): $timestamp")
+                        continue
+                    }
+
+                    // **Gunakan metode yang sama dengan `WeekFragment`**
+                    val weekNumber = getWeekOfMonth(timestamp, firstWeekRange)
+
+                    Log.d(TAG, "✔ Data Masuk: HR=$heartRate, BP=$systolicBP/$diastolicBP, Battery=$batteryLevel, Week=$weekNumber")
 
                     val healthData = HealthData(
                         heartRate = heartRate,
@@ -483,15 +499,18 @@ class HomeFragment : Fragment() {
                     weekMap.getOrPut(weekNumber) { mutableListOf() }.add(healthData)
                 }
 
-                // Ambil minggu terbaru yang sedang berjalan
-                val latestWeek = weekMap.keys.maxByOrNull { it }
-                val latestWeekData = weekMap[latestWeek] ?: emptyList()
+                // **Cari minggu terbaru dalam bulan berjalan**
+                val latestWeek = weekMap.keys.maxByOrNull { week ->
+                    extractStartEndDateFromWeek(week).first
+                }
 
-                if (latestWeekData.isNotEmpty()) {
-                    val avgHeartRate = latestWeekData.map { it.heartRate }.average().toInt()
-                    val avgSystolicBP = latestWeekData.map { it.bloodPressure.split("/")[0].toInt() }.average().toInt()
-                    val avgDiastolicBP = latestWeekData.map { it.bloodPressure.split("/")[1].toInt() }.average().toInt()
-                    val avgBatteryLevel = latestWeekData.map { it.batteryLevel }.average().toInt()
+                val currentWeekData = latestWeek?.let { weekMap[it] }
+
+                if (!currentWeekData.isNullOrEmpty()) {
+                    val avgHeartRate = currentWeekData.map { it.heartRate }.average().toInt()
+                    val avgSystolicBP = currentWeekData.map { it.bloodPressure.split("/")[0].toInt() }.average().toInt()
+                    val avgDiastolicBP = currentWeekData.map { it.bloodPressure.split("/")[1].toInt() }.average().toInt()
+                    val avgBatteryLevel = currentWeekData.map { it.batteryLevel }.average().toInt()
 
                     Log.d(TAG, "✅ Latest Week Averages -> HeartRate: $avgHeartRate, BP: $avgSystolicBP/$avgDiastolicBP, Battery: $avgBatteryLevel")
                     updateUI(avgHeartRate, avgSystolicBP.toDouble(), avgDiastolicBP.toDouble(), avgBatteryLevel)
@@ -500,6 +519,84 @@ class HomeFragment : Fragment() {
                     updateUI(0, 0.0, 0.0, 0)
                 }
             }
+    }
+
+    private fun extractMonthYearFromTimestamp(timestamp: String): String {
+        return try {
+            val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            val date = inputFormat.parse(timestamp) ?: return "Unknown Month"
+
+            SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(date)
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error extracting month-year from timestamp: ${e.message}")
+            "Unknown Month"
+        }
+    }
+
+    private fun getWeekOfMonth(timestamp: String, firstWeekRange: Pair<String, String>): String {
+        val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        val compareFormat = SimpleDateFormat("dd MMM yyyy HH:mm:ss", Locale.getDefault())
+
+        val date = inputFormat.parse(timestamp) ?: return "Unknown Week"
+
+        val firstWeekStart = compareFormat.parse("${firstWeekRange.first} 00:00:00")
+        val firstWeekEnd = compareFormat.parse("${firstWeekRange.second} 23:59:59")
+
+        val calendar = Calendar.getInstance().apply { time = date }
+        calendar.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+
+        val startDate = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(calendar.time)
+        calendar.add(Calendar.DAY_OF_WEEK, 6)
+        val endDate = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(calendar.time)
+
+        val currentMonth = SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(date)
+
+        val weekNumber = ((calendar.get(Calendar.DAY_OF_MONTH) - 1) / 7) + 1
+
+        Log.d(TAG, "📅 Tanggal: $timestamp -> Week: $weekNumber ($startDate - $endDate) di $currentMonth")
+
+        return when {
+            date.after(firstWeekStart) && date.before(firstWeekEnd) ->
+                "Week 1 (${firstWeekRange.first} - ${firstWeekRange.second})"
+            else ->
+                "Week $weekNumber ($startDate - $endDate)"
+        }
+    }
+
+    private fun getFirstWeekOfCurrentMonth(): Pair<String, String> {
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.DAY_OF_MONTH, 1)
+
+        while (calendar.get(Calendar.DAY_OF_WEEK) != Calendar.MONDAY) {
+            calendar.add(Calendar.DAY_OF_MONTH, -1)
+        }
+
+        val startOfWeek = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(calendar.time)
+        calendar.add(Calendar.DAY_OF_WEEK, 6)
+        val endOfWeek = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(calendar.time)
+
+        Log.d("WeekCalculation", "Corrected First Week of Current Month: $startOfWeek - $endOfWeek")
+
+        return Pair(startOfWeek, endOfWeek)
+    }
+
+    private fun extractStartEndDateFromWeek(weekText: String): Pair<String, String> {
+        return try {
+            val regex = """\((\d{2} \w{3} \d{4}) - (\d{2} \w{3} \d{4})\)""".toRegex()
+            val matchResult = regex.find(weekText)
+
+            if (matchResult != null) {
+                val startDate = matchResult.groupValues[1]
+                val endDate = matchResult.groupValues[2]
+                return Pair(startDate, endDate)
+            }
+
+            Log.e("WeekParsing", "Failed to extract start/end date from: $weekText")
+            Pair("01 Jan 1900", "01 Jan 1900")
+        } catch (e: Exception) {
+            Log.e("WeekParsing", "Error extracting start/end date from week: ${e.message}")
+            Pair("01 Jan 1900", "01 Jan 1900")
+        }
     }
 
     private fun getWeekOfMonth(timestamp: String): String {
