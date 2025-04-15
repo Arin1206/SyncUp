@@ -71,9 +71,6 @@ class MainPatientActivity : AppCompatActivity() {
         binding = ActivityMainPatientBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        val serviceIntent = Intent(this, BluetoothLeService::class.java)
-        startService(serviceIntent)
-
         database = FirebaseDatabase.getInstance().reference.child("connected_device")
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
         window.statusBarColor = getColor(android.R.color.transparent)  // Transparent status bar
@@ -102,73 +99,117 @@ class MainPatientActivity : AppCompatActivity() {
             }
             true
         }
+
+        // Check for Bluetooth and Location permissions
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // Android 12 and above - Request Bluetooth permissions
+            if (checkBluetoothPermissions()) {
+                requestBluetoothPermissions()
+            } else {
+                requestBluetoothPermissions()
+            }
+        } else {
+            // For Android 10 and below - Request Location permissions
+            if (checkLocationPermission()) {
+                requestLocationPermissions()
+            } else {
+                requestLocationPermissions()
+            }
+        }
     }
 
-    private fun checkPermissions(): Boolean {
+    private fun checkLocationPermission(): Boolean {
+        return ContextCompat.checkSelfPermission(
+            this, Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun checkBluetoothPermissions(): Boolean {
         return ContextCompat.checkSelfPermission(
             this, Manifest.permission.BLUETOOTH_CONNECT
         ) == PackageManager.PERMISSION_GRANTED &&
                 ContextCompat.checkSelfPermission(
                     this, Manifest.permission.BLUETOOTH_SCAN
-                ) == PackageManager.PERMISSION_GRANTED &&
-                ContextCompat.checkSelfPermission(
-                    this, Manifest.permission.ACCESS_FINE_LOCATION
                 ) == PackageManager.PERMISSION_GRANTED
     }
 
+    // Request Location permissions from the user (Android 10 and below)
+    private fun requestLocationPermissions() {
+        locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+    }
 
-    private fun requestPermissions() {
-        ActivityCompat.requestPermissions(
-            this,
+    // Request Bluetooth permissions (Android 11 and above)
+    private fun requestBluetoothPermissions() {
+        blueToothPermissionLauncher.launch(
             arrayOf(
                 Manifest.permission.BLUETOOTH_CONNECT,
-                Manifest.permission.BLUETOOTH_SCAN,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ),
-            1
+                Manifest.permission.BLUETOOTH_SCAN
+            )
         )
+    }
+
+    // Location permission result handler
+    private val locationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            // Once location permission is granted, proceed to Bluetooth permissions
+            requestBluetoothPermissions()
+        } else {
+            Toast.makeText(this, "Location permission denied", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // Bluetooth permission result handler
+    private val blueToothPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val bluetoothConnectGranted = permissions[Manifest.permission.BLUETOOTH_CONNECT] == true
+        val bluetoothScanGranted = permissions[Manifest.permission.BLUETOOTH_SCAN] == true
+
+        if (bluetoothConnectGranted && bluetoothScanGranted) {
+            scanBT() // Proceed with scanning if both permissions are granted
+        } else {
+            Toast.makeText(this, "Bluetooth permissions denied. Functionality limited.", Toast.LENGTH_SHORT).show()
+        }
     }
 
     // Handle Bluetooth permission request and scanning
     private fun scanBt(view: View) {
         if (bluetoothAdapter == null) {
             Toast.makeText(this, "Device doesn't support Bluetooth", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Check if Bluetooth is enabled
+        if (!bluetoothAdapter.isEnabled) {
+            val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+            btActivityResultLauncher.launch(enableBtIntent)
         } else {
-            // Check if Bluetooth permissions are granted
-            if (checkPermissions()) {
-                scanBT() // Proceed with scanning if permissions are granted
+            // Check the Android version to determine which permissions to request
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                // For Android 12 (API 31) and above, request both Bluetooth connect and scan permissions
+                if (checkBluetoothPermissions()) {
+                    scanBT() // Proceed with scanning if permissions are granted
+                } else {
+                    blueToothPermissionLauncher.launch(
+                        arrayOf(
+                            Manifest.permission.BLUETOOTH_CONNECT,
+                            Manifest.permission.BLUETOOTH_SCAN
+                        )
+                    )
+                }
             } else {
-                // Request permission for Bluetooth scanning if not granted
-                blueToothPermissionLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT)
+                // For Android 11 (API 30) and below, only request the Bluetooth scan permission
+                if (checkLocationPermission()) {
+                    scanBT() // Proceed with scanning if permission is granted
+                } else {
+                    locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                }
             }
         }
     }
 
-    private val blueToothPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted: Boolean ->
-        if (isGranted) {
-            // Proceed with Bluetooth scanning after permission is granted
-            scanBT()
-        } else {
-            Toast.makeText(this, "Bluetooth permission denied", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == 1) {
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                scanBT() // Bluetooth permissions granted, start scanning
-            } else {
-                Toast.makeText(this, "Bluetooth permission denied", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
 
     private val btActivityResultLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -178,7 +219,6 @@ class MainPatientActivity : AppCompatActivity() {
         }
     }
 
-
     @SuppressLint("MissingPermission")
     private val scanRunnable = object : Runnable {
         override fun run() {
@@ -187,20 +227,6 @@ class MainPatientActivity : AppCompatActivity() {
             }
             handler.postDelayed(this, scanInterval)
         }
-    }
-
-    fun replaceFragment(fragment: Fragment, hideBottomNavigation: Boolean = false) {
-        val fragmentManager = supportFragmentManager
-        val fragmentTransaction = fragmentManager.beginTransaction()
-        fragmentTransaction.replace(R.id.frame, fragment)
-
-        if (hideBottomNavigation) {
-            binding.bottomNav.visibility = View.GONE
-        } else {
-            binding.bottomNav.visibility = View.VISIBLE
-        }
-
-        fragmentTransaction.commit()
     }
 
     @SuppressLint("MissingPermission")
@@ -218,7 +244,6 @@ class MainPatientActivity : AppCompatActivity() {
             showScanDialog()  // Show the scanning dialog
         }
     }
-
 
     private fun showScanDialog() {
         val builder = AlertDialog.Builder(this@MainPatientActivity)
@@ -264,6 +289,20 @@ class MainPatientActivity : AppCompatActivity() {
         }
 
         dialog.show()
+    }
+
+    fun replaceFragment(fragment: Fragment, hideBottomNavigation: Boolean = false) {
+        val fragmentManager = supportFragmentManager
+        val fragmentTransaction = fragmentManager.beginTransaction()
+        fragmentTransaction.replace(R.id.frame, fragment)
+
+        if (hideBottomNavigation) {
+            binding.bottomNav.visibility = View.GONE
+        } else {
+            binding.bottomNav.visibility = View.VISIBLE
+        }
+
+        fragmentTransaction.commit()
     }
 
     private fun saveToFirebase(deviceName: String, deviceAddress: String) {
