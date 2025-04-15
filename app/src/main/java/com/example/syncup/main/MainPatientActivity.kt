@@ -49,7 +49,6 @@ class MainPatientActivity : AppCompatActivity() {
     private val deviceAddresses = mutableSetOf<String>()
     private lateinit var database: DatabaseReference
 
-    // BroadcastReceiver untuk menangkap perangkat Bluetooth
     private val receiver = object : BroadcastReceiver() {
         @SuppressLint("MissingPermission")
         override fun onReceive(context: Context, intent: Intent) {
@@ -77,8 +76,7 @@ class MainPatientActivity : AppCompatActivity() {
 
         database = FirebaseDatabase.getInstance().reference.child("connected_device")
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
-        window.statusBarColor = getColor(android.R.color.transparent)  // Status bar transparan
- // Status bar putih, teks hitam
+        window.statusBarColor = getColor(android.R.color.transparent)  // Transparent status bar
 
         auth = FirebaseAuth.getInstance()
         window.navigationBarColor = getColor(R.color.black)
@@ -98,26 +96,98 @@ class MainPatientActivity : AppCompatActivity() {
         binding.bottomNav.setOnItemSelectedListener {
             when (it.itemId) {
                 R.id.homepage -> replaceFragment(HomeFragment())
-                R.id.history-> replaceFragment(HistoryPatientFragment())
-                R.id.faq->replaceFragment(FaqFragment())
+                R.id.history -> replaceFragment(HistoryPatientFragment())
+                R.id.faq -> replaceFragment(FaqFragment())
                 else -> {}
             }
             true
         }
     }
-    private fun saveToFirebase(deviceName: String, deviceAddress: String) {
-        val currentUser = auth.currentUser
-        if (currentUser != null) {
-            val userId = currentUser.uid  // **Gunakan UID pengguna saat ini**
-            val deviceInfo = mapOf(
-                "deviceName" to deviceName,
-                "deviceAddress" to deviceAddress
-            )
-            database.child(userId).setValue(deviceInfo) // **Simpan berdasarkan UID**
+
+    private fun checkPermissions(): Boolean {
+        return ContextCompat.checkSelfPermission(
+            this, Manifest.permission.BLUETOOTH_CONNECT
+        ) == PackageManager.PERMISSION_GRANTED &&
+                ContextCompat.checkSelfPermission(
+                    this, Manifest.permission.BLUETOOTH_SCAN
+                ) == PackageManager.PERMISSION_GRANTED &&
+                ContextCompat.checkSelfPermission(
+                    this, Manifest.permission.ACCESS_FINE_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED
+    }
+
+
+    private fun requestPermissions() {
+        ActivityCompat.requestPermissions(
+            this,
+            arrayOf(
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.BLUETOOTH_SCAN,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ),
+            1
+        )
+    }
+
+    // Handle Bluetooth permission request and scanning
+    private fun scanBt(view: View) {
+        if (bluetoothAdapter == null) {
+            Toast.makeText(this, "Device doesn't support Bluetooth", Toast.LENGTH_SHORT).show()
+        } else {
+            // Check if Bluetooth permissions are granted
+            if (checkPermissions()) {
+                scanBT() // Proceed with scanning if permissions are granted
+            } else {
+                // Request permission for Bluetooth scanning if not granted
+                blueToothPermissionLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT)
+            }
+        }
+    }
+
+    private val blueToothPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            // Proceed with Bluetooth scanning after permission is granted
+            scanBT()
+        } else {
+            Toast.makeText(this, "Bluetooth permission denied", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 1) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                scanBT() // Bluetooth permissions granted, start scanning
+            } else {
+                Toast.makeText(this, "Bluetooth permission denied", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private val btActivityResultLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result: ActivityResult ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            scanBT() // Bluetooth is enabled, start scanning
         }
     }
 
 
+    @SuppressLint("MissingPermission")
+    private val scanRunnable = object : Runnable {
+        override fun run() {
+            if (!bluetoothAdapter.isDiscovering) {
+                bluetoothAdapter.startDiscovery()
+            }
+            handler.postDelayed(this, scanInterval)
+        }
+    }
 
     fun replaceFragment(fragment: Fragment, hideBottomNavigation: Boolean = false) {
         val fragmentManager = supportFragmentManager
@@ -133,73 +203,6 @@ class MainPatientActivity : AppCompatActivity() {
         fragmentTransaction.commit()
     }
 
-
-
-    // Periksa izin Bluetooth
-    private fun checkPermissions(): Boolean {
-        return ContextCompat.checkSelfPermission(
-            this, Manifest.permission.BLUETOOTH_SCAN
-        ) == PackageManager.PERMISSION_GRANTED &&
-                ContextCompat.checkSelfPermission(
-                    this, Manifest.permission.ACCESS_FINE_LOCATION
-                ) == PackageManager.PERMISSION_GRANTED
-    }
-
-    // Minta izin Bluetooth
-    private fun requestPermissions() {
-        ActivityCompat.requestPermissions(
-            this,
-            arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.ACCESS_FINE_LOCATION),
-            1
-        )
-    }
-
-    // Fungsi untuk scanning Bluetooth
-    fun scanBt(view: View) {
-        if (bluetoothAdapter == null) {
-            Toast.makeText(this, "Device doesn't support Bluetooth", Toast.LENGTH_SHORT).show()
-        } else {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                blueToothPermissionLauncher.launch(Manifest.permission.BLUETOOTH_SCAN)
-            } else {
-                blueToothPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-            }
-        }
-    }
-
-    private val blueToothPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted: Boolean ->
-        if (isGranted) {
-            if (!bluetoothAdapter.isEnabled) {
-                val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
-                btActivityResultLauncher.launch(enableBtIntent)
-            } else {
-                scanBT()
-            }
-        } else {
-            Toast.makeText(this, "Bluetooth permission denied", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private val btActivityResultLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result: ActivityResult ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            scanBT()
-        }
-    }
-
-    @SuppressLint("MissingPermission")
-    private val scanRunnable = object : Runnable {
-        override fun run() {
-            if (!bluetoothAdapter.isDiscovering) {
-                bluetoothAdapter.startDiscovery()
-            }
-            handler.postDelayed(this, scanInterval)
-        }
-    }
-
     @SuppressLint("MissingPermission")
     private fun scanBT() {
         if (!bluetoothAdapter.isEnabled) {
@@ -207,14 +210,15 @@ class MainPatientActivity : AppCompatActivity() {
             btActivityResultLauncher.launch(enableBtIntent)
         } else {
             if (!bluetoothAdapter.isDiscovering) {
-                bluetoothAdapter.startDiscovery()
+                bluetoothAdapter.startDiscovery() // Start Bluetooth discovery
             }
             scanResults.clear()
             deviceAddresses.clear()
             handler.post(scanRunnable)
-            showScanDialog()
+            showScanDialog()  // Show the scanning dialog
         }
     }
+
 
     private fun showScanDialog() {
         val builder = AlertDialog.Builder(this@MainPatientActivity)
@@ -225,7 +229,6 @@ class MainPatientActivity : AppCompatActivity() {
         val deviceListView = dialogView.findViewById<ListView>(R.id.bt_list)
         val dialog = builder.create()
 
-        // **Pastikan listAdapter telah diinisialisasi sebelum digunakan**
         val from = arrayOf("A")
         val to = intArrayOf(R.id.item_name)
         listAdapter = SimpleAdapter(this, scanResults, R.layout.item_list, from, to)
@@ -237,7 +240,7 @@ class MainPatientActivity : AppCompatActivity() {
             val deviceAddress = deviceInfo["B"] ?: "No Address"
 
             if (deviceAddress.isNotEmpty() && deviceAddress != "No Address") {
-                saveToFirebase(deviceName, deviceAddress) // Simpan ke Firebase
+                saveToFirebase(deviceName, deviceAddress) // Save to Firebase
 
                 try {
                     val homeFragment = HomeFragment().apply {
@@ -263,16 +266,26 @@ class MainPatientActivity : AppCompatActivity() {
         dialog.show()
     }
 
+    private fun saveToFirebase(deviceName: String, deviceAddress: String) {
+        val currentUser = auth.currentUser
+        if (currentUser != null) {
+            val userId = currentUser.uid  // **Gunakan UID pengguna saat ini**
+            val deviceInfo = mapOf(
+                "deviceName" to deviceName,
+                "deviceAddress" to deviceAddress
+            )
+            database.child(userId).setValue(deviceInfo) // **Simpan berdasarkan UID**
+        }
+    }
+
     private fun updateDeviceList(deviceName: String, deviceAddress: String) {
         val deviceData = mapOf("A" to deviceName, "B" to deviceAddress)
         scanResults.add(deviceData)
 
-        // **Cek apakah listAdapter sudah diinisialisasi sebelum update**
         if (::listAdapter.isInitialized) {
             listAdapter.notifyDataSetChanged()
         }
     }
-
 
     @SuppressLint("MissingPermission")
     private fun stopScan() {
