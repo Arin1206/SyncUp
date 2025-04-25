@@ -228,46 +228,46 @@
         </com.google.android.material.textfield.TextInputLayout>
 
 
-        <TextView
-            android:id="@+id/strTextView"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="32dp"
-            android:layout_marginTop="24dp"
-            android:fontFamily="@font/bold_font"
-            android:text="STR Number"
-            android:textColor="@color/black"
-            android:textSize="14sp"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/phoneNumberEditTextLayout" />
+<!--        <TextView-->
+<!--            android:id="@+id/strTextView"-->
+<!--            android:layout_width="wrap_content"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:layout_marginStart="32dp"-->
+<!--            android:layout_marginTop="24dp"-->
+<!--            android:fontFamily="@font/bold_font"-->
+<!--            android:text="STR Number"-->
+<!--            android:textColor="@color/black"-->
+<!--            android:textSize="14sp"-->
+<!--            app:layout_constraintStart_toStartOf="parent"-->
+<!--            app:layout_constraintTop_toBottomOf="@+id/phoneNumberEditTextLayout" />-->
 
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/strEditTextLayout"
-            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-            android:layout_width="match_parent"
-            android:layout_height="45dp"
-            android:layout_marginStart="32dp"
-            android:layout_marginEnd="32dp"
-            app:boxCornerRadiusTopEnd="15dp"
-            app:boxCornerRadiusBottomStart="15dp"
-            app:boxCornerRadiusBottomEnd="15dp"
-            app:boxCornerRadiusTopStart="15dp"
-            app:boxBackgroundColor="@color/purple_dark"
-            app:boxStrokeColor="@color/purple_dark"
-            app:boxStrokeWidth="0dp"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/strTextView">
+<!--        <com.google.android.material.textfield.TextInputLayout-->
+<!--            android:id="@+id/strEditTextLayout"-->
+<!--            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"-->
+<!--            android:layout_width="match_parent"-->
+<!--            android:layout_height="45dp"-->
+<!--            android:layout_marginStart="32dp"-->
+<!--            android:layout_marginEnd="32dp"-->
+<!--            app:boxCornerRadiusTopEnd="15dp"-->
+<!--            app:boxCornerRadiusBottomStart="15dp"-->
+<!--            app:boxCornerRadiusBottomEnd="15dp"-->
+<!--            app:boxCornerRadiusTopStart="15dp"-->
+<!--            app:boxBackgroundColor="@color/purple_dark"-->
+<!--            app:boxStrokeColor="@color/purple_dark"-->
+<!--            app:boxStrokeWidth="0dp"-->
+<!--            app:layout_constraintStart_toStartOf="parent"-->
+<!--            app:layout_constraintTop_toBottomOf="@+id/strTextView">-->
 
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/ed_regis_str"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:inputType="number"
-                android:paddingVertical="8dp"
-                android:textColor="@color/white"
-                android:textSize="16sp"
-                tools:ignore="SpeakableTextPresentCheck" />
-        </com.google.android.material.textfield.TextInputLayout>
+<!--            <com.google.android.material.textfield.TextInputEditText-->
+<!--                android:id="@+id/ed_regis_str"-->
+<!--                android:layout_width="match_parent"-->
+<!--                android:layout_height="match_parent"-->
+<!--                android:inputType="number"-->
+<!--                android:paddingVertical="8dp"-->
+<!--                android:textColor="@color/white"-->
+<!--                android:textSize="16sp"-->
+<!--                tools:ignore="SpeakableTextPresentCheck" />-->
+<!--        </com.google.android.material.textfield.TextInputLayout>-->
 
         <TextView
             android:id="@+id/customTextView"
@@ -289,7 +289,7 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintHorizontal_bias="0.529"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/strEditTextLayout" />
+            app:layout_constraintTop_toBottomOf="@+id/phoneNumberEditTextLayout" />
 
         <TextView
             android:id="@+id/textView"
@@ -376,11 +376,12 @@
             android:textColor="@color/purple_dark"
             android:textSize="14sp"
             android:textStyle="italic"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.063"
-            app:layout_constraintStart_toEndOf="@+id/textView3"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/customgoogle" />
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.088"
+            app:layout_constraintStart_toEndOf="@+id/textView3"
+            app:layout_constraintTop_toBottomOf="@+id/customgoogle"
+            app:layout_constraintVertical_bias="0.0" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </ScrollView>

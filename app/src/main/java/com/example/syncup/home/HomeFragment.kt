@@ -5,6 +5,7 @@ import android.Manifest
 import android.content.*
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
@@ -275,7 +276,7 @@ class HomeFragment : Fragment() {
                         requireContext().bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
 
                         if (!isReceiverRegistered) {
-                            requireContext().registerReceiver(heartRateReceiver, makeGattUpdateIntentFilter())
+                            safeRegisterReceiver(heartRateReceiver, makeGattUpdateIntentFilter())
                             isReceiverRegistered = true
                             Log.d(TAG, "Receiver registered")
                         }
@@ -289,7 +290,11 @@ class HomeFragment : Fragment() {
                         view?.findViewById<TextView>(R.id.battery_value)?.text = "null"
                     }
                 }
+
+
             }
+
+
 
             override fun onCancelled(error: DatabaseError) {
                 Log.e(TAG, "Failed to read device data from Firebase: ${error.message}")
@@ -878,7 +883,7 @@ class HomeFragment : Fragment() {
         super.onResume()
 
         val batteryFilter = IntentFilter(BluetoothLeService.ACTION_BATTERY_LEVEL_MEASUREMENT)
-        requireContext().registerReceiver(batteryReceiver, batteryFilter)
+        safeRegisterReceiver(batteryReceiver, batteryFilter)
         Log.d(TAG, "🔄 Battery receiver registered")
 
         if (!hasHandledDisconnect) {
@@ -913,15 +918,15 @@ class HomeFragment : Fragment() {
             }, 3000)
         }
 
-        requireContext().registerReceiver(locationModeReceiver, IntentFilter(android.location.LocationManager.PROVIDERS_CHANGED_ACTION))
+        safeRegisterReceiver(locationModeReceiver, IntentFilter(android.location.LocationManager.PROVIDERS_CHANGED_ACTION))
         checkLocationPermissionAndUpdateMaps()
 
         val filter = IntentFilter().apply {
             addAction(BluetoothLeService.ACTION_DEVICE_DISCONNECTED)
             addAction(BluetoothLeService.ACTION_GATT_CONNECTED)
         }
-        requireContext().registerReceiver(deviceDisconnectReceiver, filter)
-        requireContext().registerReceiver(deviceReconnectReceiver, filter)
+        safeRegisterReceiver(deviceDisconnectReceiver, filter)
+        safeRegisterReceiver(deviceReconnectReceiver, filter)
     }
 
     override fun onPause() {
@@ -1001,6 +1006,15 @@ class HomeFragment : Fragment() {
             addAction(BluetoothLeService.ACTION_HEART_RATE_MEASUREMENT)
         }
     }
+
+    private fun safeRegisterReceiver(receiver: BroadcastReceiver, filter: IntentFilter) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            requireContext().registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            requireContext().registerReceiver(receiver, filter)
+        }
+    }
+
 
     private fun logoutUser() {
         val auth = FirebaseAuth.getInstance()

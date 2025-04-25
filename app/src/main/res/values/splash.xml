@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.YTAndroid12SplashScreen.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/purple_dark</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/sync</item>
+        <item name="postSplashScreenTheme">@style/SyncUp</item>
+        <item name="splashScreenIconSize">30dp</item>
+        <item name="android:windowIsTranslucent">true</item>
+    </style>
+
+</resources>

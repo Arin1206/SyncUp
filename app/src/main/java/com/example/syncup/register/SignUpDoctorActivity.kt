@@ -113,7 +113,7 @@ class SignUpDoctorActivity : AppCompatActivity() {
         val phoneNumber = binding.edRegisPhone.text.toString().trim()
         val age = binding.edRegisAge.text.toString().trim()
         val gender = binding.genderSpinner.selectedItem.toString()
-        val str = binding.edRegisStr.text.toString().trim()
+//        val str = binding.edRegisStr.text.toString().trim()
 
         // **Validasi: Full Name dan Phone Number harus diisi**
         if (fullName.isEmpty()) {
@@ -122,11 +122,11 @@ class SignUpDoctorActivity : AppCompatActivity() {
             return
         }
 
-        if (str.isEmpty()) {
-            binding.edRegisStr.error = "STR is required"
-            binding.edRegisStr.requestFocus()
-            return
-        }
+//        if (str.isEmpty()) {
+//            binding.edRegisStr.error = "STR is required"
+//            binding.edRegisStr.requestFocus()
+//            return
+//        }
 
         if (phoneNumber.isEmpty()) {
             binding.edRegisPhone.error = "Phone Number is required"
@@ -162,7 +162,7 @@ class SignUpDoctorActivity : AppCompatActivity() {
                     binding.customTextView.text = "Continue"
                 } else {
                     // **Jika nomor telepon belum digunakan, lanjutkan registrasi**
-                    registerNewUser(fullName, phoneNumber, age, gender, str)
+                    registerNewUser(fullName, phoneNumber, age, gender )
                 }
             }.addOnFailureListener {
                 Toast.makeText(this, "Error checking doctor phone number!", Toast.LENGTH_SHORT).show()
@@ -176,7 +176,7 @@ class SignUpDoctorActivity : AppCompatActivity() {
         }
     }
 
-    private fun registerNewUser(fullName: String, phoneNumber: String, age: String, gender: String, str: String) {
+    private fun registerNewUser(fullName: String, phoneNumber: String, age: String, gender: String) {
         // **Generate user ID acak**
         val userId = UUID.randomUUID().toString()
 
@@ -186,7 +186,7 @@ class SignUpDoctorActivity : AppCompatActivity() {
             "phoneNumber" to phoneNumber,
             "age" to if (age.isNotEmpty()) age else "N/A",
             "gender" to if (gender != "Select Gender") gender else "N/A",
-            "str" to str
+//            "str" to str
         )
 
         db.collection("users_doctor_phonenumber").document(userId)

@@ -1,27 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
     <style name="Base.Theme.SyncUp" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Warna dasar tema -->
         <item name="colorPrimary">@color/purple_light</item>
         <item name="colorPrimaryVariant">@color/purple_dark</item>
         <item name="colorOnPrimary">@color/white</item>
         <item name="android:statusBarColor">@color/purple_dark</item>
         <item name="android:colorBackground">@color/white</item>
-        <item name="android:windowIsTranslucent">true</item>
+
+        <!-- DISABLING Android 12 Splash -->
+        <item name="android:windowSplashScreenBackground">@android:color/transparent</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@null</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@null</item>
     </style>
+
     <style name="SyncUp" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="android:windowBackground">@drawable/splash_screen</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
 
-    <!-- styles.xml -->
-    <style name="CustomDialogTheme" parent="Theme.MaterialComponents.Light.Dialog.Alert">
-        <item name="android:background">@color/purple_dark</item> <!-- Ubah warna latar belakang dialog -->
-        <item name="android:windowBackground">@color/purple_dark</item>
-        <item name="android:windowMinWidthMajor">90%</item> <!-- Lebarkan dialog -->
-        <item name="android:windowMinWidthMinor">90%</item>
-    </style>
-
-
-    <style name="Theme.SyncUp" parent="Base.Theme.SyncUp" />
 </resources>

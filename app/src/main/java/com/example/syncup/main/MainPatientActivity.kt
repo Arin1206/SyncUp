@@ -17,6 +17,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.View
+import android.view.ViewGroup
 import android.widget.*
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,6 +26,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.example.syncup.R
+import com.example.syncup.ble.BluetoothLeService
 import com.example.syncup.databinding.ActivityMainPatientBinding
 import com.example.syncup.faq.FaqFragment
 import com.example.syncup.history.HistoryPatientFragment
@@ -65,23 +67,39 @@ class MainPatientActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainPatientBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        val rootView = window.decorView.findViewById<ViewGroup>(android.R.id.content)
+        rootView.setBackgroundColor(ContextCompat.getColor(this, R.color.purple_dark))
 
-        // Set initial background color to dark except prompt
-        window.decorView.setBackgroundColor(ContextCompat.getColor(this, R.color.dark_overlay))
 
+        val serviceIntent = Intent(this, BluetoothLeService::class.java)
+        startService(serviceIntent)
+        // Initialize Firebase and other services
         database = FirebaseDatabase.getInstance().reference.child("connected_device")
         auth = FirebaseAuth.getInstance()
-
-        window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
-        window.statusBarColor = getColor(android.R.color.transparent)  // Status bar transparan
-
-        replaceFragment(HomeFragment())
+        window.navigationBarColor = getColor(R.color.black)
 
         val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         bluetoothAdapter = bluetoothManager.adapter
 
         val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
         registerReceiver(receiver, filter)
+
+        window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+        window.statusBarColor = getColor(android.R.color.transparent)  // Status bar transparan
+
+        // Check for Android version
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // Android 12 and above - Request Bluetooth permissions first
+            if (checkBluetoothPermissions()) {
+                // If permissions already granted, initialize HomeFragment
+                initHomeFragment()
+            } else {
+                requestBluetoothPermissions()
+            }
+        } else {
+            // For Android 10 (API 30) and below, go directly to HomeFragment
+            initHomeFragment()
+        }
 
         binding.scanButtonContainer.setOnClickListener {
             scanBt()
@@ -96,25 +114,13 @@ class MainPatientActivity : AppCompatActivity() {
             }
             true
         }
-
-        // Check for Bluetooth and Location permissions
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            // Android 12 and above - Request Bluetooth permissions
-            if (checkBluetoothPermissions()) {
-                requestBluetoothPermissions()
-            } else {
-                requestBluetoothPermissions()
-            }
-        } else {
-            // For Android 10 and below - Request Location permissions
-            if (checkLocationPermission()) {
-                // No fragment switch, stay in FaqFragment
-                requestLocationPermissions()
-            } else {
-                requestLocationPermissions()
-            }
-        }
     }
+    private fun initHomeFragment() {
+        replaceFragment(HomeFragment())
+        // Remove the dark overlay
+        window.decorView.setBackgroundColor(ContextCompat.getColor(this, android.R.color.white))
+    }
+
 
     private fun checkLocationPermission(): Boolean {
         return ContextCompat.checkSelfPermission(
@@ -166,11 +172,16 @@ class MainPatientActivity : AppCompatActivity() {
         val bluetoothScanGranted = permissions[Manifest.permission.BLUETOOTH_SCAN] == true
 
         if (bluetoothConnectGranted && bluetoothScanGranted) {
-            scanBT() // Proceed with scanning if both permissions are granted
+            // Proceed with scanning and initialize HomeFragment
+            scanBT()
+            initHomeFragment() // Initialize HomeFragment after permission granted
         } else {
+            // Continuously show the permission request prompt until user clicks "Allow"
             Toast.makeText(this, "Bluetooth permissions denied. Functionality limited.", Toast.LENGTH_SHORT).show()
+            requestBluetoothPermissions()  // Re-prompt if denied
         }
     }
+
 
     // Handle Bluetooth permission request and scanning
     private fun scanBt() {
@@ -254,12 +265,16 @@ class MainPatientActivity : AppCompatActivity() {
         val dialogView: View = inflater.inflate(R.layout.scan_bt, null)
         builder.setView(dialogView)
 
+
+
         val deviceListView = dialogView.findViewById<ListView>(R.id.bt_list)
         val dialog = builder.create()
 
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
         val from = arrayOf("A")
         val to = intArrayOf(R.id.item_name)
-        listAdapter = SimpleAdapter(this, scanResults, R.layout.item_list, from, to)
+        listAdapter = SimpleAdapter(this, scanResults, R.layout.item_list2, from, to)
         deviceListView.adapter = listAdapter
 
         deviceListView.onItemClickListener = AdapterView.OnItemClickListener { _, _, position, _ ->

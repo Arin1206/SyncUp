@@ -298,10 +298,4 @@ class WeekFragment : Fragment() {
         }
     }
 
-
-
-
-
-
-
 }

@@ -1,25 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
+    android:background="@drawable/rounded_corner"
     android:layout_height="match_parent">
 
+    <!-- ListView with rounded corners -->
     <ListView
         android:id="@+id/bt_list"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentStart="true"
-        android:layout_alignParentTop="true"
-        android:layout_marginStart="21dp"
-        android:layout_marginTop="21dp"
-        android:layout_marginEnd="21dp"
-        android:layout_marginBottom="21dp"></ListView>
+    android:layout_height="wrap_content"
+    android:layout_alignParentStart="true"
+    android:layout_alignParentTop="true"
 
-     <TextView
+        android:divider="@color/white"
+        android:dividerHeight="2dp"
+        android:paddingTop="20dp"
+        android:background="@android:color/transparent"
+     />
+
+    <!-- TextView with rounded corners -->
+    <TextView
         android:id="@+id/btname"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentTop="true"
         android:layout_centerHorizontal="true"
-        android:text="Bluetooth device List"></TextView>
+        android:text="Disover Device"
+        android:textColor="@android:color/white"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:background="@android:color/transparent"
+    android:layout_marginTop="0dp"
+
+    android:padding="0dp" />  <!-- Add padding to the text for better spacing -->
 
 </RelativeLayout>
