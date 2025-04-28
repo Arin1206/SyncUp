@@ -30,7 +30,7 @@
             android:textColor="@color/black"
             android:textSize="12sp"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.133"
+            app:layout_constraintHorizontal_bias="0.026"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/textviewgq2" />
 
@@ -48,18 +48,20 @@
             app:srcCompat="@drawable/logo" />
 
         <!-- Tombol Back -->
+
+        <!-- Judul "Faq" -->
+
         <ImageView
             android:id="@+id/arrow"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="44dp"
             app:layout_constraintEnd_toStartOf="@+id/textView6"
-            app:layout_constraintHorizontal_bias="0.193"
+            app:layout_constraintHorizontal_bias="0.038"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:srcCompat="@drawable/arrow_1" />
 
-        <!-- Judul "Faq" -->
         <TextView
             android:id="@+id/textView6"
             android:layout_width="wrap_content"
@@ -78,13 +80,13 @@
             android:id="@+id/textviewgq3"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="44dp"
+            android:layout_marginTop="40dp"
             android:fontFamily="@font/bold_font"
             android:text="Reach Out our team"
             android:textColor="@color/purple_dark"
             android:textSize="16sp"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.125"
+            app:layout_constraintHorizontal_bias="0.025"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/isi4" />
 
@@ -98,7 +100,7 @@
             android:textColor="@color/purple_dark"
             android:textSize="16sp"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.128"
+            app:layout_constraintHorizontal_bias="0.026"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/isi2" />
 
@@ -106,13 +108,13 @@
             android:id="@+id/textView16"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="92dp"
+            android:layout_marginTop="88dp"
             android:fontFamily="@font/bold_font"
             android:text="General Questions"
             android:textColor="@color/purple_dark"
             android:textSize="16sp"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.116"
+            app:layout_constraintHorizontal_bias="0.024"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
@@ -120,13 +122,14 @@
             android:id="@+id/subjudul5"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="4dp"
             android:fontFamily="@font/bold_font"
             android:text="From"
+            android:layout_marginStart="5dp"
             android:textColor="@color/black"
             android:textSize="12sp"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.083"
+            app:layout_constraintHorizontal_bias="0.016"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/textviewgq3" />
 
@@ -134,14 +137,14 @@
             android:id="@+id/subjudul4"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="16dp"
             android:background="@drawable/rounded_drawable_faq"
             android:fontFamily="@font/bold_font"
             android:text="How does the wearable device work?"
             android:textColor="@color/black"
             android:textSize="12sp"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.187"
+            app:layout_constraintHorizontal_bias="0.037"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/isi3" />
 
@@ -156,7 +159,7 @@
             android:textColor="@color/black"
             android:textSize="12sp"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.181"
+            app:layout_constraintHorizontal_bias="0.037"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/textView23" />
 
@@ -171,7 +174,7 @@
             android:textColor="@color/black"
             android:textSize="12sp"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.129"
+            app:layout_constraintHorizontal_bias="0.026"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/textView16" />
 
@@ -185,7 +188,7 @@
             android:text="The device tracks your heart health metrics, such as heart rate and rhythm, and syncs the data securely to the platform for your doctor to review."
             android:textSize="12sp"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.707"
+            app:layout_constraintHorizontal_bias="0.146"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/subjudul4" />
 
@@ -193,13 +196,13 @@
             android:id="@+id/isi2"
             android:layout_width="350dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="4dp"
 
             android:fontFamily="@font/regular_font"
             android:text="The device tracks your heart health metrics, such as heart rate and rhythm, and syncs the data securely to the platform for your doctor to review."
             android:textSize="12sp"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.731"
+            app:layout_constraintHorizontal_bias="0.146"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/subjudul2" />
 
@@ -213,7 +216,7 @@
             android:text="Our platform connects patients with doctors, allowing for real-time monitoring and communication to ensure the best heart health care."
             android:textSize="12sp"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.731"
+            app:layout_constraintHorizontal_bias="0.146"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/subjudul3" />
 
@@ -227,7 +230,7 @@
             android:text="Our platform connects patients with doctors, allowing for real-time monitoring and communication to ensure the best heart health care."
             android:textSize="12sp"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.707"
+            app:layout_constraintHorizontal_bias="0.146"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/textView18" />
 
@@ -240,8 +243,9 @@
             android:text="Message"
             android:textColor="@color/black"
             android:textSize="12sp"
+            android:layout_marginStart="5dp"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.083"
+            app:layout_constraintHorizontal_bias="0.017"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/fullNameEditTextLayout" />
 
@@ -250,13 +254,15 @@
             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
             android:layout_width="match_parent"
             android:layout_height="45dp"
-            android:layout_marginStart="30dp"
+            android:layout_marginStart="10dp"
             android:layout_marginEnd="15dp"
-            app:boxCornerRadiusTopEnd="15dp"
-            app:boxCornerRadiusBottomStart="15dp"
-            app:boxCornerRadiusBottomEnd="15dp"
-            app:boxCornerRadiusTopStart="15dp"
             app:boxBackgroundColor="@color/purple_dark"
+            app:boxCornerRadiusBottomEnd="15dp"
+            app:boxCornerRadiusBottomStart="15dp"
+            app:boxCornerRadiusTopEnd="15dp"
+            app:placeholderTextColor="@color/white"
+            app:placeholderText="Enter your Gmail"
+            app:boxCornerRadiusTopStart="15dp"
             app:boxStrokeColor="@color/purple_dark"
             app:boxStrokeWidth="0dp"
             app:layout_constraintStart_toStartOf="parent"
@@ -266,35 +272,35 @@
                 android:id="@+id/ed_regis_fullname"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:inputType="textPersonName"
-                android:textColor="@color/white"
-                android:hint="Enter your gmail"
+            android:inputType="textEmailAddress"
+            android:paddingVertical="8dp"
+            android:textColor="@color/white"
+            android:textSize="16sp"
+            android:focusable="true"
+                android:hint="Enter your Gmail"
                 android:textColorHint="@color/white"
-                android:textSize="16sp"
-                android:paddingVertical="8dp"
-                tools:ignore="SpeakableTextPresentCheck" />
-
+            android:focusableInTouchMode="true"
+            tools:ignore="SpeakableTextPresentCheck" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <EditText
             android:id="@+id/message_field"
             android:layout_width="0dp"
             android:layout_height="150dp"
-            android:layout_marginStart="30dp"
+            android:layout_marginStart="10dp"
+            android:layout_marginTop="4dp"
             android:layout_marginEnd="15dp"
-            android:layout_marginTop="8dp"
             android:background="@drawable/rounded_drawable_faq"
+            android:gravity="start|top"
             android:hint="Enter your message"
             android:inputType="textMultiLine"
-            android:gravity="start|top"
-        android:padding="10dp"
-        android:textColor="@color/black"
-        android:textSize="14sp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/subjudul6" />
-
-
+            android:padding="10dp"
+            android:textColor="@color/black"
+            android:textSize="14sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="1.0"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/subjudul6" />
 
         <Button
             android:id="@+id/submit_button"

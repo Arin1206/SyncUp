@@ -27,6 +27,7 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.example.syncup.R
 import com.example.syncup.ble.BluetoothLeService
+import com.example.syncup.chat.ChatFragment
 import com.example.syncup.databinding.ActivityMainPatientBinding
 import com.example.syncup.faq.FaqFragment
 import com.example.syncup.history.HistoryPatientFragment
@@ -110,6 +111,7 @@ class MainPatientActivity : AppCompatActivity() {
                 R.id.homepage -> replaceFragment(HomeFragment())
                 R.id.history -> replaceFragment(HistoryPatientFragment())
                 R.id.faq -> replaceFragment(FaqFragment())
+                R.id.chat -> replaceFragment(ChatFragment())
                 else -> {}
             }
             true
