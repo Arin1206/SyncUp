@@ -8,15 +8,16 @@
 
     <!-- LinearLayout containing Doctor Image, Name, and Back Arrow -->
     <LinearLayout
+        android:id="@+id/linearLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:background="@color/purple_dark"
-        android:padding="12dp"
-        android:layout_alignParentTop="true"
         android:layout_alignParentStart="true"
-        android:layout_alignParentEnd="true">
+        android:layout_alignParentTop="true"
+        android:layout_alignParentEnd="true"
+        android:background="@color/purple_dark"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="12dp">
 
         <!-- Back Arrow -->
         <ImageView
@@ -31,8 +32,8 @@
             android:id="@+id/profile_image"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:layout_marginStart="12dp"
             android:layout_alignParentStart="true"
+            android:layout_marginStart="12dp"
             android:layout_marginEnd="12dp"
             android:src="@drawable/empty_image" />
 
@@ -49,17 +50,21 @@
     </LinearLayout>
 
     <!-- RecyclerView for Messages -->
+
+    <!-- Send Message Input and Button with rounded corners -->
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerViewMessages"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_below="@id/doctor_name"
+        android:layout_height="wrap_content"
         android:layout_above="@id/sendMessageLayout"
-        android:padding="8dp"
-        android:background="@android:color/white"
+        android:layout_below="@+id/linearLayout"
+        android:layout_marginTop="3dp"
+        android:layout_marginBottom="0dp"
+        android:background="@android:color/transparent"
+        android:foregroundGravity="top"
         tools:ignore="NotSibling" />
 
-    <!-- Send Message Input and Button with rounded corners -->
     <LinearLayout
         android:id="@+id/sendMessageLayout"
         android:layout_width="match_parent"
@@ -68,8 +73,8 @@
         android:padding="8dp"
         android:layout_alignParentBottom="true"
         android:background="@drawable/rounded_corner_background"
-
-    android:layout_margin="10dp" >
+        android:layout_marginHorizontal="10dp"
+   >
 
     <EditText
         android:id="@+id/editTextMessage"

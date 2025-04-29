@@ -10,7 +10,7 @@ import com.example.syncup.R
 
 class ChatAdapter(
     private val chatList: List<Chat>,
-    private val onItemClick: (String, String) -> Unit  // Function to handle item click
+    private val onItemClick: (String, String, String) -> Unit  // Function to handle item click with doctorUid
 ) : RecyclerView.Adapter<ChatAdapter.ChatViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ChatViewHolder {
@@ -25,7 +25,7 @@ class ChatAdapter(
         // Set the click listener on the item view
         holder.itemView.setOnClickListener {
             // When an item is clicked, navigate to RoomChatFragment
-            onItemClick(chat.doctorName, chat.doctorPhoneNumber)
+            onItemClick(chat.doctorName, chat.doctorPhoneNumber, chat.doctorUid)  // Pass doctorUid
         }
     }
 
@@ -42,19 +42,18 @@ class ChatAdapter(
         fun bind(chat: Chat) {
             doctorName.text = chat.doctorName
 
-            // Jika message adalah "Start Message Now", sembunyikan tanggal
+            // Check if the message is "Start Message Now"
             if (chat.message == "Start Message Now") {
                 chatMessage.text = "Start Message Now"
-                chatDate.visibility = View.GONE  // <-- Sembunyikan tanggal
+                chatDate.visibility = View.GONE  // Hide the date if the message is "Start Message Now"
             } else {
                 chatMessage.text = chat.message
                 chatDate.text = chat.date
-                chatDate.visibility = View.VISIBLE  // <-- Tampilkan tanggal kalau ada pesan beneran
+                chatDate.visibility = View.VISIBLE  // Show the date if there is an actual message
             }
 
-            // Set the profile image
+            // Set the profile image (set default image for now)
             profileImage.setImageResource(R.drawable.empty_image)
         }
-
     }
 }

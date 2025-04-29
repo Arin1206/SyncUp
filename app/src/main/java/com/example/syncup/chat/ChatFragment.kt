@@ -24,9 +24,9 @@ class ChatFragment : Fragment() {
         val view = inflater.inflate(R.layout.fragment_chat, container, false)
 
         recyclerViewChats = view.findViewById(R.id.recyclerViewChats)
-        chatAdapter = ChatAdapter(chatList) { doctorName, doctorPhoneNumber ->
+        chatAdapter = ChatAdapter(chatList) { doctorName, doctorPhoneNumber, doctorUid ->
             // Trigger navigation to RoomChatFragment when an item is clicked
-            navigateToRoomChat(doctorName, doctorPhoneNumber)
+            navigateToRoomChat(doctorName, doctorPhoneNumber, doctorUid)
         }
         recyclerViewChats.layoutManager = LinearLayoutManager(requireContext())
         recyclerViewChats.adapter = chatAdapter
@@ -42,7 +42,7 @@ class ChatFragment : Fragment() {
 
         chatList.clear()  // <-- Tambahkan ini agar tidak terjadi duplikat
 
-        // Fetch dari 'users_doctor_email'
+        // Fetch data from 'users_doctor_email'
         db.collection("users_doctor_email")
             .get()
             .addOnSuccessListener { result ->
@@ -50,8 +50,8 @@ class ChatFragment : Fragment() {
                     val doctorName = document.getString("fullName") ?: "Unknown"
                     val doctorEmail = document.getString("email") ?: "No Email"
                     val doctorPhoneNumber = document.getString("phoneNumber") ?: "No Phone"
-
-                    chatList.add(Chat(doctorName, "Start Message Now", "12-01-24", doctorEmail, doctorPhoneNumber))
+                    val doctorUid = document.id // Fetch the UID of the doctor
+                    chatList.add(Chat(doctorName, "Start Message Now", "12-01-24", doctorEmail, doctorPhoneNumber, doctorUid))
                 }
                 chatAdapter.notifyDataSetChanged()
             }
@@ -59,7 +59,7 @@ class ChatFragment : Fragment() {
                 // Handle error
             }
 
-        // Fetch dari 'users_doctor_phonenumber'
+        // Fetch data from 'users_doctor_phonenumber'
         db.collection("users_doctor_phonenumber")
             .get()
             .addOnSuccessListener { result ->
@@ -67,8 +67,8 @@ class ChatFragment : Fragment() {
                     val doctorName = document.getString("fullName") ?: "Unknown"
                     val doctorEmail = document.getString("email") ?: "No Email"
                     val doctorPhoneNumber = document.getString("phoneNumber") ?: "No Phone"
-
-                    chatList.add(Chat(doctorName, "Start Message Now", "12-01-24", doctorEmail, doctorPhoneNumber))
+                    val doctorUid = document.id // Fetch the UID of the doctor
+                    chatList.add(Chat(doctorName, "Start Message Now", "12-01-24", doctorEmail, doctorPhoneNumber, doctorUid))
                 }
                 chatAdapter.notifyDataSetChanged()
             }
@@ -77,10 +77,11 @@ class ChatFragment : Fragment() {
             }
     }
 
-    private fun navigateToRoomChat(doctorName: String, doctorPhoneNumber: String) {
+    private fun navigateToRoomChat(doctorName: String, doctorPhoneNumber: String, doctorUid: String) {
         val bundle = Bundle()
         bundle.putString("doctor_name", doctorName)
         bundle.putString("doctor_phone_number", doctorPhoneNumber) // Pass the phone number here
+        bundle.putString("receiverUid", doctorUid)  // Pass the doctor's UID to the RoomChatFragment
 
         val roomChatFragment = RoomChatFragment()
         roomChatFragment.arguments = bundle
