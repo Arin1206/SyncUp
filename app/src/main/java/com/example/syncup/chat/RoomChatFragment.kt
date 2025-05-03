@@ -27,6 +27,7 @@ class RoomChatFragment : Fragment() {
     private lateinit var doctorPhoneNumber: String
     private lateinit var editTextMessage: EditText
     private lateinit var buttonSend: ImageView
+    private lateinit var arrow: ImageView
     private var receiverUid: String? = null
     private var senderUid: String? = null
     private lateinit var recyclerViewMessages: RecyclerView
@@ -45,6 +46,7 @@ class RoomChatFragment : Fragment() {
         editTextMessage = view.findViewById(R.id.editTextMessage)
         buttonSend = view.findViewById(R.id.buttonSend)
         recyclerViewMessages = view.findViewById(R.id.recyclerViewMessages)
+        arrow = view.findViewById(R.id.arrow)
 
         // Get doctor name and phone number from arguments
         doctorName = arguments?.getString("doctor_name") ?: "Unknown"
@@ -62,6 +64,9 @@ class RoomChatFragment : Fragment() {
         fetchUserData()
 
         listenForMessages()
+        arrow.setOnClickListener {
+            requireActivity().supportFragmentManager.popBackStack()
+        }
         activity?.window?.statusBarColor = resources.getColor(R.color.purple_dark, null)
 
         // Set up send message button click listener
@@ -198,7 +203,12 @@ class RoomChatFragment : Fragment() {
                             showToast("Failed to send message.")
                         }
                 }
+                recyclerViewMessages.post {
+                    recyclerViewMessages.scrollToPosition(chatAdapter.itemCount - 1)
+                }
             }
+
+
             .addOnFailureListener { e ->
                 showToast("Error checking document: ${e.message}")
             }
@@ -208,9 +218,8 @@ class RoomChatFragment : Fragment() {
         val db = FirebaseFirestore.getInstance()
         val senderUid = FirebaseAuth.getInstance().currentUser?.uid ?: "Unknown"
 
-        // Listen for changes in the messages array for this sender in Firestore
         db.collection("messages")
-            .document(senderUid)  // Use senderUid as the document ID
+            .document(senderUid)
             .addSnapshotListener { snapshot, e ->
                 if (e != null) {
                     Log.w("RoomChatFragment", "Listen failed.", e)
@@ -219,10 +228,19 @@ class RoomChatFragment : Fragment() {
 
                 if (snapshot != null && snapshot.exists()) {
                     val messages = snapshot.get("messages") as? List<Map<String, Any>> ?: listOf()
-                    messageList.clear()  // Clear existing messages before updating
 
-                    // Convert the list of messages to Message objects and add them to the message list
-                    for (messageMap in messages) {
+                    // If no messages, show an empty state
+                    if (messages.isEmpty()) {
+                        return@addSnapshotListener
+                    }
+
+                    val filteredMessages = messages.filter {
+                        val receiver = it["receiverUid"]?.toString() ?: ""
+                        receiver == receiverUid
+                    }
+
+                    val newMessages = mutableListOf<Message>()
+                    for (messageMap in filteredMessages) {
                         val message = Message(
                             senderName = messageMap["senderName"] as? String ?: "Unknown",
                             receiverName = messageMap["receiverName"] as? String ?: "Unknown",
@@ -231,17 +249,40 @@ class RoomChatFragment : Fragment() {
                             senderUid = messageMap["senderUid"] as? String ?: "",
                             receiverUid = messageMap["receiverUid"] as? String ?: ""
                         )
-                        messageList.add(message)  // Add the new message
+                        newMessages.add(message)
                     }
 
-                    // Notify the adapter to update the UI
-                    chatAdapter.notifyDataSetChanged()
+                    if (newMessages.isEmpty()) {
 
-                    // Scroll to the bottom to show the latest message
-                    recyclerViewMessages.scrollToPosition(messageList.size - 1)
+                    }
+
+                    chatAdapter.updateMessages(newMessages)
+                    recyclerViewMessages.post {
+                        recyclerViewMessages.scrollToPosition(chatAdapter.itemCount - 1)
+                    }
                 }
             }
     }
+
+
+    private fun showEmptyRoomChat() {
+        // You can display a placeholder or show a message to indicate that the chat is empty
+        val emptyMessage = Message(
+            senderName = "System",
+            receiverName = doctorName,
+            message = "Start the conversation now!",
+            timestamp = "",
+            senderUid = "system",
+            receiverUid = receiverUid ?: ""
+        )
+        // Add an empty message to the chat view or show a placeholder text
+        val emptyMessageList = listOf(emptyMessage)
+        chatAdapter.updateMessages(emptyMessageList)
+        recyclerViewMessages.post {
+            recyclerViewMessages.scrollToPosition(chatAdapter.itemCount - 1)
+        }
+    }
+
 
     override fun onDestroyView() {
         super.onDestroyView()

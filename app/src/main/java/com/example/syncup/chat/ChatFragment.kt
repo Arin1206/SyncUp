@@ -1,6 +1,7 @@
 package com.example.syncup.chat
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -8,7 +9,10 @@ import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.syncup.R
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 class ChatFragment : Fragment() {
 
@@ -39,43 +43,121 @@ class ChatFragment : Fragment() {
 
     private fun fetchDoctorsData() {
         val db = FirebaseFirestore.getInstance()
+        val currentUserUid = FirebaseAuth.getInstance().currentUser?.uid ?: return
 
-        chatList.clear()  // <-- Tambahkan ini agar tidak terjadi duplikat
+        chatList.clear()
 
-        // Fetch data from 'users_doctor_email'
-        db.collection("users_doctor_email")
-            .get()
-            .addOnSuccessListener { result ->
-                for (document in result) {
+        val emailCollection = db.collection("users_doctor_email").get()
+        val phoneCollection = db.collection("users_doctor_phonenumber").get()
+
+        emailCollection.addOnSuccessListener { emailResult ->
+            phoneCollection.addOnSuccessListener { phoneResult ->
+
+                val allDocs = emailResult.documents + phoneResult.documents
+
+                for (document in allDocs) {
                     val doctorName = document.getString("fullName") ?: "Unknown"
                     val doctorEmail = document.getString("email") ?: "No Email"
-                    val doctorPhoneNumber = document.getString("phoneNumber") ?: "No Phone"
-                    val doctorUid = document.id // Fetch the UID of the doctor
-                    chatList.add(Chat(doctorName, "Start Message Now", "12-01-24", doctorEmail, doctorPhoneNumber, doctorUid))
-                }
-                chatAdapter.notifyDataSetChanged()
-            }
-            .addOnFailureListener { exception ->
-                // Handle error
-            }
+                    val doctorPhone = document.getString("phoneNumber") ?: "No Phone"
+                    val doctorUid = document.id
 
-        // Fetch data from 'users_doctor_phonenumber'
-        db.collection("users_doctor_phonenumber")
-            .get()
-            .addOnSuccessListener { result ->
-                for (document in result) {
-                    val doctorName = document.getString("fullName") ?: "Unknown"
-                    val doctorEmail = document.getString("email") ?: "No Email"
-                    val doctorPhoneNumber = document.getString("phoneNumber") ?: "No Phone"
-                    val doctorUid = document.id // Fetch the UID of the doctor
-                    chatList.add(Chat(doctorName, "Start Message Now", "12-01-24", doctorEmail, doctorPhoneNumber, doctorUid))
+                    // Fetch messages from doctor and user
+                    val messagesFromDoctorRef = db.collection("messages").document(doctorUid)
+                    val messagesFromUserRef = db.collection("messages").document(currentUserUid)
+
+                    messagesFromDoctorRef.addSnapshotListener { snapshotDoctor, _ ->
+                        val messagesFromDoctor = snapshotDoctor?.get("messages") as? List<Map<String, Any>> ?: emptyList()
+
+                        messagesFromUserRef.addSnapshotListener { snapshotUser, _ ->
+                            val messagesFromUser = snapshotUser?.get("messages") as? List<Map<String, Any>> ?: emptyList()
+
+                            // Combine messages from doctor and user
+                            val combined = (messagesFromDoctor + messagesFromUser)
+
+                            // If no messages exist, only show doctors
+                            if (combined.isEmpty()) {
+                                val chat = Chat(
+                                    doctorName = doctorName,
+                                    message = "Start Message Now",  // Placeholder message
+                                    date = "",  // No date
+                                    doctorEmail = doctorEmail,
+                                    doctorPhoneNumber = doctorPhone,
+                                    doctorUid = doctorUid,
+                                    unreadCount = 0,
+                                    isUnread = false
+                                )
+                                // Add doctor with placeholder message to chatList
+                                val index = chatList.indexOfFirst { it.doctorUid == doctorUid }
+                                if (index != -1) {
+                                    chatList[index] = chat
+                                } else {
+                                    chatList.add(chat)
+                                }
+
+                                chatAdapter.notifyDataSetChanged()
+                                return@addSnapshotListener // Skip further processing since no messages
+                            }
+
+                            // If there are messages, process the latest one
+                            val latest = combined.maxByOrNull {
+                                val ts = it["timestamp"] as? String
+                                // Handle missing or empty timestamp
+                                if (ts.isNullOrEmpty()) {
+                                    return@maxByOrNull 0L
+                                }
+                                try {
+                                    val format = SimpleDateFormat("dd MMM yyyy, HH:mm:ss", Locale.getDefault())
+                                    format.parse(ts)?.time ?: 0L
+                                } catch (e: Exception) {
+                                    0L
+                                }
+                            }
+
+                            val latestMsgText = latest?.get("message")?.toString() ?: "Start Message Now"
+                            val latestMsgDate = latest?.get("timestamp")?.toString() ?: ""
+                            val senderUid = latest?.get("senderUid")?.toString()?.takeIf { it != "null" } ?: ""
+
+                            // Count unread messages
+                            val unreadCount = messagesFromDoctor.count {
+                                val sid = it["senderUid"]?.toString()?.trim() ?: ""
+                                sid.isEmpty() // sender is empty => message from doctor
+                            }
+
+                            // Determine if the message is unread
+                            val isUnread = senderUid.isEmpty() // Check if it's from the doctor (if senderUid is empty)
+
+                            val chat = Chat(
+                                doctorName = doctorName,
+                                message = latestMsgText,
+                                date = latestMsgDate,
+                                doctorEmail = doctorEmail,
+                                doctorPhoneNumber = doctorPhone,
+                                doctorUid = doctorUid,
+                                unreadCount = unreadCount,
+                                isUnread = isUnread
+                            )
+
+                            val index = chatList.indexOfFirst { it.doctorUid == doctorUid }
+                            if (index != -1) {
+                                chatList[index] = chat
+                            } else {
+                                chatList.add(chat)
+                            }
+
+                            // Sort by latest message time
+                            chatList.sortByDescending {
+                                SimpleDateFormat("dd MMM yyyy, HH:mm:ss", Locale.getDefault()).parse(it.date)?.time ?: 0L
+                            }
+
+                            chatAdapter.notifyDataSetChanged()
+                        }
+                    }
                 }
-                chatAdapter.notifyDataSetChanged()
             }
-            .addOnFailureListener { exception ->
-                // Handle error
-            }
+        }
     }
+
+
 
     private fun navigateToRoomChat(doctorName: String, doctorPhoneNumber: String, doctorUid: String) {
         val bundle = Bundle()

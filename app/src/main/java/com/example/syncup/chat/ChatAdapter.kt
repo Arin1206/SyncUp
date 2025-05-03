@@ -1,12 +1,16 @@
 package com.example.syncup.chat
 
+import android.graphics.Typeface
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.example.syncup.R
+
 
 class ChatAdapter(
     private val chatList: List<Chat>,
@@ -38,22 +42,35 @@ class ChatAdapter(
         private val chatMessage: TextView = itemView.findViewById(R.id.chat_message)
         private val chatDate: TextView = itemView.findViewById(R.id.chat_date)
         private val profileImage: ImageView = itemView.findViewById(R.id.profile_image)
-
+        val unreadBadge: TextView = itemView.findViewById(R.id.unread_badge)
         fun bind(chat: Chat) {
             doctorName.text = chat.doctorName
 
-            // Check if the message is "Start Message Now"
             if (chat.message == "Start Message Now") {
                 chatMessage.text = "Start Message Now"
-                chatDate.visibility = View.GONE  // Hide the date if the message is "Start Message Now"
+                chatDate.visibility = View.GONE
             } else {
                 chatMessage.text = chat.message
                 chatDate.text = chat.date
-                chatDate.visibility = View.VISIBLE  // Show the date if there is an actual message
+                chatDate.visibility = View.VISIBLE
             }
 
-            // Set the profile image (set default image for now)
+            if (chat.isUnread) {
+                chatMessage.setTypeface(null, Typeface.BOLD)
+                chatMessage.setTextColor(ContextCompat.getColor(itemView.context, R.color.purple_dark))
+                unreadBadge.visibility = View.VISIBLE
+                unreadBadge.text = chat.unreadCount.toString()
+            } else {
+                chatMessage.setTypeface(null, Typeface.NORMAL)
+                chatMessage.setTextColor(ContextCompat.getColor(itemView.context, R.color.black))
+                unreadBadge.visibility = View.GONE
+            }
+            Log.d("ChatAdapter", "Doctor: ${chat.doctorName}, Unread: ${chat.isUnread}")
+
+
+            // Set default profile image
             profileImage.setImageResource(R.drawable.empty_image)
         }
+
     }
 }

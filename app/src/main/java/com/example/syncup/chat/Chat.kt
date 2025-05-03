@@ -2,9 +2,12 @@ package com.example.syncup.chat
 
 data class Chat(
     val doctorName: String,
-    val message: String,
-    val date: String,
+    var message: String,
+    var date: String,
+    val doctorEmail: String,
     val profileImage: String? = null, // You can add an image URL here
     val doctorPhoneNumber: String,
-    val doctorUid : String
+    val doctorUid : String,
+    var unreadCount: Int = 0,
+    val isUnread: Boolean = false
 )
