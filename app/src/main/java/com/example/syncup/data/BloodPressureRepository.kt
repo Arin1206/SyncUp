@@ -35,7 +35,7 @@ object BloodPressureRepository {
         val currentTime = System.currentTimeMillis()
 
         // **Jika cache masih valid (kurang dari 5 menit), gunakan langsung**
-        if (cachedBloodPressure != null && (currentTime - lastUpdatedTime) < 300000) {
+        if (cachedBloodPressure != null && (currentTime - lastUpdatedTime) < 60000) {
             Log.d("BloodPressureRepository", "🟢 Menggunakan cached BP: ${cachedBloodPressure}")
             _bloodPressureLiveData.postValue(cachedBloodPressure)
             return
@@ -82,7 +82,7 @@ object BloodPressureRepository {
 
     fun delayedStartPolling() {
         Log.d("BloodPressureRepository", "⏳ Menunda polling BP selama 5 menit...")
-        handler.postDelayed(bpRunnable, 300000) // 5 menit
+        handler.postDelayed(bpRunnable, 60000) // 5 menit
     }
 
     fun stopPolling() {

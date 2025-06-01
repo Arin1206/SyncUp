@@ -67,5 +67,7 @@ dependencies {
     implementation("androidx.room:room-ktx:2.5.2")
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("androidx.fragment:fragment-ktx:1.5.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.5.1")
     implementation("com.google.android.gms:play-services-auth:20.7.0")
 }

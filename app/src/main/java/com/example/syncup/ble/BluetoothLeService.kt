@@ -77,16 +77,26 @@ class BluetoothLeService : Service() {
                 Log.w(TAG, "Disconnected from GATT server. Status: $status")
 
                 if (isManualDisconnect) {
-                    val currentUser = FirebaseAuth.getInstance().currentUser
-                    if (currentUser != null) {
-                        val userId = currentUser.uid
-                        FirebaseDatabase.getInstance().reference.child("connected_device").child(userId).removeValue()
-                            .addOnSuccessListener { Log.i(TAG, "Connected device removed for user $userId.") }
-                            .addOnFailureListener { e -> Log.e(TAG, "Failed to remove connected device: ${e.message}") }
+                    getActualPatientUID { patientUid ->
+                        if (patientUid != null) {
+                            FirebaseDatabase.getInstance().reference
+                                .child("connected_device")
+                                .child(patientUid)
+                                .removeValue()
+                                .addOnSuccessListener {
+                                    Log.i(TAG, "Connected device removed for patient UID: $patientUid")
+                                }
+                                .addOnFailureListener { e ->
+                                    Log.e(TAG, "Failed to remove connected device: ${e.message}")
+                                }
+                        } else {
+                            Log.e(TAG, "Failed to retrieve actual patient UID for device removal")
+                        }
                     }
                 } else {
                     Log.w(TAG, "Auto-disconnected, hiding UI without removing device from Firebase.")
                 }
+
 
 
                 // 🔹 Kirim broadcast ke UI agar bisa menyembunyikan tampilan
@@ -178,57 +188,43 @@ class BluetoothLeService : Service() {
         ) {
             super.onCharacteristicChanged(gatt, characteristic)
 
-            if (characteristic != null && characteristic.uuid == UUID.fromString(
-                    HEART_RATE_CHARACTERISTIC_UUID
-                )
-            ) {
-                val heartRate =
-                    characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 1) ?: -1
-                lastHeartRate = heartRate // ✅ Simpan heart rate terbaru
+            if (characteristic != null && characteristic.uuid == UUID.fromString(HEART_RATE_CHARACTERISTIC_UUID)) {
+                val heartRate = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 1) ?: -1
+                lastHeartRate = heartRate
                 Log.i(TAG, "Heart rate characteristic changed: $heartRate")
 
-                // **Tambahkan heart rate ke buffer (untuk Firestore setiap 5 menit)**
+                // Tambahkan ke buffer
                 heartRateBuffer.add(heartRate)
 
-// Update Firebase Realtime (contoh: menyimpan ke node "heart_rate/latest")
-                val currentUser = FirebaseAuth.getInstance().currentUser
-                if (currentUser != null) {
-                    val userId = currentUser.uid
-                    val userHeartRateDatabase = realtimeDatabase.child(userId).child("latest")
+                // Ambil UID pasien secara asinkron
+                getActualPatientUID { patientUid ->
+                    if (patientUid != null) {
+                        val userHeartRateDatabase = realtimeDatabase.child(patientUid).child("latest")
 
-                    userHeartRateDatabase.setValue(heartRate)
-                        .addOnSuccessListener {
-                            Log.i(TAG, "Live heart rate updated for user $userId: $heartRate BPM")
-                        }
-                        .addOnFailureListener { e ->
-                            Log.e(TAG, "Failed to update live heart rate for user $userId: ${e.message}")
-                        }
+                        userHeartRateDatabase.setValue(heartRate)
+                            .addOnSuccessListener {
+                                Log.i(TAG, "Live heart rate updated for user $patientUid: $heartRate BPM")
+                            }
+                            .addOnFailureListener { e ->
+                                Log.e(TAG, "Failed to update live heart rate for user $patientUid: ${e.message}")
+                            }
+                    } else {
+                        Log.e(TAG, "Patient UID not found. Skipping heart rate update.")
+                    }
                 }
 
-
-                // **Broadcast ke UI atau komponen lain**
+                // Broadcast ke UI
                 broadcastUpdate(ACTION_HEART_RATE_MEASUREMENT, heartRate)
 
-                // **Simpan langsung ke Realtime Database setiap detik**
-                realtimeDatabase.child("latest").setValue(heartRate as Any)
-                    .addOnSuccessListener {
-                        Log.i(TAG, "Live heart rate updated: $heartRate BPM")
-                    }
-                    .addOnFailureListener { e ->
-                        Log.e(TAG, "Failed to update live heart rate: ${e.message}")
-                    }
+                // HAPUS bagian ini agar tidak overwrite semua pasien
+                // realtimeDatabase.child("latest").setValue(heartRate)
             }
 
-            // ✅ Pastikan Battery Level diterima melalui Notify
-            if (characteristic != null && characteristic.uuid == UUID.fromString(
-                    BATTERY_CHARACTERISTIC_UUID
-                )
-            ) {
+            if (characteristic != null && characteristic.uuid == UUID.fromString(BATTERY_CHARACTERISTIC_UUID)) {
                 val rawData = characteristic.value
                 Log.i(TAG, "Raw Battery Level Data (via NOTIFY): ${rawData?.joinToString(" ")}")
 
                 var tempBatteryLevel = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 0) ?: -1
-
                 if (tempBatteryLevel == -1 && rawData != null && rawData.isNotEmpty()) {
                     tempBatteryLevel = rawData[0].toInt()
                     Log.w(TAG, "Using manual value extraction for Battery Level: $tempBatteryLevel%")
@@ -237,6 +233,7 @@ class BluetoothLeService : Service() {
                 batteryLevel = tempBatteryLevel
                 Log.i(TAG, "Battery level updated via NOTIFY: $batteryLevel%")
                 broadcastBatteryUpdate(batteryLevel)
+
                 if (batteryLevel in 0..100) {
                     saveToFirestore(lastHeartRate, previousSBP, previousDBP, batteryLevel, System.currentTimeMillis())
                 } else {
@@ -244,6 +241,7 @@ class BluetoothLeService : Service() {
                 }
             }
         }
+
     }
 
         inner class LocalBinder : Binder() {
@@ -366,31 +364,70 @@ class BluetoothLeService : Service() {
 
     private var lastSaveTime: Long = 0 // Waktu terakhir penyimpanan data
 
-    private fun saveToFirestore(heartRate: Int, sbp: Double, dbp: Double, batteryLevel: Int, timestamp: Long) {
-        val firestore = FirebaseFirestore.getInstance()
+    private fun getActualPatientUID(onResult: (String?) -> Unit) {
         val auth = FirebaseAuth.getInstance()
-        val currentUser = auth.currentUser
+        val currentUser = auth.currentUser ?: return onResult(null)
+
+        val email = currentUser.email
+        val phoneNumber = currentUser.phoneNumber
+
+        val firestore = FirebaseFirestore.getInstance()
+
+        if (email != null) {
+            firestore.collection("users_patient_email")
+                .whereEqualTo("email", email)
+                .get()
+                .addOnSuccessListener { documents ->
+                    val uid = documents.firstOrNull()?.getString("userId")
+                    onResult(uid)
+                }
+                .addOnFailureListener {
+                    onResult(null)
+                }
+        } else if (phoneNumber != null) {
+            firestore.collection("users_patient_phonenumber")
+                .whereEqualTo("phoneNumber", phoneNumber)
+                .get()
+                .addOnSuccessListener { documents ->
+                    val uid = documents.firstOrNull()?.getString("userId")
+                    onResult(uid)
+                }
+                .addOnFailureListener {
+                    onResult(null)
+                }
+        } else {
+            onResult(null)
+        }
+    }
+
+    private fun saveToFirestore(
+        heartRate: Int,
+        sbp: Double,
+        dbp: Double,
+        batteryLevel: Int,
+        timestamp: Long
+    ) {
+        val firestore = FirebaseFirestore.getInstance()
 
         val currentTime = System.currentTimeMillis()
-
-        // **Cek jika sudah lebih dari 5 menit sejak penyimpanan terakhir**
         if (currentTime - lastSaveTime < SAVE_INTERVAL_MS) {
             Log.i(TAG, "Skipping data save: Last save was too recent.")
             return
         }
-
-        // **Update timestamp terakhir penyimpanan**
         lastSaveTime = currentTime
 
-        if (currentUser != null) {
-            val userId = currentUser.uid
+        getActualPatientUID { actualPatientUid ->
+            if (actualPatientUid == null) {
+                Log.e(TAG, "❌ Gagal menyimpan: UID pasien tidak ditemukan.")
+                return@getActualPatientUID
+            }
 
             val currentDate = Date()
             val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
             val formattedTimestamp = dateFormat.format(currentDate)
 
             val data = hashMapOf(
-                "userId" to userId,
+                "userId" to actualPatientUid,
                 "heartRate" to heartRate,
                 "systolicBP" to sbp,
                 "diastolicBP" to dbp,
@@ -401,13 +438,11 @@ class BluetoothLeService : Service() {
             firestore.collection("patient_heart_rate")
                 .add(data)
                 .addOnSuccessListener {
-                    Log.i(TAG, "Data saved: User: $userId, Heart Rate: $heartRate BPM, SBP: $sbp mmHg, DBP: $dbp mmHg, Battery: $batteryLevel%, Timestamp: $formattedTimestamp")
+                    Log.i(TAG, "✅ Data berhasil disimpan untuk pasien UID: $actualPatientUid")
                 }
                 .addOnFailureListener { e ->
-                    Log.e(TAG, "Failed to save data: ${e.message}")
+                    Log.e(TAG, "❌ Gagal menyimpan data: ${e.message}")
                 }
-        } else {
-            Log.e(TAG, "Failed to save data: No user is logged in!")
         }
     }
 
@@ -436,7 +471,7 @@ class BluetoothLeService : Service() {
         private const val TAG = "BluetoothLeService"
 
         // **Interval penyimpanan ke Firestore setiap 5 menit (300.000 ms)**
-        private const val SAVE_INTERVAL_MS = 300000L
+        private const val SAVE_INTERVAL_MS = 60000L
 
         // **Action Constants untuk Broadcast**
         const val ACTION_GATT_CONNECTED = "com.example.syncup.ACTION_GATT_CONNECTED"

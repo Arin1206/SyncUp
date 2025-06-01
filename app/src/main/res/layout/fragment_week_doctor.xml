@@ -3,7 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".history.HistoryDoctorFragment">
+    tools:context=".history.fragement_doctor.WeekDoctorFragment">
 
     <!-- TODO: Update blank fragment layout -->
     <TextView

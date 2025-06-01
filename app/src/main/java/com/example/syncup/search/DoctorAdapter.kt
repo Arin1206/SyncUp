@@ -29,6 +29,7 @@ class DoctorAdapter(private var doctorList: List<Doctor>) :
         holder.doctorName.text = doctor.name
         holder.doctorDescription.text = doctor.description
         holder.doctorImage.setImageResource(doctor.imageRes)
+
     }
 
     fun updateList(newList: List<Doctor>) {

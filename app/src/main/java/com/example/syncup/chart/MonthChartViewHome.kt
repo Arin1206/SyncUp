@@ -15,7 +15,7 @@ class MonthChartViewHome @JvmOverloads constructor(
 ) : View(context, attrs) {
 
     private val barPaint = Paint().apply {
-        color = Color.parseColor("#6200EE") // Warna ungu Telkom
+        color = Color.parseColor("#484848") // Warna ungu Telkom
         style = Paint.Style.FILL
     }
 
@@ -57,18 +57,16 @@ class MonthChartViewHome @JvmOverloads constructor(
         val currentYear = calendar.get(Calendar.YEAR) // Tahun berjalan
 
         val last4Months = mutableListOf<String>()
-
-        for (i in 3 downTo 0) {
+        for (i in 0 until 4) {
             val tempCalendar = Calendar.getInstance().apply {
-                set(Calendar.YEAR, currentYear) // Pastikan tetap di tahun yang sama
-                set(Calendar.MONTH, 3 - i) // Mulai dari Januari ke April
+                time = calendar.time
+                add(Calendar.MONTH, -i) // Mundur dari bulan sekarang
             }
-
             last4Months.add(getMonthNameByIndex(tempCalendar.get(Calendar.MONTH)))
         }
 
-        // **Pastikan semua bulan dalam 4 bulan terakhir memiliki data atau null**
-        monthData = last4Months.associateWith { month -> filteredData[month] ?: null }.toMutableMap()
+// Urutkan dari yang paling lama ke terbaru
+        monthData = last4Months.reversed().associateWith { month -> filteredData[month] ?: null }.toMutableMap()
 
         invalidate() // Refresh tampilan grafik
     }

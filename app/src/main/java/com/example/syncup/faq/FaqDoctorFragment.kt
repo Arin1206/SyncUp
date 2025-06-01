@@ -1,0 +1,146 @@
+package com.example.syncup.faq
+
+import android.annotation.SuppressLint
+import android.app.NotificationManager
+import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
+import android.os.Bundle
+import android.util.Log
+import androidx.fragment.app.Fragment
+import android.view.LayoutInflater
+import android.view.MotionEvent
+import android.view.View
+import android.view.ViewGroup
+import android.view.inputmethod.InputMethodManager
+import android.widget.Button
+import android.widget.EditText
+import android.widget.Toast
+import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.app.NotificationCompat
+import com.example.syncup.R
+import com.example.syncup.inbox.InboxDoctorFragment
+import com.example.syncup.inbox.InboxPatientFragment
+import com.example.syncup.model.MessageRequest
+import com.example.syncup.network.FirebaseFunctionService
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+
+class FaqDoctorFragment : Fragment() {
+
+    private lateinit var emailEditText: EditText
+    private lateinit var messageEditText: EditText
+    private lateinit var submitButton: Button
+    private lateinit var parentLayout: ConstraintLayout
+    private lateinit var apiService: FirebaseFunctionService
+    val currentUser = FirebaseAuth.getInstance().currentUser
+
+
+
+    @SuppressLint("MissingInflatedId")
+    override fun onCreateView(
+        inflater: LayoutInflater, container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
+        val view = inflater.inflate(R.layout.fragment_faq_doctor, container, false)
+
+        emailEditText = view.findViewById(R.id.ed_regis_fullname)
+        messageEditText = view.findViewById(R.id.message_field)
+        submitButton = view.findViewById(R.id.submit_button)
+        parentLayout = view.findViewById(R.id.main)
+
+        // Dismiss keyboard when clicking outside
+        parentLayout.setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_DOWN) {
+                hideKeyboard()
+            }
+            false
+        }
+
+
+        // Setup Retrofit
+        val retrofit = Retrofit.Builder()
+            .baseUrl("https://us-central1-sync-up-f40ee.cloudfunctions.net/") // Ganti sesuai project Firebase kamu
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+
+        apiService = retrofit.create(FirebaseFunctionService::class.java)
+
+        // Submit Button Click
+        submitButton.setOnClickListener {
+            sendMessage()
+        }
+
+        return view
+    }
+
+    private fun hideKeyboard() {
+        val imm = requireActivity().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.hideSoftInputFromWindow(view?.windowToken, 0)
+    }
+
+    private fun showNotification() {
+        val notificationManager = requireContext().getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channelId = "message_channel_id"
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (requireContext().checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
+                requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
+            }
+        }
+
+        val notification = NotificationCompat.Builder(requireContext(), channelId)
+            .setContentTitle("Message Sent")
+            .setContentText("Your message has been sent successfully.")
+            .setSmallIcon(android.R.drawable.ic_dialog_info) // gunakan sementara untuk test
+            .setAutoCancel(true)
+            .build()
+
+        Log.d("NotifDebug", "showNotification dipanggil")
+        notificationManager.notify(System.currentTimeMillis().toInt(), notification) // gunakan ID dinamis
+    }
+
+    private fun sendMessage() {
+        val email = emailEditText.text.toString().trim()
+        val message = messageEditText.text.toString().trim()
+
+        val userId = currentUser?.uid ?: ""
+        if (email.isEmpty() || message.isEmpty()) {
+            Toast.makeText(requireContext(), "Email and message cannot be empty.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val messageRequest = MessageRequest(email, message, userId)
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val response = apiService.sendMessage(messageRequest)
+                requireActivity().runOnUiThread {
+                    if (response.isSuccessful) {
+                        Toast.makeText(requireContext(), "Message sent successfully!", Toast.LENGTH_SHORT).show()
+                        emailEditText.text.clear()
+                        messageEditText.text.clear()
+                        showNotification()
+
+                        requireActivity().supportFragmentManager.beginTransaction()
+                            .replace(R.id.frame, InboxDoctorFragment())
+                            .addToBackStack(null)
+                            .commit()
+                    } else {
+                        Toast.makeText(requireContext(), "Failed to send message.", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                requireActivity().runOnUiThread {
+                    Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+}

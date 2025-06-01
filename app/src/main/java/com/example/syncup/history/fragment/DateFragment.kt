@@ -93,128 +93,187 @@ class DateFragment : Fragment() {
         })
     }
 
+    private fun getActualPatientUID(onResult: (String?) -> Unit) {
+        val auth = FirebaseAuth.getInstance()
+        val currentUser = auth.currentUser ?: return onResult(null)
 
+        val email = currentUser.email
+        val phoneNumber = currentUser.phoneNumber
 
-    private fun fetchHealthData() {
+        val firestore = FirebaseFirestore.getInstance()
+
+        if (email != null) {
+            firestore.collection("users_patient_email")
+                .whereEqualTo("email", email)
+                .get()
+                .addOnSuccessListener { documents ->
+                    val uid = documents.firstOrNull()?.getString("userId")
+                    onResult(uid)
+                }
+                .addOnFailureListener {
+                    onResult(null)
+                }
+        } else if (phoneNumber != null) {
+            firestore.collection("users_patient_phonenumber")
+                .whereEqualTo("phoneNumber", phoneNumber)
+                .get()
+                .addOnSuccessListener { documents ->
+                    val uid = documents.firstOrNull()?.getString("userId")
+                    onResult(uid)
+                }
+                .addOnFailureListener {
+                    onResult(null)
+                }
+        } else {
+            onResult(null)
+        }
+    }
+
+    private fun getUserAge(onResult: (Int?) -> Unit) {
         val currentUser = auth.currentUser
         if (currentUser == null) {
-            Toast.makeText(requireContext(), "User not logged in", Toast.LENGTH_SHORT).show()
+            onResult(null)
             return
         }
 
-        val userId = currentUser.uid
-        Log.d("FirestoreDebug", "Fetching data for user: $userId")
+        val email = currentUser.email
+        val phoneNumber = currentUser.phoneNumber
 
-        firestore.collection("patient_heart_rate")
-            .whereEqualTo("userId", userId)
-            .addSnapshotListener { documents, exception ->
-                if (exception != null) {
-                    Log.e("FirestoreError", "Failed to fetch data: ${exception.message}")
-                    return@addSnapshotListener
+        if (email != null) {
+            firestore.collection("users_patient_email")
+                .whereEqualTo("email", email)
+                .get()
+                .addOnSuccessListener { documents ->
+                    val age = documents.firstOrNull()?.getString("age")?.toInt()
+                    onResult(age)
                 }
-                if (documents == null) return@addSnapshotListener
-
-                val groupedItems = mutableListOf<HealthItem>()
-                val groupedMap = LinkedHashMap<String, MutableList<HealthItem.DataItem>>()
-                val dataList = mutableListOf<HealthData>()
-
-                for (doc in documents) {
-                    val heartRate = doc.getLong("heartRate")?.toInt() ?: 0
-                    if (heartRate == 0) continue
-
-                    val systolicBP = doc.getDouble("systolicBP")?.toInt() ?: 0
-                    val diastolicBP = doc.getDouble("diastolicBP")?.toInt() ?: 0
-                    val batteryLevel = doc.getLong("batteryLevel")?.toInt() ?: 0
-                    val timestamp = doc.getString("timestamp") ?: continue
-
-                    val formattedTime = extractTime(timestamp)
-                    // ✅ Tambahan: Jika sudah ada data dengan waktu (jam dan menit) yang sama, lewati agar hanya satu yang ditampilkan
-                    if (dataList.any { extractTime(it.fullTimestamp) == formattedTime }) continue
-
-                    val formattedDate = extractDate(timestamp)
-
-                    Log.d("FirestoreDebug", "Data: $heartRate BPM, BP: $systolicBP/$diastolicBP, Battery: $batteryLevel%, Date: $formattedDate, Time: $formattedTime")
-
-                    val healthData = HealthData(
-                        heartRate = heartRate,
-                        bloodPressure = "$systolicBP/$diastolicBP",
-                        batteryLevel = batteryLevel,
-                        timestamp = formattedTime,
-                        fullTimestamp = timestamp
-                    )
-
-                    dataList.add(healthData)
-
-                    if (!groupedMap.containsKey(formattedDate)) {
-                        groupedMap[formattedDate] = mutableListOf()
-                    }
-                    groupedMap[formattedDate]?.add(HealthItem.DataItem(healthData))
+                .addOnFailureListener {
+                    onResult(null)
                 }
-
-                // 🔹 **Cek apakah ada data yang ditemukan**
-                if (dataList.isEmpty()) {
-                    Log.w("FirestoreDebug", "No health data found for user: $userId")
-                    // Tampilkan empty state jika tidak ada data
-                    view?.findViewById<View>(R.id.emptyStateView)?.visibility = View.VISIBLE
-                    return@addSnapshotListener
+        } else if (phoneNumber != null) {
+            firestore.collection("users_patient_phonenumber")
+                .whereEqualTo("phoneNumber", phoneNumber)
+                .get()
+                .addOnSuccessListener { documents ->
+                    val age = documents.firstOrNull()?.getLong("age")?.toInt()
+                    onResult(age)
                 }
+                .addOnFailureListener {
+                    onResult(null)
+                }
+        } else {
+            onResult(null)
+        }
+    }
 
-                // 🔹 **Urutkan data berdasarkan timestamp terbaru**
-                val sortedData = dataList.sortedByDescending { it.fullTimestamp }
-                Log.d("FirestoreDebug", "Sorted Data Count: ${sortedData.size}")
 
-                // 🔹 **Ambil tanggal terbaru**
-                val latestDate = sortedData.firstOrNull()?.let { extractDate(it.fullTimestamp) }
 
-                if (latestDate != null) {
-                    val latestData = groupedMap[latestDate] ?: emptyList()
 
-                    if (latestData.isNotEmpty()) {
-                        Log.d("FirestoreDebug", "Calculating averages for date: $latestDate")
+    private fun fetchHealthData() {
+        getActualPatientUID { userId ->
+            if (userId == null) {
+                Toast.makeText(requireContext(), "User ID tidak ditemukan", Toast.LENGTH_SHORT).show()
+                return@getActualPatientUID
+            }
 
-                        // 🔹 **Hitung rata-rata indikator untuk tanggal terbaru**
-                        val avgHeartRate = latestData.map { it.healthData.heartRate }.average().toInt()
-                        val avgSystolicBP = latestData.map { it.healthData.bloodPressure.split("/")[0].toInt() }.average().toInt()
-                        val avgDiastolicBP = latestData.map { it.healthData.bloodPressure.split("/")[1].toInt() }.average().toInt()
-                        val avgBatteryLevel = latestData.map { it.healthData.batteryLevel }.average().toInt()
+            Log.d("FirestoreDebug", "Fetching data for userId (Firestore): $userId")
 
-                        Log.d("FirestoreDebug", "Avg Heart Rate: $avgHeartRate, BP: $avgSystolicBP/$avgDiastolicBP, Battery: $avgBatteryLevel%")
+            getUserAge { age ->
+                if (age == null) {
+                    Toast.makeText(
+                        requireContext(),
+                        "Usia pengguna tidak ditemukan",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    return@getUserAge
+                }
+                firestore.collection("patient_heart_rate")
+                    .whereEqualTo("userId", userId)
+                    .addSnapshotListener { documents, exception ->
+                        if (exception != null) {
+                            Log.e("FirestoreError", "Failed to fetch data: ${exception.message}")
+                            return@addSnapshotListener
+                        }
+                        if (documents == null) return@addSnapshotListener
 
-                        if (avgHeartRate != 0 && isAdded) {
-                            activity?.runOnUiThread {
-                                avgHeartRateTextView.text = "$avgHeartRate"
-                                avgBloodPressureTextView.text = "$avgSystolicBP/$avgDiastolicBP"
-                                avgBatteryTextView.text = "$avgBatteryLevel%"
+                        val groupedItems = mutableListOf<HealthItem>()
+                        val groupedMap = LinkedHashMap<String, MutableList<HealthItem.DataItem>>()
+                        val dataList = mutableListOf<HealthData>()
 
-                                // ✅ **Set Data ke Chart**
-                                heartRateChart.setData(latestData.map { it.healthData })
+                        for (doc in documents) {
+                            val heartRate = doc.getLong("heartRate")?.toInt() ?: 0
+                            if (heartRate == 0) continue
+
+                            val systolicBP = doc.getDouble("systolicBP")?.toInt() ?: 0
+                            val diastolicBP = doc.getDouble("diastolicBP")?.toInt() ?: 0
+                            val batteryLevel = doc.getLong("batteryLevel")?.toInt() ?: 0
+                            val timestamp = doc.getString("timestamp") ?: continue
+
+                            val formattedTime = extractTime(timestamp)
+                            if (dataList.any { extractTime(it.fullTimestamp) == formattedTime }) continue
+
+                            val formattedDate = extractDate(timestamp)
+
+                            val healthData = HealthData(
+                                heartRate = heartRate,
+                                bloodPressure = "$systolicBP/$diastolicBP",
+                                batteryLevel = batteryLevel,
+                                timestamp = formattedTime,
+                                fullTimestamp = timestamp,
+                                userAge = age
+                            )
+
+                            dataList.add(healthData)
+
+                            if (!groupedMap.containsKey(formattedDate)) {
+                                groupedMap[formattedDate] = mutableListOf()
+                            }
+                            groupedMap[formattedDate]?.add(HealthItem.DataItem(healthData))
+                        }
+
+                        if (dataList.isEmpty()) {
+                            view?.findViewById<View>(R.id.emptyStateView)?.visibility = View.VISIBLE
+                            return@addSnapshotListener
+                        }
+
+                        val sortedData = dataList.sortedByDescending { it.fullTimestamp }
+                        val latestDate = sortedData.firstOrNull()?.let { extractDate(it.fullTimestamp) }
+
+                        if (latestDate != null) {
+                            val latestData = groupedMap[latestDate] ?: emptyList()
+
+                            if (latestData.isNotEmpty()) {
+                                val avgHeartRate = latestData.map { it.healthData.heartRate }.average().toInt()
+                                val avgSystolicBP = latestData.map { it.healthData.bloodPressure.split("/")[0].toInt() }.average().toInt()
+                                val avgDiastolicBP = latestData.map { it.healthData.bloodPressure.split("/")[1].toInt() }.average().toInt()
+                                val avgBatteryLevel = latestData.map { it.healthData.batteryLevel }.average().toInt()
+
+                                if (avgHeartRate != 0 && isAdded) {
+                                    activity?.runOnUiThread {
+                                        avgHeartRateTextView.text = "$avgHeartRate"
+                                        avgBloodPressureTextView.text = "$avgSystolicBP/$avgDiastolicBP"
+                                        avgBatteryTextView.text = "$avgBatteryLevel%"
+
+                                        heartRateChart.setData(latestData.map { it.healthData })
+                                    }
+                                }
                             }
                         }
 
-                    } else {
-                        Log.w("FirestoreDebug", "No data found for latest date: $latestDate")
+                        val sortedGroupedMap = groupedMap.toSortedMap(compareByDescending { parseDateToSortableFormat(it) })
+
+                        for ((date, items) in sortedGroupedMap) {
+                            groupedItems.add(HealthItem.DateHeader(date))
+                            groupedItems.addAll(items.sortedByDescending { it.healthData.fullTimestamp })
+                        }
+
+                        healthDataAdapter.updateData(groupedItems)
+                        updateRecyclerViewHeight()
+                        updateViewPagerHeight()
                     }
-                } else {
-                    Log.w("FirestoreDebug", "No valid date found in the dataset")
-                }
-
-                // 🔹 **Urutkan groupedMap berdasarkan tanggal dari yang terbaru ke terlama**
-// 🔹 **Urutkan groupedMap berdasarkan bulan & tahun terbaru ke terlama**
-                val sortedGroupedMap = groupedMap.toSortedMap(compareByDescending { parseDateToSortableFormat(it) })
-
-                // 🔹 **Masukkan ke dalam RecyclerView dengan urutan yang benar**
-                for ((date, items) in sortedGroupedMap) {
-                    groupedItems.add(HealthItem.DateHeader(date))
-                    groupedItems.addAll(items.sortedByDescending { it.healthData.fullTimestamp }) // ✅ Urutkan dari yang terbaru
-                }
-
-
-
-
-                healthDataAdapter.updateData(groupedItems)
-                updateRecyclerViewHeight()
-                updateViewPagerHeight()
             }
+
+        }
     }
     private fun parseDateToSortableFormat(date: String): String {
         return try {

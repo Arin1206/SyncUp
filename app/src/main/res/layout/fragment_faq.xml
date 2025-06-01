@@ -182,7 +182,7 @@
             android:id="@+id/isi4"
             android:layout_width="350dp"
             android:layout_height="wrap_content"
-
+            android:textColor="@color/black"
             android:layout_marginTop="8dp"
             android:fontFamily="@font/regular_font"
             android:text="The device tracks your heart health metrics, such as heart rate and rhythm, and syncs the data securely to the platform for your doctor to review."
@@ -197,7 +197,7 @@
             android:layout_width="350dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-
+            android:textColor="@color/black"
             android:fontFamily="@font/regular_font"
             android:text="The device tracks your heart health metrics, such as heart rate and rhythm, and syncs the data securely to the platform for your doctor to review."
             android:textSize="12sp"
@@ -211,7 +211,7 @@
             android:layout_width="350dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-
+            android:textColor="@color/black"
             android:fontFamily="@font/regular_font"
             android:text="Our platform connects patients with doctors, allowing for real-time monitoring and communication to ensure the best heart health care."
             android:textSize="12sp"
@@ -226,7 +226,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:fontFamily="@font/regular_font"
-
+            android:textColor="@color/black"
             android:text="Our platform connects patients with doctors, allowing for real-time monitoring and communication to ensure the best heart health care."
             android:textSize="12sp"
             app:layout_constraintEnd_toEndOf="parent"

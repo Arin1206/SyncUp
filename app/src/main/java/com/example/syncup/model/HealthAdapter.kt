@@ -47,21 +47,24 @@ class HealthAdapter(private var healthItemList: List<HealthItem>) :
             holder.batteryLevel.text = "${item.healthData.batteryLevel}%"
             holder.time.text = item.healthData.timestamp
 
-            // 🔥 **Atur warna indikator berdasarkan heart rate**
             val context = holder.itemView.context
             val heartRate = item.healthData.heartRate
 
-            val drawable = GradientDrawable()
-            drawable.shape = GradientDrawable.OVAL // Bentuk bulat
-            drawable.setSize(10, 10) // Ukuran sesuai View
-            drawable.setColor(
-                if (heartRate in 60..100)
-                    ContextCompat.getColor(context, R.color.green)
-                else
-                    ContextCompat.getColor(context, R.color.red)
-            )
-            holder.indicator.background = drawable
+            // Hitung batas maksimum dan minimal warning
+            val maxWarning = 220 - item.healthData.userAge!!
+            val minWarning = (maxWarning * 0.8).toInt()
 
+            val colorRes = when {
+                heartRate >= maxWarning -> R.color.red       // Danger
+                heartRate < minWarning -> R.color.green      // Healthy
+                else -> R.color.yellow       // Warning
+            }
+
+            val drawable = GradientDrawable()
+            drawable.shape = GradientDrawable.OVAL
+            drawable.setSize(10, 10)
+            drawable.setColor(ContextCompat.getColor(context, colorRes))
+            holder.indicator.background = drawable
         }
     }
 

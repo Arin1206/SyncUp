@@ -13,15 +13,20 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.ImageView
+import android.widget.ProgressBar
+import android.widget.Spinner
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.bumptech.glide.Glide
 import com.example.syncup.R
+import com.example.syncup.databinding.FragmentProfileDoctorBinding
 import com.example.syncup.databinding.FragmentProfilePatientBinding
+import com.example.syncup.inbox.InboxPatientFragment
 import com.example.syncup.main.MainPatientActivity
 import com.example.syncup.welcome.WelcomeActivity
 import com.google.firebase.auth.FirebaseAuth
@@ -29,18 +34,18 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import java.io.ByteArrayOutputStream
 
-class ProfilePatientFragment : Fragment() {
+class ProfilePatientFragment :Fragment() {
 
     private var _binding: FragmentProfilePatientBinding? = null
     private val binding get() = _binding!!
 
     private val storage = FirebaseStorage.getInstance()
-    private var imageUri: Uri? = null // Menyimpan URI foto yang dipilih
+    private var imageUri: Uri? = null
 
     private val firestore = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
     private var activeDialog: AlertDialog? = null
-    private var documentId: String? = null // Simpan ID dokumen untuk update Firestore
+    private var documentId: String? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -58,10 +63,19 @@ class ProfilePatientFragment : Fragment() {
             showImagePickerDialog()
         }
 
+        binding.imageView6.setOnClickListener {
+            // Navigate to the Inbox Patient Fragment using FragmentTransaction
+            val fragmentTransaction = requireActivity().supportFragmentManager.beginTransaction()
+            fragmentTransaction.replace(R.id.frame, InboxPatientFragment())
+            fragmentTransaction.addToBackStack(null)  // Add the transaction to the back stack if needed
+            fragmentTransaction.commit()
+        }
+
 
         binding.arrow.setOnClickListener {
             requireActivity().supportFragmentManager.popBackStack()
         }
+
 
 
         // Tambahkan fungsi edit ketika tombol edit ditekan
@@ -70,6 +84,42 @@ class ProfilePatientFragment : Fragment() {
         }
 
         return view
+    }
+
+    private fun getActualPatientUID(onResult: (String?) -> Unit) {
+        val auth = FirebaseAuth.getInstance()
+        val currentUser = auth.currentUser ?: return onResult(null)
+
+        val email = currentUser.email
+        val phoneNumber = currentUser.phoneNumber
+
+        val firestore = FirebaseFirestore.getInstance()
+
+        if (email != null) {
+            firestore.collection("users_patient_email")
+                .whereEqualTo("email", email)
+                .get()
+                .addOnSuccessListener { documents ->
+                    val uid = documents.firstOrNull()?.getString("userId")
+                    onResult(uid)
+                }
+                .addOnFailureListener {
+                    onResult(null)
+                }
+        } else if (phoneNumber != null) {
+            firestore.collection("users_patient_phonenumber")
+                .whereEqualTo("phoneNumber", phoneNumber)
+                .get()
+                .addOnSuccessListener { documents ->
+                    val uid = documents.firstOrNull()?.getString("userId")
+                    onResult(uid)
+                }
+                .addOnFailureListener {
+                    onResult(null)
+                }
+        } else {
+            onResult(null)
+        }
     }
 
     private fun fetchUserData() {
@@ -116,7 +166,7 @@ class ProfilePatientFragment : Fragment() {
                     Log.d("ProfilePatient", "User Data Loaded: $fullName, $age, $gender, Identifier: $identifier")
 
                     // **Ambil foto profil dari Firestore jika ada**
-                    loadProfilePicture(currentUser.uid)
+                   loadActualPatientProfilePicture()
                 } else {
                     Toast.makeText(requireContext(), "No user data found", Toast.LENGTH_SHORT).show()
                 }
@@ -132,7 +182,7 @@ class ProfilePatientFragment : Fragment() {
                 if (document.exists()) {
                     val photoUrl = document.getString("photoUrl")
                     if (!photoUrl.isNullOrEmpty()) {
-                        Glide.with(this).load(photoUrl).into(binding.photoprofile)
+                        Glide.with(this).load(photoUrl).circleCrop().into(binding.photoprofile)
                         Log.d("ProfilePatient", "Profile picture loaded: $photoUrl")
                     }
                 } else {
@@ -142,6 +192,17 @@ class ProfilePatientFragment : Fragment() {
             .addOnFailureListener { e ->
                 Log.e("ProfilePatient", "Error loading profile picture", e)
             }
+    }
+
+    private fun loadActualPatientProfilePicture() {
+        getActualPatientUID { patientUserId ->
+            if (patientUserId != null) {
+                loadProfilePicture(patientUserId)
+            } else {
+                Log.e("ProfilePatient", "Failed to get actual patient UID")
+                // Bisa juga kasih placeholder/default image kalau perlu
+            }
+        }
     }
 
 
@@ -155,15 +216,24 @@ class ProfilePatientFragment : Fragment() {
 
 
     private fun showLogoutDialog() {
-        AlertDialog.Builder(requireContext())
+        val dialog = AlertDialog.Builder(requireContext())
             .setTitle("Logout")
             .setMessage("Are you sure you want to log out?")
             .setPositiveButton("Yes") { _, _ ->
                 performLogout()
             }
             .setNegativeButton("Cancel", null)
-            .show()
+            .create()
+
+        dialog.show()
+
+        // Ubah warna tombol setelah dialog muncul
+        val purpleDark = resources.getColor(R.color.purple_dark, null) // sesuaikan nama warna
+
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(purpleDark)
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(purpleDark)
     }
+
 
     private fun performLogout() {
         FirebaseAuth.getInstance().signOut()
@@ -235,10 +305,11 @@ class ProfilePatientFragment : Fragment() {
         val imagePreview = dialogView.findViewById<ImageView>(R.id.image_preview)
         val btnCancel = dialogView.findViewById<View>(R.id.btn_cancel)
         val btnSave = dialogView.findViewById<View>(R.id.btn_save)
+        val progressBar = binding.progressBar
 
         val dialog = AlertDialog.Builder(context)
             .setView(dialogView)
-            .setCancelable(false) // Jangan biarkan dialog tertutup otomatis
+            .setCancelable(true) // Jangan biarkan dialog tertutup otomatis
             .create()
 
         if (bitmap != null) {
@@ -255,11 +326,17 @@ class ProfilePatientFragment : Fragment() {
         }
 
         btnSave.setOnClickListener {
-            btnSave.isEnabled = false // Mencegah multi-klik
+            dialog.dismiss()
+            btnSave.isEnabled = false
+            progressBar.visibility = View.VISIBLE
+
+            // Jangan dismiss dialog dulu
             uploadImageToFirebase {
+                // Upload selesai baru tutup dialog dan sembunyikan progress
                 btnSave.isEnabled = true
-                dialog.dismiss()
+
             }
+
         }
 
         dialog.show()
@@ -270,40 +347,46 @@ class ProfilePatientFragment : Fragment() {
         val currentUser = auth.currentUser ?: return
         val userId = currentUser.uid
         val storageRef = storage.reference.child("profile_images/$userId.jpg")
-
+        val progressBar = binding.progressBar
         imageUri?.let { uri ->
             storageRef.putFile(uri)
                 .addOnSuccessListener {
                     storageRef.downloadUrl.addOnSuccessListener { downloadUri ->
                         savePhotoUrlToFirestore(downloadUri.toString())
                     }
+                    progressBar.visibility = View.GONE
                 }
                 .addOnFailureListener { e ->
                     Toast.makeText(requireContext(), "Upload failed", Toast.LENGTH_SHORT).show()
                     Log.e("ProfilePatient", "Error uploading image", e)
                 }
         }
+
     }
 
     private fun savePhotoUrlToFirestore(photoUrl: String) {
-        val currentUser = auth.currentUser ?: return
-        val userId = currentUser.uid
-
-        val photoData = hashMapOf(
-            "userId" to userId,
-            "photoUrl" to photoUrl
-        )
-
-        firestore.collection("patient_photoprofile").document(userId)
-            .set(photoData)
-            .addOnSuccessListener {
-                Toast.makeText(requireContext(), "Profile picture updated", Toast.LENGTH_SHORT).show()
-                Glide.with(this).load(photoUrl).into(binding.photoprofile) // **Tampilkan langsung**
+        getActualPatientUID { patientUserId ->
+            if (patientUserId == null) {
+                Toast.makeText(requireContext(), "Failed to get patient ID", Toast.LENGTH_SHORT).show()
+                return@getActualPatientUID
             }
-            .addOnFailureListener { e ->
-                Toast.makeText(requireContext(), "Failed to update profile picture", Toast.LENGTH_SHORT).show()
-                Log.e("ProfilePatient", "Error saving photo URL", e)
-            }
+
+            val photoData = hashMapOf(
+                "userId" to patientUserId,
+                "photoUrl" to photoUrl
+            )
+
+            firestore.collection("patient_photoprofile").document(patientUserId)
+                .set(photoData)
+                .addOnSuccessListener {
+                    Toast.makeText(requireContext(), "Profile picture updated", Toast.LENGTH_SHORT).show()
+                    Glide.with(this).load(photoUrl).circleCrop().into(binding.photoprofile) // Tampilkan langsung
+                }
+                .addOnFailureListener { e ->
+                    Toast.makeText(requireContext(), "Failed to update profile picture", Toast.LENGTH_SHORT).show()
+                    Log.e("ProfilePatient", "Error saving photo URL", e)
+                }
+        }
     }
 
     @SuppressLint("MissingInflatedId")
@@ -312,9 +395,15 @@ class ProfilePatientFragment : Fragment() {
         val dialogView = LayoutInflater.from(context).inflate(R.layout.dialog_edit_profile, null)
         val editFullName = dialogView.findViewById<EditText>(R.id.edit_fullname)
         val editAge = dialogView.findViewById<EditText>(R.id.edit_age)
-        val editGender = dialogView.findViewById<EditText>(R.id.edit_gender)
+        val spinnerGender = dialogView.findViewById<Spinner>(R.id.spinner_gender)
 
-        // Ambil teks usia dari UI dan pastikan hanya angka
+        // 1. Gunakan layout custom untuk Spinner item
+        val genderOptions = listOf("Male", "Female")
+        val adapter = ArrayAdapter(context, R.layout.spinner_item, genderOptions)
+        adapter.setDropDownViewResource(R.layout.spinner_item) // Bisa diganti dengan dropdown layout sendiri
+        spinnerGender.adapter = adapter
+
+        // 2. Ambil data usia dan gender dari TextView yang ada
         val ageGenderText = binding.ageGender.text.toString()
         val agePart = if (ageGenderText.contains("-")) {
             ageGenderText.split("-")[0].trim().replace(Regex("[^0-9]"), "")
@@ -324,17 +413,23 @@ class ProfilePatientFragment : Fragment() {
             ageGenderText.split("-").getOrNull(1)?.trim() ?: ""
         } else ""
 
-        // Set nilai awal pada dialog edit
+        // 3. Set nilai awal input ke dialog
         editFullName.setText(binding.fullname.text.toString())
         editAge.setText(agePart)
-        editGender.setText(genderPart)
 
+        // 4. Atur posisi Spinner sesuai gender
+        val selectedGenderIndex = genderOptions.indexOfFirst {
+            it.equals(genderPart, ignoreCase = true)
+        }.takeIf { it >= 0 } ?: 0
+        spinnerGender.setSelection(selectedGenderIndex)
+
+        // 5. Buat dan tampilkan AlertDialog
         val dialog = AlertDialog.Builder(context, R.style.CustomDialogTheme)
             .setView(dialogView)
             .setPositiveButton("Save") { _, _ ->
                 val newFullName = editFullName.text.toString().trim()
                 val newAge = editAge.text.toString().trim()
-                val newGender = editGender.text.toString().trim()
+                val newGender = spinnerGender.selectedItem.toString()
 
                 if (newFullName.isEmpty() || newAge.isEmpty() || newGender.isEmpty()) {
                     Toast.makeText(context, "All fields are required", Toast.LENGTH_SHORT).show()
@@ -350,13 +445,14 @@ class ProfilePatientFragment : Fragment() {
             val positiveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
             val negativeButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE)
 
-            // Atur warna teks tombol menjadi putih
             positiveButton.setTextColor(resources.getColor(android.R.color.white, null))
             negativeButton.setTextColor(resources.getColor(android.R.color.white, null))
         }
 
         dialog.show()
     }
+
+
 
 
 

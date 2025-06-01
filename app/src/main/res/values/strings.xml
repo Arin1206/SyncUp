@@ -20,4 +20,5 @@
     <string name="tab_week">Week</string>
     <string name="tab_month">Month</string>
     <string name="tab_year">Year</string>
+    <string name="inbox">Inbox</string>
 </resources>

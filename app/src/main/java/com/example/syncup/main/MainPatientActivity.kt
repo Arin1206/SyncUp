@@ -32,9 +32,11 @@ import com.example.syncup.databinding.ActivityMainPatientBinding
 import com.example.syncup.faq.FaqFragment
 import com.example.syncup.history.HistoryPatientFragment
 import com.example.syncup.home.HomeFragment
+import com.example.syncup.profile.ProfilePatientFragment
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.firestore.FirebaseFirestore
 
 class MainPatientActivity : AppCompatActivity() {
     internal lateinit var binding: ActivityMainPatientBinding
@@ -103,8 +105,15 @@ class MainPatientActivity : AppCompatActivity() {
         }
 
         binding.scanButtonContainer.setOnClickListener {
-            scanBt()
+            checkUserAgeBeforeScan { isAgeValid ->
+                if (isAgeValid) {
+                    scanBt()
+                } else {
+                    showAgeAlertDialog()
+                }
+            }
         }
+
 
         binding.bottomNav.setOnItemSelectedListener {
             when (it.itemId) {
@@ -117,6 +126,64 @@ class MainPatientActivity : AppCompatActivity() {
             true
         }
     }
+
+    private fun checkUserAgeBeforeScan(onResult: (Boolean) -> Unit) {
+        val auth = FirebaseAuth.getInstance()
+        val currentUser = auth.currentUser ?: return onResult(false)
+
+        val email = currentUser.email
+        val phoneNumber = currentUser.phoneNumber
+        val firestore = FirebaseFirestore.getInstance()
+
+        val collectionName: String
+        val queryField: String
+        val queryValue: String
+
+        if (email != null) {
+            collectionName = "users_patient_email"
+            queryField = "email"
+            queryValue = email
+        } else if (phoneNumber != null) {
+            collectionName = "users_patient_phonenumber"
+            queryField = "phoneNumber"
+            queryValue = phoneNumber
+        } else {
+            return onResult(false)
+        }
+
+        firestore.collection(collectionName)
+            .whereEqualTo(queryField, queryValue)
+            .get()
+            .addOnSuccessListener { documents ->
+                val age = documents.firstOrNull()?.get("age")
+
+                val isValid = when (age) {
+                    is Long -> age > 0 // Jika age berupa angka
+                    is String -> age != "0" && age.lowercase() != "n/a" && age.isNotBlank()
+                    else -> false
+                }
+
+                onResult(isValid)
+            }
+            .addOnFailureListener {
+                onResult(false)
+            }
+    }
+
+
+    private fun showAgeAlertDialog() {
+        val builder = AlertDialog.Builder(this)
+        builder.setTitle("Lengkapi Profil")
+            .setMessage("Silakan lengkapi umur Anda di halaman profil sebelum melanjutkan.")
+            .setCancelable(false)
+            .setPositiveButton("Isi Sekarang") { _, _ ->
+                val profileFragment = ProfilePatientFragment()
+                replaceFragment(profileFragment)
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+    }
+
     private fun initHomeFragment() {
         replaceFragment(HomeFragment())
         // Remove the dark overlay
@@ -326,16 +393,61 @@ class MainPatientActivity : AppCompatActivity() {
     }
 
     private fun saveToFirebase(deviceName: String, deviceAddress: String) {
-        val currentUser = auth.currentUser
-        if (currentUser != null) {
-            val userId = currentUser.uid  // **Gunakan UID pengguna saat ini**
-            val deviceInfo = mapOf(
-                "deviceName" to deviceName,
-                "deviceAddress" to deviceAddress
-            )
-            database.child(userId).setValue(deviceInfo) // **Simpan berdasarkan UID**
+        getActualPatientUid { patientUid ->
+            if (patientUid != null) {
+                val deviceInfo = mapOf(
+                    "deviceName" to deviceName,
+                    "deviceAddress" to deviceAddress
+                )
+                database.child(patientUid).setValue(deviceInfo)
+                    .addOnSuccessListener {
+                        Log.d("saveToFirebase", "Device info saved for patient UID: $patientUid")
+                    }
+                    .addOnFailureListener { e ->
+                        Log.e("saveToFirebase", "Failed to save device info: ${e.message}")
+                    }
+            } else {
+                Log.e("saveToFirebase", "Failed to retrieve actual patient UID")
+            }
         }
     }
+    private fun getActualPatientUid(onResult: (String?) -> Unit) {
+        val auth = FirebaseAuth.getInstance()
+        val currentUser = auth.currentUser ?: return onResult(null)
+
+        val email = currentUser.email
+        val phoneNumber = currentUser.phoneNumber
+
+        val firestore = FirebaseFirestore.getInstance()
+
+        if (email != null) {
+            firestore.collection("users_patient_email")
+                .whereEqualTo("email", email)
+                .get()
+                .addOnSuccessListener { documents ->
+                    val uid = documents.firstOrNull()?.getString("userId")
+                    onResult(uid)
+                }
+                .addOnFailureListener {
+                    onResult(null)
+                }
+        } else if (phoneNumber != null) {
+            firestore.collection("users_patient_phonenumber")
+                .whereEqualTo("phoneNumber", phoneNumber)
+                .get()
+                .addOnSuccessListener { documents ->
+                    val uid = documents.firstOrNull()?.getString("userId")
+                    onResult(uid)
+                }
+                .addOnFailureListener {
+                    onResult(null)
+                }
+        } else {
+            onResult(null)
+        }
+    }
+
+
 
     private fun updateDeviceList(deviceName: String, deviceAddress: String) {
         val deviceData = mapOf("A" to deviceName, "B" to deviceAddress)

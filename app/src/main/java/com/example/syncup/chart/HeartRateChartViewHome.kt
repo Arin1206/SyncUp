@@ -21,7 +21,7 @@ class HeartRateChartViewHome @JvmOverloads constructor(
     private val handler = Handler(Looper.getMainLooper())
 
     private val linePaint = Paint().apply {
-        color = Color.RED
+        color = Color.GRAY
         strokeWidth = 5f
         style = Paint.Style.STROKE
     }
@@ -48,7 +48,7 @@ class HeartRateChartViewHome @JvmOverloads constructor(
     }
 
     private val redPaint = Paint().apply {
-        color = Color.RED
+        color = Color.GRAY
     }
 
     private val maxDataPoints = 20

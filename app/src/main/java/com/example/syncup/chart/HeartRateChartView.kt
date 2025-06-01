@@ -18,7 +18,7 @@ class HeartRateChartView(context: Context, attrs: AttributeSet?) : View(context,
 
     // Paint untuk menggambar bar (diisi dengan warna merah)
     private val paintBar = Paint().apply {
-        color = Color.RED
+        color = Color.GRAY
         style = Paint.Style.FILL
         isAntiAlias = true
     }

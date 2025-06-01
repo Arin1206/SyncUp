@@ -15,7 +15,7 @@ class YearChartView @JvmOverloads constructor(
 ) : View(context, attrs) {
 
     private val barPaint = Paint().apply {
-        color = Color.parseColor("#6200EE") // Warna ungu Telkom
+        color = Color.parseColor("#484848") // Warna ungu Telkom
         style = Paint.Style.FILL
     }
 

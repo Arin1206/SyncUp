@@ -6,6 +6,6 @@
     <solid android:color="@android:color/white"/>
     <stroke
         android:width="2dp"
-        android:color="#D3B8FF"/> <!-- Warna ungu soft -->
+        android:color="@color/purple_dark"/> <!-- Warna ungu soft -->
     <padding android:bottom="8dp" android:left="8dp" android:right="8dp" android:top="8dp"/>
 </shape>

@@ -2,8 +2,10 @@ package com.example.syncup.home
 
 import HealthData
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.*
 import android.content.pm.PackageManager
+import android.location.Geocoder
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -22,12 +24,14 @@ import android.widget.EditText
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
+import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.example.syncup.R
 import com.example.syncup.adapter.DoctorAdapter
 import com.example.syncup.adapter.DotIndicatorAdapter
@@ -35,6 +39,8 @@ import com.example.syncup.adapter.NewsAdapter
 import com.example.syncup.ble.BluetoothLeService
 import com.example.syncup.data.BloodPressureRepository
 import com.example.syncup.data.HomeViewModel
+import com.example.syncup.databinding.FragmentHomeBinding
+import com.example.syncup.databinding.FragmentProfilePatientBinding
 import com.example.syncup.model.Doctor
 import com.example.syncup.model.News
 import com.example.syncup.profile.ProfilePatientFragment
@@ -85,7 +91,10 @@ class HomeFragment : Fragment() {
     private lateinit var homeViewModel: HomeViewModel
     private var heartRateChartView: com.example.syncup.chart.HeartRateChartViewHome? = null
 
-
+    private val firestore = FirebaseFirestore.getInstance()
+    private var _binding: FragmentHomeBinding? = null
+    private val binding get() = _binding!!
+    private val auth = FirebaseAuth.getInstance()
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -213,13 +222,17 @@ class HomeFragment : Fragment() {
     }
 
 
+    @SuppressLint("MissingInflatedId")
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        val view = inflater.inflate(R.layout.fragment_home, container, false)
-        heartRateTextView = view.findViewById(R.id.heart_rate_value)
 
-        progressBar = view.findViewById(R.id.progress_loading)
+
+        _binding = FragmentHomeBinding.inflate(inflater, container, false)
+        val view = binding.root
+            progressBar = view.findViewById(R.id.progress_loading)
 
         searchDoctor = view.findViewById(R.id.search_doctor)
+        heartRateTextView = view.findViewById(R.id.heart_rate_value)
+
 
         recyclerViewDoctors = view.findViewById(R.id.recycler_view_doctors)
 
@@ -242,27 +255,59 @@ class HomeFragment : Fragment() {
         }
 
 
+
         // Panggil fungsi untuk menutup keyboard saat klik di luar EditText
         setupUI(view)
-        database = FirebaseDatabase.getInstance().reference.child("connected_device").child(FirebaseAuth.getInstance().currentUser?.uid ?: "unknown_user")
-        heartRateDatabase = FirebaseDatabase.getInstance().reference.child("heart_rate").child(FirebaseAuth.getInstance().currentUser?.uid ?: "unknown_user").child("latest")
+        getActualPatientUid { patientUid ->
+            if (patientUid == null) {
+                Log.e(TAG, "Gagal mendapatkan patient UID")
+                return@getActualPatientUid
+            }
 
+            database = FirebaseDatabase.getInstance().reference
+                .child("connected_device")
+                .child(patientUid)
 
-        // **Pencegahan Force Close: Tambahkan Listener dengan Cek isAdded**
-        deviceEventListener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                if (snapshot.exists() && isAdded) {
-                    // Ambil nilai dari Firebase
-                    deviceName = snapshot.child("deviceName").getValue(String::class.java)
-                    deviceAddress = snapshot.child("deviceAddress").getValue(String::class.java)
+            heartRateDatabase = FirebaseDatabase.getInstance().reference
+                .child("heart_rate")
+                .child(patientUid)
+                .child("latest")
 
-                    activity?.runOnUiThread {
-                        // Update device name: jika deviceName tersedia, tampilkan; jika tidak, tampilkan default
-                        view?.findViewById<TextView>(R.id.device_name)?.text =
-                            if (!deviceName.isNullOrEmpty()) deviceName else "Start Connected"
+            deviceEventListener = object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    if (snapshot.exists() && isAdded) {
+                        // Ambil nilai dari Firebase
+                        deviceName = snapshot.child("deviceName").getValue(String::class.java)
+                        deviceAddress = snapshot.child("deviceAddress").getValue(String::class.java)
 
-                        // Jika deviceAddress tidak valid, set nilai-nilai lainnya ke "null"
-                        if (deviceAddress.isNullOrEmpty() || deviceAddress == "null") {
+                        activity?.runOnUiThread {
+                            // Update device name: jika deviceName tersedia, tampilkan; jika tidak, tampilkan default
+                            view?.findViewById<TextView>(R.id.device_name)?.text =
+                                if (!deviceName.isNullOrEmpty()) deviceName else "Start Connected"
+
+                            // Jika deviceAddress tidak valid, set nilai-nilai lainnya ke "null"
+                            if (deviceAddress.isNullOrEmpty() || deviceAddress == "null") {
+                                view?.findViewById<TextView>(R.id.heart_rate_value)?.text = "null"
+                                view?.findViewById<TextView>(R.id.bp_value)?.text = "null"
+                                view?.findViewById<TextView>(R.id.indicator_value)?.text = "null"
+                                view?.findViewById<TextView>(R.id.battery_value)?.text = "null"
+                            }
+                        }
+
+                        // Jika deviceAddress valid, bind service dan register receiver
+                        if (!deviceAddress.isNullOrEmpty() && deviceAddress != "null") {
+                            val intent = Intent(requireContext(), BluetoothLeService::class.java)
+                            requireContext().bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+
+                            if (!isReceiverRegistered) {
+                                safeRegisterReceiver(heartRateReceiver, makeGattUpdateIntentFilter())
+                                isReceiverRegistered = true
+                                Log.d(TAG, "Receiver registered")
+                            }
+                        }
+                    } else {
+                        activity?.runOnUiThread {
+                            view?.findViewById<TextView>(R.id.device_name)?.text = "Start Connected"
                             view?.findViewById<TextView>(R.id.heart_rate_value)?.text = "null"
                             view?.findViewById<TextView>(R.id.bp_value)?.text = "null"
                             view?.findViewById<TextView>(R.id.indicator_value)?.text = "null"
@@ -270,46 +315,27 @@ class HomeFragment : Fragment() {
                         }
                     }
 
-                    // Jika deviceAddress valid, bind service dan register receiver
-                    if (!deviceAddress.isNullOrEmpty() && deviceAddress != "null") {
-                        val intent = Intent(requireContext(), BluetoothLeService::class.java)
-                        requireContext().bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
 
-                        if (!isReceiverRegistered) {
-                            safeRegisterReceiver(heartRateReceiver, makeGattUpdateIntentFilter())
-                            isReceiverRegistered = true
-                            Log.d(TAG, "Receiver registered")
-                        }
-                    }
-                } else {
-                    activity?.runOnUiThread {
-                        view?.findViewById<TextView>(R.id.device_name)?.text = "Start Connected"
-                        view?.findViewById<TextView>(R.id.heart_rate_value)?.text = "null"
-                        view?.findViewById<TextView>(R.id.bp_value)?.text = "null"
-                        view?.findViewById<TextView>(R.id.indicator_value)?.text = "null"
-                        view?.findViewById<TextView>(R.id.battery_value)?.text = "null"
-                    }
                 }
 
 
+
+                override fun onCancelled(error: DatabaseError) {
+                    Log.e(TAG, "Failed to read device data from Firebase: ${error.message}")
+                }
             }
 
 
 
-            override fun onCancelled(error: DatabaseError) {
-                Log.e(TAG, "Failed to read device data from Firebase: ${error.message}")
-            }
-        }
+            database.addValueEventListener(deviceEventListener!!)
 
-
-
-        database.addValueEventListener(deviceEventListener!!)
-
-        // **Listen for Heart Rate Updates from Firebase**
-        // Tombol Logout
+            // **Listen for Heart Rate Updates from Firebase**
+            // Tombol Logout
 //        view.findViewById<TextView>(R.id.logoutbutton)?.setOnClickListener {
 //            logoutUser()
 //        }
+        }
+
 
         return view
     }
@@ -331,25 +357,50 @@ class HomeFragment : Fragment() {
         val mapsTextView = view?.findViewById<TextView>(R.id.maps)
 
         val locationRequest = com.google.android.gms.location.LocationRequest.create().apply {
-            interval = 5000           // Update setiap 5 detik
-            fastestInterval = 3000    // Update tercepat 3 detik
+            interval = 5000
+            fastestInterval = 3000
             priority = com.google.android.gms.location.LocationRequest.PRIORITY_HIGH_ACCURACY
         }
 
         locationCallback = object : com.google.android.gms.location.LocationCallback() {
             override fun onLocationResult(locationResult: com.google.android.gms.location.LocationResult) {
+                if (!isAdded) return
                 val location = locationResult.lastLocation
                 if (location != null) {
                     currentLat = location.latitude
                     currentLon = location.longitude
-                    mapsTextView?.text = "Lat: $currentLat, Long: $currentLon"
+
+                    // Reverse geocode untuk mendapatkan alamat lengkap
+                    val geocoder = Geocoder(requireContext(), Locale.getDefault())
+                    try {
+                        val addresses = geocoder.getFromLocation(currentLat!!, currentLon!!, 1)
+                        if (!addresses.isNullOrEmpty()) {
+                            val address = addresses[0]
+                            val fullAddress = buildString {
+                                append(address.thoroughfare ?: "")              // Nama jalan
+                                if (!address.subThoroughfare.isNullOrEmpty()) {
+                                    append(" ${address.subThoroughfare}")       // Nomor rumah
+                                }
+                                if (!address.locality.isNullOrEmpty()) {
+                                    append(", ${address.locality}")             // Kota
+                                }
+                                // Jangan tambahkan postalCode dan countryName
+                            }
+
+                            mapsTextView?.text = fullAddress
+                        } else {
+                            mapsTextView?.text = "Address not found"
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        mapsTextView?.text = "Failed to get address"
+                    }
                 } else {
                     mapsTextView?.text = "Location not available"
                 }
             }
         }
 
-        // 🔹 **Tambahkan pengecekan izin sebelum requestLocationUpdates()**
         if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
             == PackageManager.PERMISSION_GRANTED
         ) {
@@ -359,12 +410,9 @@ class HomeFragment : Fragment() {
         }
     }
 
-
-
     private fun stopLiveLocationUpdates() {
         locationCallback?.let { fusedLocationClient.removeLocationUpdates(it) }
     }
-
 
     private fun checkLocationPermissionAndUpdateMaps() {
         val mapsTextView = view?.findViewById<TextView>(R.id.maps)
@@ -425,105 +473,169 @@ class HomeFragment : Fragment() {
             }
         }
     }
-    private fun updateIndicator(heartRate: Int) {
+    private fun updateIndicator(heartRate: Int, userAge: Int?) {
         val indicatorTextView = view?.findViewById<TextView>(R.id.indicator_value)
         val indicatorBox = view?.findViewById<View>(R.id.indicator_box)
 
-        if (heartRate == -1) {
-            // Jika nilai heart rate tidak valid, kembalikan ke kondisi default
+        if (heartRate == -1 || userAge == null) {
+            // Jika nilai heart rate tidak valid atau usia belum tersedia, kondisi default
             indicatorTextView?.text = "null"
             indicatorBox?.setBackgroundResource(R.drawable.bg_purple_box)
-        } else if (heartRate in 60..100) {
-            // Heart rate sehat: set teks "health" dan background hijau
-            indicatorTextView?.text = "health"
-            indicatorBox?.setBackgroundResource(R.drawable.bg_green_box)
-        } else {
-            // Nilai di luar rentang sehat: set teks "anger" dan background merah
-            indicatorTextView?.text = "anger"
-            indicatorBox?.setBackgroundResource(R.drawable.bg_red_box)
+            return
+        }
+
+        val maxWarning = 220 - userAge
+        val minWarning = (maxWarning * 0.8).toInt()
+
+        when {
+            heartRate >= maxWarning -> {
+                // Danger
+                indicatorTextView?.text = "anger"
+                indicatorBox?.setBackgroundResource(R.drawable.bg_red_box)
+            }
+            heartRate < minWarning -> {
+                // Healthy
+                indicatorTextView?.text = "health"
+                indicatorBox?.setBackgroundResource(R.drawable.bg_green_box)
+            }
+            else -> {
+                // Warning
+                indicatorTextView?.text = "warning"
+                indicatorBox?.setBackgroundResource(R.drawable.bg_yellow_box) // Buat warna kuning kalau ada
+            }
         }
     }
+
 
     private fun getCurrentMonthYear(): String {
         val calendar = Calendar.getInstance()
         return SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(calendar.time)
     }
 
+    private fun getUserAge(onResult: (Int?) -> Unit) {
+        val currentUser = auth.currentUser
+        if (currentUser == null) {
+            onResult(null)
+            return
+        }
+
+        val email = currentUser.email
+        val phoneNumber = currentUser.phoneNumber
+
+        if (email != null) {
+            firestore.collection("users_patient_email")
+                .whereEqualTo("email", email)
+                .get()
+                .addOnSuccessListener { documents ->
+                    val age = documents.firstOrNull()?.getString("age")?.toInt()
+                    onResult(age)
+                }
+                .addOnFailureListener {
+                    onResult(null)
+                }
+        } else if (phoneNumber != null) {
+            firestore.collection("users_patient_phonenumber")
+                .whereEqualTo("phoneNumber", phoneNumber)
+                .get()
+                .addOnSuccessListener { documents ->
+                    val age = documents.firstOrNull()?.getLong("age")?.toInt()
+                    onResult(age)
+                }
+                .addOnFailureListener {
+                    onResult(null)
+                }
+        } else {
+            onResult(null)
+        }
+    }
+
     private fun fetchWeeklyAverages() {
-        val db = FirebaseFirestore.getInstance()
-        val currentUser = FirebaseAuth.getInstance().currentUser
-        val userId = currentUser?.uid ?: return
-
-        db.collection("patient_heart_rate")
-            .whereEqualTo("userId", userId)
-            .addSnapshotListener { documents, error ->
-                if (error != null) {
-                    Log.e(TAG, "Error fetching health data", error)
-                    return@addSnapshotListener
-                }
-
-                if (documents == null || documents.isEmpty) {
-                    Log.d(TAG, "No data found for this week.")
-                    updateUI(0, 0.0, 0.0, 0)
-                    return@addSnapshotListener
-                }
-
-                val weekMap = LinkedHashMap<String, MutableList<HealthData>>()
-                val firstWeekRange = getFirstWeekOfCurrentMonth() // Ambil rentang minggu pertama
-                val currentMonthYear = getCurrentMonthYear() // Bulan & tahun berjalan
-
-                for (doc in documents) {
-                    val heartRate = doc.getLong("heartRate")?.toInt() ?: continue
-                    if (heartRate == 0) continue // Abaikan data heart rate = 0
-
-                    val systolicBP = doc.getDouble("systolicBP")?.toInt() ?: 0
-                    val diastolicBP = doc.getDouble("diastolicBP")?.toInt() ?: 0
-                    val batteryLevel = doc.getLong("batteryLevel")?.toInt() ?: 0
-                    val timestamp = doc.getString("timestamp") ?: continue
-
-                    // Filter hanya untuk bulan & tahun berjalan
-                    val dataMonthYear = extractMonthYearFromTimestamp(timestamp)
-                    if (dataMonthYear != currentMonthYear) {
-                        Log.d(TAG, "📌 Data diabaikan (bukan bulan berjalan): $timestamp")
-                        continue
-                    }
-
-                    // **Gunakan metode yang sama dengan `WeekFragment`**
-                    val weekNumber = getWeekOfMonth(timestamp, firstWeekRange)
-
-                    Log.d(TAG, "✔ Data Masuk: HR=$heartRate, BP=$systolicBP/$diastolicBP, Battery=$batteryLevel, Week=$weekNumber")
-
-                    val healthData = HealthData(
-                        heartRate = heartRate,
-                        bloodPressure = "$systolicBP/$diastolicBP",
-                        batteryLevel = batteryLevel,
-                        timestamp = timestamp,
-                        fullTimestamp = timestamp
-                    )
-
-                    weekMap.getOrPut(weekNumber) { mutableListOf() }.add(healthData)
-                }
-
-                // **Cari minggu terbaru dalam bulan berjalan**
-                val latestWeek = weekMap.keys.maxByOrNull { week ->
-                    extractStartEndDateFromWeek(week).first
-                }
-
-                val currentWeekData = latestWeek?.let { weekMap[it] }
-
-                if (!currentWeekData.isNullOrEmpty()) {
-                    val avgHeartRate = currentWeekData.map { it.heartRate }.average().toInt()
-                    val avgSystolicBP = currentWeekData.map { it.bloodPressure.split("/")[0].toInt() }.average().toInt()
-                    val avgDiastolicBP = currentWeekData.map { it.bloodPressure.split("/")[1].toInt() }.average().toInt()
-                    val avgBatteryLevel = currentWeekData.map { it.batteryLevel }.average().toInt()
-
-                    Log.d(TAG, "✅ Latest Week Averages -> HeartRate: $avgHeartRate, BP: $avgSystolicBP/$avgDiastolicBP, Battery: $avgBatteryLevel")
-                    updateUI(avgHeartRate, avgSystolicBP.toDouble(), avgDiastolicBP.toDouble(), avgBatteryLevel)
-                } else {
-                    Log.d(TAG, "No valid data found for the latest week.")
-                    updateUI(0, 0.0, 0.0, 0)
-                }
+        getUserAge { age ->
+            if (age == null) {
+                Log.e(TAG, "❌ Umur tidak ditemukan.")
+            } else {
+                Log.d(TAG, "📌 Umur pengguna: $age")
             }
+
+            getActualPatientUid { userId ->
+                if (userId == null) {
+                    Log.e(TAG, "❌ UID pasien tidak ditemukan.")
+                    updateUI(0, 0.0, 0.0, 0)
+                    return@getActualPatientUid
+                }
+
+                val db = FirebaseFirestore.getInstance()
+
+                db.collection("patient_heart_rate")
+                    .whereEqualTo("userId", userId)
+                    .addSnapshotListener { documents, error ->
+                        if (error != null) {
+                            Log.e(TAG, "Error fetching health data", error)
+                            return@addSnapshotListener
+                        }
+
+                        if (documents == null || documents.isEmpty) {
+                            Log.d(TAG, "No data found for this week.")
+                            updateUI(0, 0.0, 0.0, 0)
+                            return@addSnapshotListener
+                        }
+
+                        val weekMap = LinkedHashMap<String, MutableList<HealthData>>()
+                        val firstWeekRange = getFirstWeekOfCurrentMonth()
+                        val currentMonthYear = getCurrentMonthYear()
+
+                        for (doc in documents) {
+                            val heartRate = doc.getLong("heartRate")?.toInt() ?: continue
+                            if (heartRate == 0) continue
+
+                            val systolicBP = doc.getDouble("systolicBP")?.toInt() ?: 0
+                            val diastolicBP = doc.getDouble("diastolicBP")?.toInt() ?: 0
+                            val batteryLevel = doc.getLong("batteryLevel")?.toInt() ?: 0
+                            val timestamp = doc.getString("timestamp") ?: continue
+
+                            val dataMonthYear = extractMonthYearFromTimestamp(timestamp)
+                            if (dataMonthYear != currentMonthYear) {
+                                Log.d(TAG, "📌 Data diabaikan (bukan bulan berjalan): $timestamp")
+                                continue
+                            }
+
+                            val weekNumber = getWeekOfMonth(timestamp, firstWeekRange)
+
+                            Log.d(TAG, "✔ Data Masuk: HR=$heartRate, BP=$systolicBP/$diastolicBP, Battery=$batteryLevel, Week=$weekNumber")
+
+                            val healthData = HealthData(
+                                heartRate = heartRate,
+                                bloodPressure = "$systolicBP/$diastolicBP",
+                                batteryLevel = batteryLevel,
+                                timestamp = timestamp,
+                                fullTimestamp = timestamp,
+                                userAge = age// ← umur user dimasukkan di sini
+                            )
+
+                            weekMap.getOrPut(weekNumber) { mutableListOf() }.add(healthData)
+                        }
+
+                        val latestWeek = weekMap.keys.maxByOrNull { week ->
+                            extractStartEndDateFromWeek(week).first
+                        }
+
+                        val currentWeekData = latestWeek?.let { weekMap[it] }
+
+                        if (!currentWeekData.isNullOrEmpty()) {
+                            val avgHeartRate = currentWeekData.map { it.heartRate }.average().toInt()
+                            val avgSystolicBP = currentWeekData.map { it.bloodPressure.split("/")[0].toInt() }.average().toInt()
+                            val avgDiastolicBP = currentWeekData.map { it.bloodPressure.split("/")[1].toInt() }.average().toInt()
+                            val avgBatteryLevel = currentWeekData.map { it.batteryLevel }.average().toInt()
+
+                            Log.d(TAG, "✅ Latest Week Averages -> HeartRate: $avgHeartRate, BP: $avgSystolicBP/$avgDiastolicBP, Battery: $avgBatteryLevel")
+                            updateUI(avgHeartRate, avgSystolicBP.toDouble(), avgDiastolicBP.toDouble(), avgBatteryLevel)
+                        } else {
+                            Log.d(TAG, "No valid data found for the latest week.")
+                            updateUI(0, 0.0, 0.0, 0)
+                        }
+                    }
+            }
+        }
     }
 
     private fun extractMonthYearFromTimestamp(timestamp: String): String {
@@ -643,61 +755,117 @@ class HomeFragment : Fragment() {
     }
 
 
-    private fun fetchMonthlyAverages() {
-        val db = FirebaseFirestore.getInstance()
-        val currentUser = FirebaseAuth.getInstance().currentUser
-        val userId = currentUser?.uid ?: return
+    private fun getActualPatientUid(onResult: (String?) -> Unit) {
+        val auth = FirebaseAuth.getInstance()
+        val currentUser = auth.currentUser ?: return onResult(null)
 
-        db.collection("patient_heart_rate")
-            .whereEqualTo("userId", userId)
-            .addSnapshotListener { documents, error ->
-                if (error != null) {
-                    Log.e(TAG, "Error fetching monthly data: ", error)
-                    return@addSnapshotListener
+        val email = currentUser.email
+        val phoneNumber = currentUser.phoneNumber
+
+        val firestore = FirebaseFirestore.getInstance()
+
+        if (email != null) {
+            firestore.collection("users_patient_email")
+                .whereEqualTo("email", email)
+                .get()
+                .addOnSuccessListener { documents ->
+                    val uid = documents.firstOrNull()?.getString("userId")
+                    onResult(uid)
                 }
+                .addOnFailureListener {
+                    onResult(null)
+                }
+        } else if (phoneNumber != null) {
+            firestore.collection("users_patient_phonenumber")
+                .whereEqualTo("phoneNumber", phoneNumber)
+                .get()
+                .addOnSuccessListener { documents ->
+                    val uid = documents.firstOrNull()?.getString("userId")
+                    onResult(uid)
+                }
+                .addOnFailureListener {
+                    onResult(null)
+                }
+        } else {
+            onResult(null)
+        }
+    }
 
-                val monthMap = mutableMapOf<String, MutableList<Int>>()
-                val calendar = Calendar.getInstance()
-                val currentMonthIndex = calendar.get(Calendar.MONTH) // 0 - Januari, 11 - Desember
+    private fun fetchMonthlyAverages() {
+        getActualPatientUid { userId ->
+            if (userId == null) {
+                Log.e(TAG, "❌ UID pasien tidak ditemukan.")
+                return@getActualPatientUid
+            }
 
-                if (documents != null) {
-                    for (doc in documents) {
-                        val heartRate = doc.getLong("heartRate")?.toInt() ?: continue
-                        if (heartRate == 0) continue // Skip jika heart rate = 0
+            val db = FirebaseFirestore.getInstance()
 
-                        val timestamp = doc.getString("timestamp") ?: continue
-                        val monthName = getMonthName(timestamp)
-                        val monthIndex = getMonthIndex(timestamp)
+            db.collection("patient_heart_rate")
+                .whereEqualTo("userId", userId)
+                .addSnapshotListener { documents, error ->
+                    if (error != null) {
+                        Log.e(TAG, "Error fetching monthly data: ", error)
+                        return@addSnapshotListener
+                    }
 
-                        // Hanya simpan data dari bulan berjalan dan 3 bulan sebelumnya
-                        if (monthIndex in (currentMonthIndex - 3)..currentMonthIndex) {
-                            monthMap.getOrPut(monthName) { mutableListOf() }.add(heartRate)
+                    val monthMap = mutableMapOf<String, MutableList<Int>>()
+
+                    val now = Calendar.getInstance()
+                    val fourMonthsAgo = Calendar.getInstance().apply {
+                        add(Calendar.MONTH, -3)
+                        set(Calendar.DAY_OF_MONTH, 1)
+                        set(Calendar.HOUR_OF_DAY, 0)
+                        set(Calendar.MINUTE, 0)
+                        set(Calendar.SECOND, 0)
+                        set(Calendar.MILLISECOND, 0)
+                    }
+
+                    if (documents != null) {
+                        for (doc in documents) {
+                            val heartRate = doc.getLong("heartRate")?.toInt() ?: continue
+                            if (heartRate == 0) continue
+
+                            val timestamp = doc.getString("timestamp") ?: continue
+                            val timestampMillis = timestampToMillis(timestamp) ?: continue
+                            val dataCalendar = Calendar.getInstance().apply {
+                                timeInMillis = timestampMillis
+                            }
+
+                            if (dataCalendar.timeInMillis in fourMonthsAgo.timeInMillis..now.timeInMillis) {
+                                val monthName = getMonthNameByIndex(dataCalendar.get(Calendar.MONTH))
+                                monthMap.getOrPut(monthName) { mutableListOf() }.add(heartRate)
+                            }
                         }
                     }
+
+                    val monthAverages = monthMap.mapValues { (_, values) -> values.average().toInt() }
+
+                    val currentMonthIndex = now.get(Calendar.MONTH)
+                    val last4Months = (0..3).map {
+                        val monthIndex = (currentMonthIndex - it + 12) % 12
+                        getMonthNameByIndex(monthIndex)
+                    }.reversed()
+
+                    val completeData = last4Months.associateWith { monthAverages[it] }
+
+                    Log.d(TAG, "✅ Filtered Monthly Averages (Last 4 months): $completeData")
+                    monthChartView?.setData(completeData)
                 }
-
-                // Hitung rata-rata heart rate untuk setiap bulan
-                val monthAverages = monthMap.mapValues { (_, values) ->
-                    values.average().toInt()
-                }
-
-                // Ambil bulan berjalan dan 3 bulan sebelumnya
-                val last4Months = (0..3).map {
-                    val monthIndex = (currentMonthIndex - it + 12) % 12
-                    getMonthNameByIndex(monthIndex)
-                }.reversed()
-
-                // Pastikan setiap bulan dalam 4 bulan terakhir memiliki nilai
-                val completeData = last4Months.associateWith { monthAverages[it] ?: null }
-
-                Log.d(TAG, "✅ Filtered Monthly Averages (Last 4 months): $completeData")
-                monthChartView?.setData(completeData)
-            }
+        }
     }
     private fun getMonthNameByIndex(index: Int): String {
         return listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")[index]
     }
 
+
+    private fun timestampToMillis(timestamp: String): Long? {
+        return try {
+            val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            formatter.parse(timestamp)?.time
+        } catch (e: Exception) {
+            null
+        }
+    }
 
 
     private fun getMonthIndex(timestamp: String): Int {
@@ -729,6 +897,10 @@ class HomeFragment : Fragment() {
         }
         setupNewsRecyclerView(view)
 
+        val userId = FirebaseAuth.getInstance().currentUser?.uid
+        if (!userId.isNullOrEmpty()) {
+            loadActualPatientProfilePicture()
+        }
         fetchWeeklyAverages()
         bpTextView = view.findViewById(R.id.bp_value)
 
@@ -743,7 +915,9 @@ class HomeFragment : Fragment() {
 
         // **Pastikan LiveData dari Repository diobservasi**
         BloodPressureRepository.bloodPressureLiveData.observe(viewLifecycleOwner) { bp ->
-            homeViewModel.setBloodPressure(bp)
+            if (bp != null) {
+                homeViewModel.setBloodPressure(bp)
+            }
         }
 
 
@@ -989,13 +1163,30 @@ class HomeFragment : Fragment() {
                 heartRateTextView?.text = "$heartRate bpm"
 
                 heartRateChartView?.addHeartRate(heartRate)
-                updateIndicator(heartRate)
-
-                val currentUser = FirebaseAuth.getInstance().currentUser
-                if (currentUser != null) {
-                    val userId = currentUser.uid
-                    FirebaseDatabase.getInstance().reference.child("heart_rate").child(userId).child("latest").setValue(heartRate)
+                getUserAge { age ->
+                    // Jalankan updateIndicator saat userAge sudah didapat
+                    updateIndicator(heartRate, age)
                 }
+
+                getActualPatientUid { patientUid ->
+                    if (patientUid != null) {
+                        FirebaseDatabase.getInstance()
+                            .reference
+                            .child("heart_rate")
+                            .child(patientUid)
+                            .child("latest")
+                            .setValue(heartRate)
+                            .addOnSuccessListener {
+                                Log.d(TAG, "Heart rate saved to patient UID: $patientUid")
+                            }
+                            .addOnFailureListener { e ->
+                                Log.e(TAG, "Failed to save heart rate: ${e.message}")
+                            }
+                    } else {
+                        Log.e(TAG, "Patient UID not found, cannot save heart rate.")
+                    }
+                }
+
             }
         }
     }
@@ -1037,7 +1228,45 @@ class HomeFragment : Fragment() {
         startActivity(intent)
     }
 
+    private fun loadActualPatientProfilePicture() {
+        getActualPatientUid { patientUserId ->
+            if (patientUserId != null) {
+                loadProfilePicture(patientUserId)
+            } else {
+                Log.e("ProfilePatient", "Failed to get actual patient UID")
+                // Bisa juga kasih placeholder/default image kalau perlu
+            }
+        }
+    }
+
+    private fun loadProfilePicture(userId: String) {
+        firestore.collection("patient_photoprofile").document(userId).get()
+            .addOnSuccessListener { document ->
+                if (document.exists()) {
+                    val photoUrl = document.getString("photoUrl")
+                    Log.d("HomeFragment", "Photo URL from Firestore: $photoUrl")
+                    if (!photoUrl.isNullOrEmpty()) {
+                        Glide.with(this)
+                            .load(photoUrl)
+                            .circleCrop()
+                            .placeholder(R.drawable.account_circle) // gambar default sementara
+                            .error(R.drawable.account_circle)        // gambar error jika gagal load
+                            .into(binding.profile)
+                    } else {
+                        Log.w("HomeFragment", "photoUrl field is empty or null")
+                    }
+                } else {
+                    Log.w("HomeFragment", "No document found for userId: $userId")
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e("HomeFragment", "Failed to get photo profile", e)
+            }
+
+    }
+
+
     companion object {
-        private const val TAG = "HomeFragment"
+        const val TAG = "HomeFragment"
     }
 }

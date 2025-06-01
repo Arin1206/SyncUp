@@ -4,5 +4,6 @@ data class HealthData(
     val bloodPressure: String = "",
     val batteryLevel: Int = 0,
     val timestamp: String = "",
-    val fullTimestamp: String = ""
+    val fullTimestamp: String = "",
+    val userAge: Int?
 )

@@ -9,10 +9,14 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import com.example.syncup.R
+import com.example.syncup.chat.ChatDoctorFragment
 import com.example.syncup.databinding.ActivityMainDoctorBinding
 import com.example.syncup.databinding.ActivityMainPatientBinding
+import com.example.syncup.faq.FaqDoctorFragment
+import com.example.syncup.history.AlertDoctorFragment
 import com.example.syncup.home.HomeDoctorFragment
 import com.example.syncup.home.HomeFragment
+import com.example.syncup.inbox.InboxDoctorFragment
 import com.google.firebase.auth.FirebaseAuth
 
 class MainDoctorActivity : AppCompatActivity() {
@@ -46,9 +50,22 @@ class MainDoctorActivity : AppCompatActivity() {
         }
         replaceFragment(HomeDoctorFragment())
 
+        binding.scanButton.setOnClickListener {
+            val alertFragment = AlertDoctorFragment()
+            supportFragmentManager.beginTransaction()
+                .replace(R.id.frame, alertFragment) // Sesuaikan dengan id FrameLayout fragment container di activity_main_doctor.xml
+                .addToBackStack(null)
+                .commit()
+        }
+
+
+
         binding.bottomNav.setOnItemSelectedListener {
             when (it.itemId) {
                 R.id.homepage -> replaceFragment(HomeDoctorFragment())
+                R.id.inbox -> replaceFragment(InboxDoctorFragment())
+                R.id.faq -> replaceFragment(FaqDoctorFragment())
+                R.id.chat -> replaceFragment(ChatDoctorFragment())
                 else -> {}
             }
             true

@@ -18,6 +18,7 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:elevation="1dp"
+        android:background="@android:color/transparent"
         app:layout_constraintBottom_toTopOf="@+id/bottom_navigation"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -42,14 +43,14 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_centerHorizontal="true"
-            android:translationY="-15dp"
+            android:translationY="-14dp"
             android:translationZ="30dp">
 
             <!-- Tombol Tengah Floating -->
             <ImageView
                 android:id="@+id/scanButton"
-                android:layout_width="81dp"
-                android:layout_height="67dp"
+                android:layout_width="75dp"
+                android:layout_height="62dp"
                 android:paddingTop="10dp"
                 android:paddingBottom="20dp"
                 android:background="@drawable/scan_button_background"
@@ -63,9 +64,10 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal|bottom"
                 android:elevation="30dp"
-                android:paddingBottom="2dp"
+                android:paddingBottom="0dp"
                 android:fontFamily="@font/bold_font"
                 android:text="Alert"
+                android:paddingTop="2dp"
                 android:textColor="@color/white"
                 android:textSize="12sp"
                 android:textStyle="bold" />

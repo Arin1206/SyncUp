@@ -58,8 +58,6 @@ class DoctorLoginFragment : Fragment() {
             val phoneEditText = view.findViewById<EditText>(R.id.ed_regis_phone)
             val phoneNumber = phoneEditText.text.toString().trim()
 
-            val strEditText = view.findViewById<EditText>(R.id.ed_str)
-            val str = strEditText.text.toString().trim()
 
             if (phoneNumber.isEmpty()) {
                 phoneEditText.error = "Please enter your phone number"
@@ -67,14 +65,9 @@ class DoctorLoginFragment : Fragment() {
                 return@setOnClickListener
             }
 
-            if (str.isEmpty()) {
-                strEditText.error = "Please enter your STR"
-                strEditText.requestFocus()
-                return@setOnClickListener
-            }
 
 
-            checkPhoneNumberInFirestore(phoneNumber, str)
+            checkPhoneNumberInFirestore(phoneNumber)
         }
 
 
@@ -85,11 +78,10 @@ class DoctorLoginFragment : Fragment() {
         }
     }
 
-    private fun checkPhoneNumberInFirestore(phoneNumber: String, str: String) {
+    private fun checkPhoneNumberInFirestore(phoneNumber: String) {
         try {
             db.collection("users_doctor_phonenumber")
                 .whereEqualTo("phoneNumber", phoneNumber)
-                .whereEqualTo("str", str)
                 .get()
                 .addOnSuccessListener { documents ->
                     if (!documents.isEmpty) {

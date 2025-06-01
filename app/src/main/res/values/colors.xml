@@ -11,5 +11,7 @@
     <color name="red">#FF0000</color>
     <color name="dark_overlay">#66000000</color> <!-- Semi-transparent black -->
     <color name="purple_light_80">#CCAC2C38</color>
+    <color name="yellow">#FFFF00</color>
+
 
 </resources>
