@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
@@ -16,8 +17,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.syncup.R
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import java.text.SimpleDateFormat
-import java.util.Locale
+import com.google.firebase.firestore.Query
+
 
 class ChatDoctorFragment : Fragment() {
 
@@ -34,8 +35,8 @@ class ChatDoctorFragment : Fragment() {
         val view = inflater.inflate(R.layout.fragment_chat_doctor, container, false)
 
         recyclerViewChats = view.findViewById(R.id.recyclerViewChats)
-        chatAdapter = ChatAdapter(chatList) { doctorName, doctorPhoneNumber, doctorUid ->
-            navigateToRoomChat(doctorName, doctorPhoneNumber, doctorUid)
+        chatAdapter = ChatAdapter(chatList) { doctorName, doctorPhoneNumber, doctorUid, patientId, patientName, profileImage  ->
+            navigateToRoomChat(doctorName, doctorPhoneNumber, doctorUid, patientId, patientName, profileImage)
         }
         recyclerViewChats.layoutManager = LinearLayoutManager(requireContext())
         recyclerViewChats.adapter = chatAdapter
@@ -50,142 +51,242 @@ class ChatDoctorFragment : Fragment() {
         }
 
         // Initial data fetch
-        fetchDoctorsData()  // Load doctor data and messages here
-
         return view
+    }
+
+    private fun getActualDoctorUID(onResult: (String?) -> Unit) {
+        val auth = FirebaseAuth.getInstance()
+        val currentUser = auth.currentUser ?: return onResult(null)
+
+        val email = currentUser.email
+        val phoneNumber = currentUser.phoneNumber
+
+        val firestore = FirebaseFirestore.getInstance()
+
+        if (email != null) {
+            firestore.collection("users_doctor_email")
+                .whereEqualTo("email", email)
+                .get()
+                .addOnSuccessListener { documents ->
+                    val uid = documents.firstOrNull()?.getString("userId")
+                    onResult(uid)
+                }
+                .addOnFailureListener {
+                    onResult(null)
+                }
+        } else if (phoneNumber != null) {
+            firestore.collection("users_doctor_phonenumber")
+                .whereEqualTo("phoneNumber", phoneNumber)
+                .get()
+                .addOnSuccessListener { documents ->
+                    val uid = documents.firstOrNull()?.getString("userId")
+                    onResult(uid)
+                }
+                .addOnFailureListener {
+                    onResult(null)
+                }
+        } else {
+            onResult(null)
+        }
     }
 
     private fun fetchDoctorsData() {
         val db = FirebaseFirestore.getInstance()
         val currentUserUid = FirebaseAuth.getInstance().currentUser?.uid ?: return
 
-        // Clear the previous data in the chat list before adding new data
-        chatList.clear()
+        chatList.clear()  // Clear previous chat data
         chatAdapter.notifyDataSetChanged()
 
-        val emailCollection = db.collection("users_patient_email").get()
-        val phoneCollection = db.collection("users_patient_phonenumber").get()
+        // Fetch the doctor's assigned patients (from assigned_patient_ids)
+        getActualDoctorUID { doctorUid ->
+            if (doctorUid == null) {
+                Log.d("fetchDoctorsData", "Doctor UID is null")
+                return@getActualDoctorUID
+            }
 
-        emailCollection.addOnSuccessListener { emailResult ->
-            phoneCollection.addOnSuccessListener { phoneResult ->
+            Log.d("fetchDoctorsData", "Fetching assigned patients for doctorUid: $doctorUid")
 
-                val allDocs = emailResult.documents + phoneResult.documents
+            // Get list of patient IDs assigned to the doctor
+            db.collection("assigned_patient")
+                .whereEqualTo("doctorUid", doctorUid)
+                .get()
+                .addOnSuccessListener { result ->
+                    Log.d("fetchDoctorsData", "Assigned patients fetched, result size: ${result.size()}")
 
-                // Use a map to keep track of the latest message per doctor
-                val doctorMap = mutableMapOf<String, Chat>()
+                    result.forEach { document ->
+                        val patientId = document.getString("patientId") ?: return@forEach
+                        Log.d("fetchDoctorsData", "Processing patientId: $patientId")
 
-                for (document in allDocs) {
-                    val doctorName = document.getString("fullName") ?: "Unknown"
-                    val doctorEmail = document.getString("email") ?: "No Email"
-                    val doctorPhone = document.getString("phoneNumber") ?: "No Phone"
-                    val doctorUid = document.id
+                        val emailQuery = db.collection("users_patient_email").whereEqualTo("userId", patientId).get()
+                        val phoneQuery = db.collection("users_patient_phonenumber").whereEqualTo("userId", patientId).get()
 
-                    val messagesFromDoctorRef = db.collection("messages").document(doctorUid)
-                    val messagesFromUserRef = db.collection("messages").document(currentUserUid)
+                        com.google.android.gms.tasks.Tasks.whenAllSuccess<com.google.firebase.firestore.QuerySnapshot>(emailQuery, phoneQuery)
+                            .addOnSuccessListener { results ->
+                                val emailDocs = results[0] as com.google.firebase.firestore.QuerySnapshot
+                                val phoneDocs = results[1] as com.google.firebase.firestore.QuerySnapshot
+                                val patientDoc = (emailDocs.documents + phoneDocs.documents).firstOrNull()
 
-                    messagesFromDoctorRef.addSnapshotListener { snapshotDoctor, _ ->
-                        val messagesFromDoctor =
-                            snapshotDoctor?.get("messages") as? List<Map<String, Any>>
-                                ?: emptyList()
+                                if (patientDoc != null) {
+                                    val patientName = patientDoc.getString("fullName") ?: "Unknown Patient"
+                                    val patientPhone = patientDoc.getString("phoneNumber") ?: "No Phone"
 
-                        messagesFromUserRef.addSnapshotListener { snapshotUser, _ ->
-                            val messagesFromUser =
-                                snapshotUser?.get("messages") as? List<Map<String, Any>>
-                                    ?: emptyList()
+                                    // Fetch profile image URL from the patient_photoprofile collection
+                                    db.collection("patient_photoprofile")
+                                        .document(patientId)
+                                        .get()
+                                        .addOnSuccessListener { photoDoc ->
+                                            val profileImageUrl = photoDoc.getString("photoUrl") ?: ""
+                                            Log.d("fetchDoctorsData", "Profile image URL fetched for patientId: $patientId")
 
-                            // Combine messages from both doctor and user
-                            val combinedMessages = (messagesFromDoctor + messagesFromUser)
+                                            // Now directly fetch the messages from the messages sub-collection for this patient
+                                            db.collection("chats").document(doctorUid).collection("patients")
+                                                .document(patientId) // The document for this patient
+                                                .collection("messages")
+                                                .orderBy("timestamp", Query.Direction.DESCENDING)  // Order messages by timestamp
+                                                .limit(1)  // Only fetch the latest message
+                                                .get()
+                                                .addOnSuccessListener { messageSnapshot ->
+                                                    if (messageSnapshot.isEmpty) {
+                                                        Log.d("fetchDoctorsData", "No messages found for patientId: $patientId, displaying default message")
 
-                            // If no messages exist, only show doctors
-                            if (combinedMessages.isEmpty()) {
-                                val chat = Chat(
-                                    doctorName = doctorName,
-                                    message = "Start Message Now",  // Placeholder message
-                                    date = "",  // No date
-                                    doctorEmail = doctorEmail,
-                                    doctorPhoneNumber = doctorPhone,
-                                    doctorUid = doctorUid,
-                                    unreadCount = 0,
-                                    isUnread = false
-                                )
-                                // Ensure the doctor is in the map only once
-                                doctorMap[doctorUid] = chat
-                                chatAdapter.notifyDataSetChanged()
-                                return@addSnapshotListener // Skip further processing since no messages
+                                                        // If no messages exist, add the default "Start Message Now"
+                                                        val newChat = Chat(
+                                                            doctorName = patientName,
+                                                            message = "Start Message Now",
+                                                            date = "",
+                                                            doctorPhoneNumber = patientPhone,
+                                                            doctorUid = doctorUid,
+                                                            unreadCount = 0,
+                                                            isUnread = false,
+                                                            doctorEmail = "",
+                                                            profileImage = profileImageUrl,
+                                                            patientId = patientId,
+                                                            patientName = patientName
+                                                        )
+                                                        chatList.add(newChat)
+                                                        chatAdapter.notifyDataSetChanged()  // Refresh chat list
+                                                    } else {
+                                                        // Get the latest message and its timestamp
+                                                        val latestMessage = messageSnapshot.documents.first().getString("message") ?: "Start Message Now"
+                                                        val latestDate = messageSnapshot.documents.firstOrNull()?.getString("timestamp") ?: ""
+
+                                                        Log.d("fetchDoctorsData", "Latest message: $latestMessage, timestamp: $latestDate")
+
+                                                        // Create the chat object
+                                                        val chat = Chat(
+                                                            doctorName = patientName,
+                                                            message = latestMessage,
+                                                            date = latestDate,
+                                                            doctorPhoneNumber = patientPhone,
+                                                            doctorUid = doctorUid,
+                                                            unreadCount = 0,
+                                                            isUnread = false,
+                                                            doctorEmail = "",
+                                                            profileImage = profileImageUrl,
+                                                            patientId = patientId,
+                                                            patientName = patientName
+                                                        )
+                                                        chatList.add(chat)
+                                                        chatAdapter.notifyDataSetChanged()  // Refresh chat list
+                                                    }
+                                                }
+                                                .addOnFailureListener { exception ->
+                                                    Log.e("fetchDoctorsData", "Error fetching messages for patientId: $patientId", exception)
+                                                }
+                                        }
+                                        .addOnFailureListener { exception ->
+                                            Log.e("fetchDoctorsData", "Error fetching profile image for patientId: $patientId", exception)
+                                        }
+                                } else {
+                                    Log.w("fetchDoctorsData", "No patient doc found in either email or phone collections for $patientId")
+                                }
                             }
-
-                            // If there are messages, process the latest one
-                            val latest = combinedMessages.filter {
-                                val receiverName = it["receiverName"]?.toString()
-                                receiverName == doctorName // Only include messages for this doctor
-                            }.maxByOrNull {
-                                val ts = it["timestamp"] as? String
-                                // Handle missing or empty timestamp
-                                if (ts.isNullOrEmpty()) {
-                                    return@maxByOrNull 0L
-                                }
-                                try {
-                                    val format = SimpleDateFormat(
-                                        "dd MMM yyyy, HH:mm:ss",
-                                        Locale.getDefault()
-                                    )
-                                    format.parse(ts)?.time ?: 0L
-                                } catch (e: Exception) {
-                                    0L
-                                }
+                            .addOnFailureListener { exception ->
+                                Log.e("fetchDoctorsData", "Error fetching patient details from both collections for patientId: $patientId", exception)
                             }
-
-                            if (latest != null) {
-                                val latestMsgText =
-                                    latest["message"]?.toString() ?: "Start Message Now"
-                                val latestMsgDate = latest["timestamp"]?.toString() ?: ""
-                                val senderUid =
-                                    latest["senderUid"]?.toString()?.takeIf { it != "null" } ?: ""
-
-                                // Count unread messages
-                                val unreadCount = messagesFromDoctor.count {
-                                    val sid = it["senderUid"]?.toString()?.trim() ?: ""
-                                    sid.isEmpty() // sender is empty => message from doctor
-                                }
-
-                                // Determine if the message is unread
-                                val isUnread =
-                                    senderUid.isEmpty() // Check if it's from the doctor (if senderUid is empty)
-
-                                val chat = Chat(
-                                    doctorName = doctorName,
-                                    message = latestMsgText,
-                                    date = latestMsgDate,
-                                    doctorEmail = doctorEmail,
-                                    doctorPhoneNumber = doctorPhone,
-                                    doctorUid = doctorUid,
-                                    unreadCount = unreadCount,
-                                    isUnread = isUnread
-                                )
-
-                                // Update the map with the latest message for this doctor
-                                doctorMap[doctorUid] = chat
-
-                                // After processing all doctors, update the chat list
-                                chatList.clear()
-                                chatList.addAll(doctorMap.values)
-
-                                // Sort by latest message time
-                                chatList.sortByDescending {
-                                    SimpleDateFormat(
-                                        "dd MMM yyyy, HH:mm:ss",
-                                        Locale.getDefault()
-                                    ).parse(it.date)?.time ?: 0L
-                                }
-
-                                chatAdapter.notifyDataSetChanged()
-                            }
-                        }
                     }
                 }
-            }
+                .addOnFailureListener { exception ->
+                    Log.e("fetchDoctorsData", "Error fetching assigned patients", exception)
+                }
         }
     }
+
+
+
+    private fun fetchAllMessagesForDoctor() {
+        val db = FirebaseFirestore.getInstance()
+
+        // Get the doctor UID using getActualDoctorUID
+        getActualDoctorUID { doctorUid ->
+            if (doctorUid == null) {
+                Log.d("fetchAllMessagesForDoctor", "Doctor UID is null, cannot fetch messages.")
+                return@getActualDoctorUID
+            }
+
+            Log.d("fetchAllMessagesForDoctor", "Fetching all messages for doctorUid: $doctorUid")
+
+            // Get list of patient IDs assigned to the doctor
+            db.collection("assigned_patient")
+                .whereEqualTo("doctorUid", doctorUid)
+                .get()
+                .addOnSuccessListener { result ->
+                    Log.d("fetchAllMessagesForDoctor", "Assigned patients fetched, result size: ${result.size()}")
+
+                    result.forEach { document ->
+                        val patientId = document.getString("patientId") ?: return@forEach
+                        Log.d("fetchAllMessagesForDoctor", "Fetching messages for patientId: $patientId")
+
+                        // Fetch the messages for this patient from the "messages" sub-collection
+                        db.collection("chats").document(doctorUid).collection("patients")
+                            .document(patientId)  // Document for this patient
+                            .collection("messages")
+                            .get() // Fetch all messages
+                            .addOnSuccessListener { messageSnapshot ->
+                                if (messageSnapshot.isEmpty) {
+                                    Log.d("fetchAllMessagesForDoctor", "No messages found for patientId: $patientId")
+                                } else {
+                                    // Iterate through all messages for this patient
+                                    messageSnapshot.documents.forEach { messageDoc ->
+                                        val messageText = messageDoc.getString("message") ?: "No message"
+                                        val timestamp = messageDoc.getString("timestamp") ?: "No Timestamp"
+
+                                        // Log the message and timestamp
+                                        Log.d("fetchAllMessagesForDoctor", "Message: $messageText, Timestamp: $timestamp")
+
+                                        // Create and log chat object
+                                        val chat = Chat(
+                                            doctorName = "Unknown",  // Replace with actual doctor's name if needed
+                                            message = messageText,
+                                            date = timestamp,
+                                            doctorPhoneNumber = "Unknown",  // Replace with actual phone number if needed
+                                            doctorUid = doctorUid,
+                                            unreadCount = 0,
+                                            isUnread = false,
+                                            doctorEmail = "",  // Replace with actual email if needed
+                                            profileImage = "",  // Replace with actual image URL if needed
+                                            patientId = patientId,
+                                            patientName = "Unknown"  // Replace with actual patient's name if needed
+                                        )
+                                        // Here, you can add this chat object to the chatList if needed
+                                    }
+                                }
+                            }
+                            .addOnFailureListener { exception ->
+                                Log.e("fetchAllMessagesForDoctor", "Error fetching messages for patientId: $patientId", exception)
+                            }
+                    }
+                }
+                .addOnFailureListener { exception ->
+                    Log.e("fetchAllMessagesForDoctor", "Error fetching assigned patients for doctor", exception)
+                }
+        }
+    }
+
+
+
+
+
 
     private val handler = Handler(Looper.getMainLooper())
     private var searchRunnable: Runnable? = null
@@ -195,164 +296,155 @@ class ChatDoctorFragment : Fragment() {
         val loadingProgressBar = view?.findViewById<ProgressBar>(R.id.loadingProgressBar)
         loadingProgressBar?.visibility = View.VISIBLE
 
-        // If the query is empty, reload only doctors without their associated messages
-        if (query.isEmpty()) {
-            // Clear previous data to avoid old search results
-            chatList.clear()
-            chatAdapter.notifyDataSetChanged()
-
-            fetchDoctorsData()
-            // Fetch doctors' data again without messages
-
-            // Hide loading indicator after fetchDoctorsData() completes
-            loadingProgressBar?.visibility = View.GONE
-        } else {
+        // If the query is not empty, filter messages based on the search query
+        if (query.isNotEmpty()) {
             // If there is a query, filter messages based on the search query
             searchRunnable?.let { handler.removeCallbacks(it) }
 
             // Debounce the search action (set to 100ms delay)
             searchRunnable = Runnable {
-                val db = FirebaseFirestore.getInstance()
-                val currentUserUid = FirebaseAuth.getInstance().currentUser?.uid ?: return@Runnable
+                // Get the current user's doctorUid using getActualDoctorUID
+                getActualDoctorUID { doctorUid ->
+                    if (doctorUid == null) {
+                        Log.d("filterMessages", "Doctor UID is null, cannot filter messages.")
+                        return@getActualDoctorUID
+                    }
 
-                db.collection("users_patient_email").get().addOnSuccessListener { emailResult ->
-                    db.collection("users_patient_phonenumber").get()
-                        .addOnSuccessListener { phoneResult ->
-                            val allDocs = emailResult.documents + phoneResult.documents
+                    val db = FirebaseFirestore.getInstance()
 
-                            // Clear previous chat list before filtering to avoid mixing old and new results
-                            val filteredList = mutableListOf<Chat>()
+                    // Fetch all messages for the doctor and filter based on the query
+                    db.collection("assigned_patient")
+                        .whereEqualTo("doctorUid", doctorUid)  // Doctor's assigned patients
+                        .get()
+                        .addOnSuccessListener { result ->
+                            val filteredChats = mutableListOf<Chat>()
 
-                            for (document in allDocs) {
-                                val doctorUid = document.id
-                                val doctorName = document.getString("fullName") ?: "Unknown"
-                                val doctorPhone = document.getString("phoneNumber") ?: "No Phone"
+                            result.forEach { document ->
+                                val patientId = document.getString("patientId") ?: return@forEach
 
-                                val messagesFromDoctorRef =
-                                    db.collection("messages").document(doctorUid)
-                                val messagesFromUserRef =
-                                    db.collection("messages").document(currentUserUid)
+                                // Fetch patient details
+                                db.collection("users_patient_email")
+                                    .whereEqualTo("userId", patientId)
+                                    .get()
+                                    .addOnSuccessListener { patientEmails ->
+                                        val patientDoc = patientEmails.documents.firstOrNull()
+                                        patientDoc?.let {
+                                            val patientName = it.getString("fullName") ?: "Unknown Patient"
+                                            val patientPhone = it.getString("phoneNumber") ?: "No Phone"
 
-                                messagesFromDoctorRef.addSnapshotListener { snapshotDoctor, _ ->
-                                    val messagesFromDoctor =
-                                        snapshotDoctor?.get("messages") as? List<Map<String, Any>>
-                                            ?: emptyList()
+                                            // Fetch the profile image
+                                            db.collection("patient_photoprofile")
+                                                .document(patientId)
+                                                .get()
+                                                .addOnSuccessListener { photoDoc ->
+                                                    val profileImageUrl = photoDoc.getString("photoUrl") ?: ""
 
-                                    messagesFromUserRef.addSnapshotListener { snapshotUser, _ ->
-                                        val messagesFromUser =
-                                            snapshotUser?.get("messages") as? List<Map<String, Any>>
-                                                ?: emptyList()
+                                                    // Now check the messages collection for this patient and doctor
+                                                    db.collection("chats").document(doctorUid).collection("patients")
+                                                        .document(patientId)
+                                                        .collection("messages")
+                                                        .get()
+                                                        .addOnSuccessListener { messageSnapshot ->
+                                                            if (messageSnapshot.isEmpty) {
+                                                                Log.d("filterMessages", "No messages found for patientId: $patientId")
+                                                            } else {
+                                                                // Iterate through all messages for this patient and filter based on query
+                                                                messageSnapshot.documents.forEach { messageDoc ->
+                                                                    val messageText = messageDoc.getString("message") ?: "No message"
+                                                                    val timestamp = messageDoc.getString("timestamp") ?: "No Timestamp"
 
-                                        // Combine messages from both doctor and user
-                                        val combinedMessages =
-                                            (messagesFromDoctor + messagesFromUser)
+                                                                    // Check if message contains the query
+                                                                    if (messageText.contains(query, ignoreCase = true)) {
+                                                                        // Create the chat object
+                                                                        val chat = Chat(
+                                                                            doctorName = patientName,
+                                                                            message = messageText,
+                                                                            date = timestamp,
+                                                                            doctorPhoneNumber = patientPhone,
+                                                                            doctorUid = doctorUid,
+                                                                            unreadCount = 0,
+                                                                            isUnread = false,
+                                                                            doctorEmail = "",
+                                                                            profileImage = profileImageUrl,
+                                                                            patientId = patientId,
+                                                                            patientName = patientName
+                                                                        )
+                                                                        filteredChats.add(chat)
+                                                                    }
+                                                                }
+                                                            }
 
-                                        // Filter the combined messages based on the search query and receiverName
-                                        val filteredMessages = combinedMessages.filter {
-                                            val messageText = it["message"]?.toString() ?: ""
-                                            val doctorText =
-                                                doctorName.contains(query, ignoreCase = true)
-                                            val messageMatch =
-                                                messageText.contains(query, ignoreCase = true)
-                                            val receiverMatch =
-                                                it["receiverName"]?.toString() == doctorName
-                                            doctorText || messageMatch && receiverMatch
-                                        }
+                                                            // Update the chat list with the filtered results
+                                                            chatList.clear() // Clear chat list before adding new results
+                                                            chatList.addAll(filteredChats)
+                                                            chatAdapter.notifyDataSetChanged() // Update the chat list
 
-                                        // Track the latest message for each doctor and receiverName
-                                        filteredMessages.forEach { messageData ->
-                                            val receiverName =
-                                                messageData["receiverName"]?.toString()
-
-                                            // Ensure we only include messages for the correct receiverName
-                                            if (receiverName == doctorName && messageData["message"]?.toString()
-                                                    ?.contains(query, ignoreCase = true) == true
-                                            ) {
-                                                val lastMessage = filteredMessages.maxByOrNull {
-                                                    val ts = it["timestamp"]?.toString() ?: ""
-                                                    if (ts.isEmpty()) {
-                                                        return@maxByOrNull 0L
-                                                    }
-                                                    try {
-                                                        val format = SimpleDateFormat(
-                                                            "dd MMM yyyy, HH:mm:ss",
-                                                            Locale.getDefault()
-                                                        )
-                                                        format.parse(ts)?.time ?: 0L
-                                                    } catch (e: Exception) {
-                                                        0L
-                                                    }
+                                                            // Hide loading indicator after data is loaded and filtered
+                                                            loadingProgressBar?.visibility = View.GONE
+                                                        }
+                                                        .addOnFailureListener { exception ->
+                                                            Log.e("filterMessages", "Error fetching messages: ", exception)
+                                                        }
                                                 }
-
-                                                lastMessage?.let { latestMsg ->
-                                                    val latestMsgText =
-                                                        latestMsg["message"]?.toString()
-                                                            ?: "Start Message Now"
-                                                    val latestMsgDate =
-                                                        latestMsg["timestamp"]?.toString() ?: ""
-                                                    val senderUid =
-                                                        latestMsg["senderUid"]?.toString() ?: ""
-
-                                                    val doctorEmail =
-                                                        document.getString("email") ?: "No Email"
-                                                    val chat = Chat(
-                                                        doctorName = doctorName,
-                                                        message = latestMsgText,
-                                                        date = latestMsgDate,
-                                                        doctorPhoneNumber = doctorPhone,
-                                                        doctorUid = doctorUid,
-                                                        doctorEmail = doctorEmail,
-                                                        unreadCount = 0, // Adjust unread count logic as needed
-                                                        isUnread = senderUid.isEmpty()
-                                                    )
-
-                                                    // Avoid adding duplicate entries
-                                                    if (!filteredList.contains(chat)) {
-                                                        filteredList.add(chat)
-                                                    }
+                                                .addOnFailureListener { exception ->
+                                                    Log.e("filterMessages", "Error fetching profile image: ", exception)
                                                 }
-                                            }
                                         }
-
-                                        // Sort by the latest message
-                                        filteredList.sortByDescending {
-                                            SimpleDateFormat(
-                                                "dd MMM yyyy, HH:mm:ss",
-                                                Locale.getDefault()
-                                            ).parse(it.date)?.time ?: 0L
-                                        }
-
-                                        // Update the chat list with the filtered and sorted results
-                                        chatList.clear()
-                                        chatList.addAll(filteredList)
-                                        chatAdapter.notifyDataSetChanged()
-
-                                        // Hide loading indicator after data is loaded and filtered
-                                        loadingProgressBar?.visibility = View.GONE
                                     }
-                                }
+                                    .addOnFailureListener { exception ->
+                                        Log.e("filterMessages", "Error fetching patient details: ", exception)
+                                    }
                             }
+                        }
+                        .addOnFailureListener { exception ->
+                            Log.e("filterMessages", "Error fetching assigned patients: ", exception)
                         }
                 }
             }
 
             // Set a shorter debounce delay to improve responsiveness (100ms)
             handler.postDelayed(searchRunnable!!, 100) // Wait 100ms before making the request
+        } else {
+            // If the query is empty, reload the doctor data again without messages
+            chatList.clear()  // Clear previous data before reloading
+            chatAdapter.notifyDataSetChanged()
+
+            loadingProgressBar?.visibility = View.GONE
         }
+    }
+
+
+
+    override fun onResume() {
+        super.onResume()
+
+        // Clear the chat list when the fragment is resumed to avoid duplicates
+        chatList.clear()
+        chatAdapter.notifyDataSetChanged()
+
+        // Reload doctor data and messages
+        fetchDoctorsData()
+        fetchAllMessagesForDoctor()
     }
 
 
     private fun navigateToRoomChat(
         doctorName: String,
         doctorPhoneNumber: String,
-        doctorUid: String
+        doctorUid: String,
+        patientId: String,
+        patientName: String,// Add patientId to the method parameters
+        profileImage: String
     ) {
         val bundle = Bundle()
         bundle.putString("doctor_name", doctorName)
         bundle.putString("doctor_phone_number", doctorPhoneNumber)
-        bundle.putString("receiverUid", doctorUid)
+        bundle.putString("receiverUid", patientId)  // Pass patientId (receiverUid)
+        bundle.putString("doctorUid", doctorUid)
+        bundle.putString("patientName", patientName)
+        bundle.putString("profileImage", profileImage)
 
-        val roomChatFragment = RoomChatFragment()
+        val roomChatFragment = RoomChatDoctorFragment()
         roomChatFragment.arguments = bundle
 
         requireActivity().supportFragmentManager.beginTransaction()
@@ -360,5 +452,6 @@ class ChatDoctorFragment : Fragment() {
             .addToBackStack(null)
             .commit()
     }
+
 
 }

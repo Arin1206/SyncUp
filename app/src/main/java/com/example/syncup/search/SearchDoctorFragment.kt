@@ -48,7 +48,7 @@ class SearchDoctorFragment : Fragment() {
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
 
         // Inisialisasi adapter kosong
-        doctorAdapter = PatientAdapter(doctors)
+        doctorAdapter = PatientAdapter(doctors, requireContext())
         recyclerView.adapter = doctorAdapter
 
         // Inisialisasi Firestore

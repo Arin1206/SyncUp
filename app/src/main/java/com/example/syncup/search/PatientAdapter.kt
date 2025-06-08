@@ -1,6 +1,8 @@
 package com.example.syncup.search
 
+import android.content.Context
 import android.graphics.drawable.GradientDrawable
+import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -9,21 +11,27 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContentProviderCompat.requireContext
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.DrawableCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.syncup.R
+import com.example.syncup.chat.RoomChatDoctorFragment
+import com.example.syncup.chat.RoomChatFragment
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
-class PatientAdapter(patientList: List<PatientData>) :
+class PatientAdapter(patientList: List<PatientData>,  private val context: Context) :
     RecyclerView.Adapter<PatientAdapter.PatientViewHolder>() {
 
     private var patientList: MutableList<PatientData> = patientList.toMutableList()
     private val assignedPatients = mutableSetOf<String>()
     private var hideAddButton: Boolean = false
+    private var doctorName: String? = null
+    private var doctorUid: String? = null
+
     inner class PatientViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val patientName: TextView = itemView.findViewById(R.id.patient_name)
         val ageGender: TextView = itemView.findViewById(R.id.age_gender)
@@ -59,22 +67,25 @@ class PatientAdapter(patientList: List<PatientData>) :
         holder.patientName.text = patient.name
         holder.ageGender.text = "Age: ${patient.age}  ${patient.gender}"
         holder.heartRate.text = "Heart rate ${patient.heartRate} Bpm"
+
+        // Loading profile image using Glide
         if (!patient.photoUrl.isNullOrEmpty()) {
             Glide.with(holder.profile.context)
                 .load(patient.photoUrl)
                 .circleCrop()
                 .placeholder(R.drawable.account_circle)
                 .into(holder.profile)
-
         } else {
             holder.profile.setImageResource(R.drawable.account_circle)
         }
 
         val context = holder.itemView.context
 
-        getActualDoctorUID { doctorUid ->
-            if (doctorUid == null) return@getActualDoctorUID
+        // Fetch the actual doctor UID and doctor name
+        getActualDoctorUID { doctorUid, doctorName ->  // Now you have both `doctorUid` and `doctorName`
+            if (doctorUid == null || doctorName == null) return@getActualDoctorUID
 
+            // Check if the patient is already assigned
             FirebaseFirestore.getInstance()
                 .collection("assigned_patient")
                 .whereEqualTo("patientId", patient.id)
@@ -150,9 +161,30 @@ class PatientAdapter(patientList: List<PatientData>) :
                             dialog.show()
                         }
                     }
-
                 }
         }
+
+        // Chat Icon click listener to navigate to RoomChat
+        holder.itemView.findViewById<ImageView>(R.id.chat_icon).setOnClickListener {
+            val bundle = Bundle().apply {
+                putString("doctor_name", doctorName)  // Pass doctorName
+                putString("doctor_phone_number", patient.phoneNumber)  // Pass doctor phone number
+                putString("receiverUid", patient.id)  // Pass patient ID as receiverUid
+                putString("doctorUid", doctorUid)  // Pass doctorUid (this is the actual doctor's UID)
+                putString("profileImage", patient.photoUrl)  // Pass profile image URL
+            }
+
+            // Navigate to RoomChatFragment
+            val roomChatFragment = RoomChatDoctorFragment().apply {
+                arguments = bundle
+            }
+
+            (context as? AppCompatActivity)?.supportFragmentManager?.beginTransaction()
+                ?.replace(R.id.frame, roomChatFragment)
+                ?.addToBackStack(null)
+                ?.commit()
+        }
+
         val systolic = patient.systolicBP
         val diastolic = patient.diastolicBP
         val bloodPressureText = if (systolic != "None" && diastolic != "None") {
@@ -182,7 +214,7 @@ class PatientAdapter(patientList: List<PatientData>) :
         holder.statusindicator.text = statusText
         holder.statusindicator.setTextColor(ContextCompat.getColor(context, android.R.color.black))
 
-        // Jika ingin mewarnai background drawable status
+        // If you want to color the background drawable of status
         val background = ContextCompat.getDrawable(context, R.drawable.rounded_status_bg)?.mutate()
         val wrappedDrawable = background?.let { DrawableCompat.wrap(it) }
         wrappedDrawable?.let {
@@ -191,9 +223,12 @@ class PatientAdapter(patientList: List<PatientData>) :
         }
     }
 
-    private fun getActualDoctorUID(onResult: (String?) -> Unit) {
+
+
+
+    private fun getActualDoctorUID(onResult: (String?, String?) -> Unit) {
         val auth = FirebaseAuth.getInstance()
-        val currentUser = auth.currentUser ?: return onResult(null)
+        val currentUser = auth.currentUser ?: return onResult(null, null)
 
         val email = currentUser.email
         val phoneNumber = currentUser.phoneNumber
@@ -205,27 +240,30 @@ class PatientAdapter(patientList: List<PatientData>) :
                 .whereEqualTo("email", email)
                 .get()
                 .addOnSuccessListener { documents ->
-                    val uid = documents.firstOrNull()?.getString("userId")
-                    onResult(uid)
+                    doctorUid = documents.firstOrNull()?.getString("userId")
+                    doctorName = documents.firstOrNull()?.getString("fullName") // Assuming doctor name is stored as 'fullName'
+                    onResult(doctorUid, doctorName)
                 }
                 .addOnFailureListener {
-                    onResult(null)
+                    onResult(null, null)
                 }
         } else if (phoneNumber != null) {
             firestore.collection("users_doctor_phonenumber")
                 .whereEqualTo("phoneNumber", phoneNumber)
                 .get()
                 .addOnSuccessListener { documents ->
-                    val uid = documents.firstOrNull()?.getString("userId")
-                    onResult(uid)
+                    val doctorUid = documents.firstOrNull()?.getString("userId")
+                    val doctorName = documents.firstOrNull()?.getString("fullName") // Assuming doctor name is stored as 'fullName'
+                    onResult(doctorUid, doctorName)
                 }
                 .addOnFailureListener {
-                    onResult(null)
+                    onResult(null, null)
                 }
         } else {
-            onResult(null)
+            onResult(null, null)
         }
     }
+
 
     override fun getItemCount(): Int = patientList.size
 

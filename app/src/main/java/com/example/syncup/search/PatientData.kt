@@ -11,5 +11,7 @@ data class PatientData(
     val photoUrl: String,
     val email: String,
     val phoneNumber: String,
-    var isAssigned: Boolean = false
+    var isAssigned: Boolean = false,
+    val fullTimestamp: String? = null,
+    var batteryLevel: String? = null
 )

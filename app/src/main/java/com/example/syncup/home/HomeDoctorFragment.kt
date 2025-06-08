@@ -213,8 +213,13 @@ class HomeDoctorFragment : Fragment() {
                             val emailSnapshot = results[0] as QuerySnapshot
                             val phoneSnapshot = results[1] as QuerySnapshot
 
-                            val emailAges = emailSnapshot.documents.mapNotNull { it.getString("age")?.toInt() }
-                            val phoneAges = phoneSnapshot.documents.mapNotNull { it.getString("age")?.toInt() }
+                            val emailAges = emailSnapshot.documents.mapNotNull {
+                                it.getString("age")?.toIntOrNull()
+                            }
+                            val phoneAges = phoneSnapshot.documents.mapNotNull {
+                                it.getString("age")?.toIntOrNull()
+                            }
+
 
                             val allAges = emailAges + phoneAges
                             val avgAge = if (allAges.isNotEmpty()) allAges.sum() / allAges.size else null
@@ -935,15 +940,16 @@ class HomeDoctorFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        val binding = _binding
-        if (binding != null) {
+        _binding?.let { binding ->
             val recyclerView = binding.viewPager.getChildAt(0) as? ViewGroup
             val currentView = recyclerView?.getChildAt(binding.viewPager.currentItem)
             currentView?.viewTreeObserver?.removeOnGlobalLayoutListener(globalLayoutListener)
             pageChangeCallback?.let { binding.viewPager.unregisterOnPageChangeCallback(it) }
         }
+
         globalLayoutListener = null
         pageChangeCallback = null
         _binding = null
     }
+
 }

@@ -2,6 +2,7 @@ package com.example.syncup.history.fragement_doctor
 
 import HealthData
 import android.annotation.SuppressLint
+import android.app.DatePickerDialog
 import android.os.Bundle
 import android.util.Log
 import androidx.fragment.app.Fragment
@@ -24,6 +25,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Locale
 
 
@@ -32,7 +34,10 @@ class DateDoctorFragment : Fragment() {
     private lateinit var avgHeartRateTextView: TextView
     private lateinit var avgBloodPressureTextView: TextView
     private lateinit var avgBatteryTextView: TextView
-    private lateinit var btnScrollUp: ImageView
+
+
+    private lateinit var emptyImage: ImageView
+    private lateinit var emptyText: TextView
 
     private lateinit var patientAdapter: PatientAdapter
     private var assignedPatientsListener: ListenerRegistration? = null
@@ -50,10 +55,6 @@ class DateDoctorFragment : Fragment() {
     ): View? {
         val view = inflater.inflate(R.layout.fragment_date_doctor, container, false)
 
-        btnScrollUp = view.findViewById(R.id.btnScrollUp)
-        btnScrollUp.setOnClickListener {
-            recyclerView.smoothScrollToPosition(0)
-        }
 
         avgHeartRateTextView = view.findViewById(R.id.avg_heartrate)
         avgBloodPressureTextView = view.findViewById(R.id.avg_bloodpressure)
@@ -64,42 +65,73 @@ class DateDoctorFragment : Fragment() {
 
         heartRateChart = view.findViewById(R.id.heartRateChart)
 
-        patientAdapter = PatientAdapter(mutableListOf())
+        patientAdapter = PatientAdapter(mutableListOf(), requireContext())
 
         recyclerView.adapter = patientAdapter
 
-        setupScrollListener()
+        val dangerButton = view.findViewById<TextView>(R.id.statusDanger)
+        val warningButton = view.findViewById<TextView>(R.id.statusWarning)
+        val healthyButton = view.findViewById<TextView>(R.id.statusHealth)
+        val resetButton = view.findViewById<TextView>(R.id.statusReset)
+        resetButton.setOnClickListener {
+            if (allPatients.isEmpty()) {
+                emptyImage.visibility = View.VISIBLE
+                emptyText.visibility = View.VISIBLE
+                recyclerView.visibility = View.GONE
+            } else {
+                patientAdapter.updateList(allPatients)
+                emptyImage.visibility = View.GONE
+                emptyText.visibility = View.GONE
+                recyclerView.visibility = View.VISIBLE
+            }
+        }
+
+
+        dangerButton.setOnClickListener {
+            filterPatientsByStatus("Danger")
+        }
+        warningButton.setOnClickListener {
+            filterPatientsByStatus("Warning")
+        }
+        healthyButton.setOnClickListener {
+            filterPatientsByStatus("Healthy")
+        }
+
+        val dateDisplay = view.findViewById<TextView>(R.id.dateDisplay)
+        val calendar = Calendar.getInstance()
+
+//        val todayDate = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(calendar.time)
+//        dateDisplay.text = todayDate
+//
+//        val todayDisplay = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(calendar.time)
+//        dateDisplay.text = todayDisplay
+
         fetchHealthData()
+
+        emptyImage = view.findViewById(R.id.emptyImage)
+        emptyText = view.findViewById(R.id.emptyText)
+
+
+        dateDisplay.setOnClickListener {
+            val datePicker = DatePickerDialog(requireContext(), { _, year, month, dayOfMonth ->
+                val selectedDate = String.format("%04d-%02d-%02d", year, month + 1, dayOfMonth)
+
+                // Tampilkan di UI
+                val displayDate = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+                    .format(SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(selectedDate)!!)
+                dateDisplay.text = displayDate
+
+                // Panggil fungsi ini dengan tanggal yang dipilih
+                fetchHealthData(selectedDate)
+
+            }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH))
+            datePicker.show()
+        }
+
 
         return view
     }
 
-
-    private fun setupScrollListener() {
-        recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                super.onScrolled(recyclerView, dx, dy)
-
-                val layoutManager = recyclerView.layoutManager as LinearLayoutManager
-                val totalItems = layoutManager.itemCount
-                val visibleItems = layoutManager.findLastVisibleItemPosition()
-
-                // **Jika sudah mencapai setengah daftar, tampilkan tombol**
-                if (visibleItems >= totalItems / 2) {
-                    if (btnScrollUp.visibility == View.GONE) {
-                        btnScrollUp.visibility = View.VISIBLE
-                        btnScrollUp.animate().alpha(1f).setDuration(300)
-                    }
-                } else {
-                    if (btnScrollUp.visibility == View.VISIBLE) {
-                        btnScrollUp.animate().alpha(0f).setDuration(300).withEndAction {
-                            btnScrollUp.visibility = View.GONE
-                        }
-                    }
-                }
-            }
-        })
-    }
 
     private fun getActualDoctorUID(onResult: (String?) -> Unit) {
         val auth = FirebaseAuth.getInstance()
@@ -138,13 +170,15 @@ class DateDoctorFragment : Fragment() {
     }
 
 
+    private val allPatients = mutableListOf<PatientData>()
 
-    private fun fetchHealthData() {
+    private fun fetchHealthData(selectedDateFilter: String? = null) {
         getActualDoctorUID { doctorId ->
             if (doctorId == null) {
                 Toast.makeText(requireContext(), "Dokter tidak ditemukan", Toast.LENGTH_SHORT).show()
                 return@getActualDoctorUID
             }
+
 
             // Bersihkan listener sebelumnya supaya gak dobel
             assignedPatientsListener?.remove()
@@ -187,8 +221,10 @@ class DateDoctorFragment : Fragment() {
                             avgHeartRateTextView.text = "-"
                             avgBloodPressureTextView.text = "-"
                             avgBatteryTextView.text = "-"
+                            emptyImage.visibility = View.VISIBLE
+                            emptyText.visibility = View.VISIBLE
+                            recyclerView.visibility = View.GONE
                             updateRecyclerViewHeight()
-                            updateViewPagerHeight()
                             return
                         }
 
@@ -196,12 +232,16 @@ class DateDoctorFragment : Fragment() {
                         val avgSystolics = patientDataList.mapNotNull { it.systolicBP.toIntOrNull() }
                         val avgDiastolics = patientDataList.mapNotNull { it.diastolicBP.toIntOrNull() }
                         val avgBatteries = allBatteryLevels
+                        emptyImage.visibility = View.GONE
+                        emptyText.visibility = View.GONE
+                        recyclerView.visibility = View.VISIBLE
                         // Kalau kamu punya data battery per pasien, bisa tambahkan
+
+
 
                         // Update adapter
                         patientAdapter.updateList(patientDataList)
-                        updateRecyclerViewHeight()
-                        updateViewPagerHeight()
+
 
                         if (avgHeartRates.isNotEmpty()) {
                             avgHeartRateTextView.text = avgHeartRates.average().toInt().toString()
@@ -220,7 +260,13 @@ class DateDoctorFragment : Fragment() {
                         } else {
                             avgBatteryTextView.text = "-"
                         }
+
+
+
                         heartRateChart.setData(patientDataList)
+                        allPatients.clear()
+                        allPatients.addAll(patientDataList)
+
 
                     }
                     for (patientId in patientIds) {
@@ -274,11 +320,33 @@ class DateDoctorFragment : Fragment() {
                                                     val systolicBP = doc.getDouble("systolicBP")?.toInt() ?: 0
                                                     val diastolicBP = doc.getDouble("diastolicBP")?.toInt() ?: 0
                                                     val batteryLevel = doc.getLong("batteryLevel")?.toInt() ?: 0
+                                                    val fullTimestamp = doc.getString("timestamp") ?: "" // Ambil timestamp dari Firestore
+
+                                                    Log.d("DEBUG_FILTER", "Full timestamp: $fullTimestamp | Filter: $selectedDateFilter")
+
+                                                    if (selectedDateFilter != null) {
+                                                        val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                                                        val targetFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                                                        try {
+                                                            val date = inputFormat.parse(fullTimestamp)
+                                                            val formatted = targetFormat.format(date!!)
+                                                            if (formatted != selectedDateFilter) return@mapNotNull null
+                                                            Log.d("DEBUG_COMPARE", "Comparing: ${formatted} == $selectedDateFilter")
+
+                                                        } catch (e: Exception) {
+                                                            Log.e("TimestampParse", "Error parsing timestamp: ${e.message}")
+                                                            return@mapNotNull null
+                                                        }
+                                                    }
+
+
                                                     HealthData(
                                                         heartRate = heartRate,
                                                         bloodPressure = "$systolicBP/$diastolicBP",
                                                         batteryLevel = batteryLevel,
-                                                        timestamp = "", fullTimestamp = "", userAge = null
+                                                        timestamp = extractDate(fullTimestamp), // jika kamu ingin pakai
+                                                        fullTimestamp = fullTimestamp,
+                                                        userAge = null
                                                     )
                                                 }
 
@@ -317,16 +385,18 @@ class DateDoctorFragment : Fragment() {
                                                     }
 
                                                     // Jangan langsung update UI di sini, tunggu semua pasien selesai
-                                                    completedCount = patientDataList.size
+                                                    completedCount++
                                                     if (completedCount == totalPatients) {
                                                         updateUI()
                                                     }
+
                                                 } else {
                                                     // Kalau pasien tidak ada data heart rate
-                                                    completedCount = patientDataList.size
+                                                    completedCount++
                                                     if (completedCount == totalPatients) {
                                                         updateUI()
                                                     }
+
                                                 }
                                             }
                                     }
@@ -337,6 +407,34 @@ class DateDoctorFragment : Fragment() {
                 }
         }
     }
+
+    private fun filterBySelectedDate(date: String) {
+        val filtered = allPatients.filter { patient ->
+            val ts = patient.fullTimestamp ?: return@filter false
+            ts.startsWith(date) // Format timestamp di Firestore: yyyy-MM-dd HH:mm:ss
+        }
+
+        if (filtered.isEmpty()) {
+            Toast.makeText(requireContext(), "Tidak ada data pada tanggal ini", Toast.LENGTH_SHORT).show()
+            avgHeartRateTextView.text = "-"
+            avgBloodPressureTextView.text = "-"
+            avgBatteryTextView.text = "-"
+        } else {
+            val avgHeartRates = filtered.mapNotNull { it.heartRate.toIntOrNull() }
+            val avgSystolics = filtered.mapNotNull { it.systolicBP.toIntOrNull() }
+            val avgDiastolics = filtered.mapNotNull { it.diastolicBP.toIntOrNull() }
+            val avgBatteries = filtered.mapNotNull { it.batteryLevel?.toIntOrNull() }
+
+            avgHeartRateTextView.text = if (avgHeartRates.isNotEmpty()) avgHeartRates.average().toInt().toString() else "-"
+            avgBloodPressureTextView.text = if (avgSystolics.isNotEmpty() && avgDiastolics.isNotEmpty()) {
+                "${avgSystolics.average().toInt()}/${avgDiastolics.average().toInt()}"
+            } else "-"
+            avgBatteryTextView.text = if (avgBatteries.isNotEmpty()) "${avgBatteries.average().toInt()}%" else "-"
+        }
+
+        patientAdapter.updateList(filtered.sortedByDescending { it.fullTimestamp })
+    }
+
 
     private fun parseDateToSortableFormat(date: String): String {
         return try {
@@ -363,23 +461,7 @@ class DateDoctorFragment : Fragment() {
         }
     }
 
-    private fun updateViewPagerHeight() {
-        view?.post {
-            val parentViewPager = requireActivity().findViewById<ViewPager2>(R.id.viewPager)
-            val bottomNav = requireActivity().findViewById<View>(R.id.bottom_navigation)
-            val scanButtonContainer = requireActivity().findViewById<FrameLayout>(R.id.scanButtonContainer)
 
-            parentViewPager?.let {
-                val layoutParams = it.layoutParams
-                val bottomNavHeight = bottomNav?.height ?: 0
-                val fabScanHeight = scanButtonContainer?.height ?: 0
-
-                // **Hanya sesuaikan tinggi tanpa menambah container utama**
-                layoutParams.height = recyclerView.measuredHeight + bottomNavHeight + (fabScanHeight / 4)
-                it.layoutParams = layoutParams
-            }
-        }
-    }
 
 
 
@@ -426,6 +508,41 @@ class DateDoctorFragment : Fragment() {
             recyclerView.setPadding(0, 0, 0, bottomNavHeight + (scanButtonHeight / 3)) // Kurangi jarak tambahan
         }
     }
+
+    private fun filterPatientsByStatus(status: String) {
+        val filteredList = allPatients.filter { patient ->
+            val heartRate = patient.heartRate.toIntOrNull()
+            val age = patient.age.toIntOrNull()
+            if (heartRate != null && age != null) {
+                val max = 220 - age
+                val min = (max * 0.8).toInt()
+                when (status) {
+                    "Danger" -> heartRate >= max
+                    "Warning" -> heartRate in min until max
+                    "Healthy" -> heartRate < min
+                    else -> false
+                }
+            } else {
+                false
+            }
+        }
+
+        patientAdapter.updateList(filteredList)
+
+
+
+        if (filteredList.isEmpty()) {
+            emptyImage.visibility = View.VISIBLE
+            emptyText.visibility = View.VISIBLE
+            recyclerView.visibility = View.GONE
+        } else {
+            emptyImage.visibility = View.GONE
+            emptyText.visibility = View.GONE
+            recyclerView.visibility = View.VISIBLE
+        }
+
+    }
+
 
 
 

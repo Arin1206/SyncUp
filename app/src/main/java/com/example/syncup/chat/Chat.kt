@@ -9,5 +9,7 @@ data class Chat(
     val doctorPhoneNumber: String,
     val doctorUid : String,
     var unreadCount: Int = 0,
-    val isUnread: Boolean = false
-)
+    val isUnread: Boolean = false,
+    var patientId: String,
+    var patientName: String
+): java.io.Serializable

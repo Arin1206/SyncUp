@@ -9,12 +9,14 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.resource.bitmap.CircleCrop
 import com.example.syncup.R
 
 
 class ChatAdapter(
-    private val chatList: List<Chat>,
-    private val onItemClick: (String, String, String) -> Unit  // Function to handle item click with doctorUid
+    private var chatList: List<Chat>,
+    private val onItemClick: (String, String, String, String, String, String) -> Unit
 ) : RecyclerView.Adapter<ChatAdapter.ChatViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ChatViewHolder {
@@ -28,13 +30,20 @@ class ChatAdapter(
 
         // Set the click listener on the item view
         holder.itemView.setOnClickListener {
-            // When an item is clicked, navigate to RoomChatFragment
-            onItemClick(chat.doctorName, chat.doctorPhoneNumber, chat.doctorUid)  // Pass doctorUid
+            chat.profileImage?.let { it1 ->
+                onItemClick(chat.doctorName, chat.doctorPhoneNumber, chat.doctorUid, chat.patientId, chat.patientName,
+                    it1
+                )
+            }  // Pass doctorUid
         }
     }
 
     override fun getItemCount(): Int {
         return chatList.size
+    }
+    fun updateList(newList: List<Chat>) {
+        chatList = newList
+        notifyDataSetChanged()
     }
 
     inner class ChatViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -43,8 +52,9 @@ class ChatAdapter(
         private val chatDate: TextView = itemView.findViewById(R.id.chat_date)
         private val profileImage: ImageView = itemView.findViewById(R.id.profile_image)
         val unreadBadge: TextView = itemView.findViewById(R.id.unread_badge)
+
         fun bind(chat: Chat) {
-            doctorName.text = chat.doctorName
+            doctorName.text = chat.doctorName  // Displaying patient's name
 
             if (chat.message == "Start Message Now") {
                 chatMessage.text = "Start Message Now"
@@ -65,12 +75,15 @@ class ChatAdapter(
                 chatMessage.setTextColor(ContextCompat.getColor(itemView.context, R.color.black))
                 unreadBadge.visibility = View.GONE
             }
-            Log.d("ChatAdapter", "Doctor: ${chat.doctorName}, Unread: ${chat.isUnread}")
-
 
             // Set default profile image
-            profileImage.setImageResource(R.drawable.empty_image)
+            Glide.with(itemView.context)
+                .load(chat.profileImage)  // Load profile image URL
+                .placeholder(R.drawable.account_circle)  // Placeholder image
+                .transform(CircleCrop())  // Apply circular crop
+                .into(profileImage)
         }
-
     }
 }
+
+

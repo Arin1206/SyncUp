@@ -37,6 +37,8 @@ import com.example.syncup.adapter.DoctorAdapter
 import com.example.syncup.adapter.DotIndicatorAdapter
 import com.example.syncup.adapter.NewsAdapter
 import com.example.syncup.ble.BluetoothLeService
+import com.example.syncup.chat.RoomChatDoctorFragment
+import com.example.syncup.chat.RoomChatFragment
 import com.example.syncup.data.BloodPressureRepository
 import com.example.syncup.data.HomeViewModel
 import com.example.syncup.databinding.FragmentHomeBinding
@@ -49,8 +51,11 @@ import com.example.syncup.viewmodel.HeartRateViewModel
 import com.example.syncup.welcome.WelcomeActivity
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.tasks.Task
+import com.google.android.gms.tasks.Tasks
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -90,7 +95,7 @@ class HomeFragment : Fragment() {
     private val newsList = mutableListOf<News>()
     private lateinit var homeViewModel: HomeViewModel
     private var heartRateChartView: com.example.syncup.chart.HeartRateChartViewHome? = null
-
+    private var doctoruid: String? = null
     private val firestore = FirebaseFirestore.getInstance()
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
@@ -189,60 +194,161 @@ class HomeFragment : Fragment() {
         val db = FirebaseFirestore.getInstance()
         val doctorList = mutableListOf<Doctor>()
 
-        // Ambil data dari users_doctor_email
-        db.collection("users_doctor_email")
-            .get()
-            .addOnSuccessListener { emailDocuments ->
-                for (document in emailDocuments) {
-                    val fullName = document.getString("fullName") ?: "Unknown"
-                    doctorList.add(Doctor(fullName, "")) // Gambar kosong karena tidak ada di koleksi ini
-                }
+        getActualPatientUid { patientId ->
+            if (patientId == null) {
+                Log.d("fetchDoctors", "Patient UID is null")
+                return@getActualPatientUid
+            }
 
-                // Ambil data dari users_doctor_phonenumber
-                db.collection("users_doctor_phonenumber")
-                    .get()
-                    .addOnSuccessListener { phoneDocuments ->
-                        for (document in phoneDocuments) {
-                            val fullName = document.getString("fullName") ?: "Unknown"
-                            doctorList.add(Doctor(fullName, "")) // Gambar kosong karena tidak ada di koleksi ini
+            Log.d("fetchDoctors", "Patient UID: $patientId")
+
+            // Get the list of doctors assigned to this patient
+            db.collection("assigned_patient")
+                .whereEqualTo("patientId", patientId)
+                .get()
+                .addOnSuccessListener { assignedPatientDocs ->
+                    Log.d("fetchDoctors", "Assigned patients found: ${assignedPatientDocs.size()}")
+                    if (assignedPatientDocs.isEmpty) {
+                        Log.d("fetchDoctors", "No doctors assigned to this patient.")
+                        return@addOnSuccessListener
+                    }
+
+                    val doctorUids = assignedPatientDocs.mapNotNull { it.getString("doctorUid") }
+                    Log.d("fetchDoctors", "Doctor UIDs: $doctorUids")
+
+                    val fetchDoctors = mutableListOf<Task<DocumentSnapshot>>()
+
+                    doctorUids.forEach { doctorUid ->
+                        val fetchEmailDetails = db.collection("users_doctor_email")
+                            .document(doctorUid)
+                            .get()
+                            .addOnSuccessListener { doctorDoc ->
+                                val fullName = "Dr. ${doctorDoc.getString("fullName") ?: "Unknown"}"
+                                Log.d("fetchDoctors", "Doctor fetched from users_doctor_email: $fullName")
+
+                                // Fetch profile image from doctor_photoprofile collection
+                                db.collection("doctor_photoprofile")
+                                    .document(doctorUid)
+                                    .get()
+                                    .addOnSuccessListener { photoDoc ->
+                                        val profileImageUrl = photoDoc.getString("photoUrl") ?: ""
+                                        Log.d("fetchDoctors", "Profile image URL: $profileImageUrl")
+
+                                        // Create the Doctor object with the correct doctorUid
+                                        doctorList.add(Doctor(fullName, profileImageUrl, doctorUid))
+
+                                        // After all doctors are fetched, update the adapter
+                                        if (doctorList.size == doctorUids.size) {
+                                            doctorAdapter = DoctorAdapter(doctorList, patientId) { doctorName, doctorPhoneNumber, doctorUid, patientId, patientName, profileImage ->
+                                                this.doctoruid = doctorUid  // Save the doctorUid globally
+                                                navigateToRoomChat(doctorName, doctorPhoneNumber, doctorUid, patientId, patientName, profileImage)
+                                            }
+                                            recyclerViewDoctors.adapter = doctorAdapter
+                                            doctorAdapter.notifyDataSetChanged()
+                                        }
+                                    }
+                                    .addOnFailureListener { exception ->
+                                        Log.e("Firestore", "Error fetching doctor profile image: ", exception)
+                                    }
+                            }
+                            .addOnFailureListener { exception ->
+                                Log.e("Firestore", "Error fetching doctor email: ", exception)
+                            }
+
+                        fetchDoctors.add(fetchEmailDetails)
+                    }
+
+                    // Wait for all doctor fetches to complete
+                    Tasks.whenAllSuccess<DocumentSnapshot>(*fetchDoctors.toTypedArray())
+                        .addOnSuccessListener {
+                            // This should be redundant because we already update the adapter when `doctorList.size == doctorUids.size`
                         }
-
-                        // Perbarui adapter setelah kedua koleksi diambil
-                        doctorAdapter = DoctorAdapter(doctorList)
-                        recyclerViewDoctors.adapter = doctorAdapter
-                        doctorAdapter.notifyDataSetChanged()
-                    }
-                    .addOnFailureListener { exception ->
-                        Log.e("Firestore", "Error fetching phone doctors: ", exception)
-                    }
-            }
-            .addOnFailureListener { exception ->
-                Log.e("Firestore", "Error fetching email doctors: ", exception)
-            }
+                        .addOnFailureListener { exception ->
+                            Log.e("Firestore", "Error fetching doctor details: ", exception)
+                        }
+                }
+                .addOnFailureListener { exception ->
+                    Log.e("Firestore", "Error fetching assigned doctors for patient: ", exception)
+                }
+        }
     }
 
 
+
+    private fun navigateToRoomChat(
+        doctorName: String,
+        doctorPhoneNumber: String,
+        doctorUid: String,    // Use doctorUid here
+        patientId: String,
+        patientName: String,
+        profileImage: String
+    ) {
+        Log.d("RoomChat", "Navigating to RoomChat with data: ")
+        Log.d("RoomChat", "doctorName: $doctorName, doctorPhoneNumber: $doctorPhoneNumber, doctorUid: $doctorUid")
+        Log.d("RoomChat", "patientId: $patientId, patientName: $patientName, profileImage: $profileImage")
+
+        val bundle = Bundle().apply {
+            putString("doctor_name", doctorName)
+            putString("doctor_phone_number", doctorPhoneNumber)
+            putString("receiverUid", doctorUid)  // Pass the correct doctorUid here
+            putString("patientId", patientId)
+            putString("patientName", patientName)
+            putString("profileImage", profileImage)
+        }
+
+        val roomChatFragment = RoomChatFragment()
+        roomChatFragment.arguments = bundle
+
+        requireActivity().supportFragmentManager.beginTransaction()
+            .replace(R.id.frame, roomChatFragment)
+            .addToBackStack(null)
+            .commit()
+    }
+
+
+
+
+
+
     @SuppressLint("MissingInflatedId")
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-
-
+    override fun onCreateView(
+        inflater: LayoutInflater, container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
         val view = binding.root
-            progressBar = view.findViewById(R.id.progress_loading)
+        progressBar = view.findViewById(R.id.progress_loading)
 
         searchDoctor = view.findViewById(R.id.search_doctor)
         heartRateTextView = view.findViewById(R.id.heart_rate_value)
-
-
         recyclerViewDoctors = view.findViewById(R.id.recycler_view_doctors)
 
         // Gunakan GridLayoutManager dengan spanCount 3
         val layoutManager = GridLayoutManager(requireContext(), 3)
         recyclerViewDoctors.layoutManager = layoutManager
 
+        // Initialize the doctor adapter
+        getActualPatientUid { patientId ->
+            if (patientId == null) {
+                Log.e(TAG, "Gagal mendapatkan patient UID")
+                return@getActualPatientUid
+            }
 
-        doctorAdapter = DoctorAdapter(doctorList)
-        recyclerViewDoctors.adapter = doctorAdapter
+            fetchDoctorUidFromFirestore(patientId) { doctorUid ->
+                if (doctorUid == null) {
+                    Log.e(TAG, "Failed to get doctor UID")
+                    return@fetchDoctorUidFromFirestore
+                }
+
+                // Now initialize the DoctorAdapter with the fetched doctorUid and patientId
+                doctorAdapter = DoctorAdapter(doctorList, patientId) { doctorName, doctorPhoneNumber, doctorUid, patientId, patientName, profileImage ->
+                    navigateToRoomChat(doctorName, doctorPhoneNumber, doctorUid, patientId, patientName, profileImage)
+                }
+
+                recyclerViewDoctors.adapter = doctorAdapter
+            }
+
+        }
 
         fetchDoctorsFromFirestore()
 
@@ -254,10 +360,9 @@ class HomeFragment : Fragment() {
             true
         }
 
-
-
         // Panggil fungsi untuk menutup keyboard saat klik di luar EditText
         setupUI(view)
+
         getActualPatientUid { patientUid ->
             if (patientUid == null) {
                 Log.e(TAG, "Gagal mendapatkan patient UID")
@@ -314,31 +419,42 @@ class HomeFragment : Fragment() {
                             view?.findViewById<TextView>(R.id.battery_value)?.text = "null"
                         }
                     }
-
-
                 }
-
-
 
                 override fun onCancelled(error: DatabaseError) {
                     Log.e(TAG, "Failed to read device data from Firebase: ${error.message}")
                 }
             }
 
-
-
             database.addValueEventListener(deviceEventListener!!)
 
-            // **Listen for Heart Rate Updates from Firebase**
-            // Tombol Logout
-//        view.findViewById<TextView>(R.id.logoutbutton)?.setOnClickListener {
-//            logoutUser()
-//        }
         }
-
 
         return view
     }
+
+    private fun fetchDoctorUidFromFirestore(patientId: String, onResult: (String?) -> Unit) {
+        val db = FirebaseFirestore.getInstance()
+
+        db.collection("assigned_patient")
+            .whereEqualTo("patientId", patientId)
+            .get()
+            .addOnSuccessListener { result ->
+                if (result.isEmpty) {
+                    onResult(null)  // No doctors found for the patient
+                    return@addOnSuccessListener
+                }
+
+                // Assuming the first document contains the doctor's UID
+                val doctorUid = result.first().getString("doctorUid")
+                onResult(doctorUid)
+            }
+            .addOnFailureListener { exception ->
+                Log.e(TAG, "Error fetching doctor UID", exception)
+                onResult(null)
+            }
+    }
+
 
     private fun navigateToSearchFragment(query: String) {
         val bundle = Bundle().apply {

@@ -4,12 +4,12 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/send_message_background"
-    tools:context=".chat.RoomChatFragment">
+    tools:context=".chat.RoomChatFragment"
+    android:fitsSystemWindows="true">
 
-    <!-- LinearLayout containing Doctor Image, Name, and Back Arrow -->
     <LinearLayout
         android:id="@+id/linearLayout"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentStart="true"
         android:layout_alignParentTop="true"
@@ -17,11 +17,13 @@
         android:background="@color/purple_dark"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:padding="12dp">
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="10dp">
 
         <!-- Back Arrow -->
         <ImageView
             android:id="@+id/arrow"
+            android:layout_marginTop="8dp"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
@@ -32,6 +34,8 @@
             android:id="@+id/profile_image"
             android:layout_width="40dp"
             android:layout_height="40dp"
+            android:layout_marginTop="14dp"
+            android:layout_marginBottom="5dp"
             android:layout_alignParentStart="true"
             android:layout_marginStart="12dp"
             android:layout_marginEnd="12dp"
@@ -42,16 +46,13 @@
             android:id="@+id/doctor_name"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
             android:layout_weight="1"
             android:text="Doctor Name"
             android:textColor="@color/white"
             android:textSize="18sp"
             android:textStyle="bold" />
     </LinearLayout>
-
-    <!-- RecyclerView for Messages -->
-
-    <!-- Send Message Input and Button with rounded corners -->
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerViewMessages"
@@ -96,4 +97,4 @@
         android:src="@drawable/send" />
 </LinearLayout>
 
-    </RelativeLayout>
+</RelativeLayout>

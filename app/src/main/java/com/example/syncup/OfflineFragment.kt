@@ -47,7 +47,7 @@ class OfflineFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        patientAdapter = PatientAdapter(mutableListOf())
+        patientAdapter = PatientAdapter(mutableListOf(), requireContext())
         binding.recyclerView.layoutManager = NonScrollableLinearLayoutManager(requireContext())
         binding.recyclerView.adapter = patientAdapter
 
