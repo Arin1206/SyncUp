@@ -19,7 +19,7 @@ class MonthChartView @JvmOverloads constructor(
     }
 
     private val nullBarPaint = Paint().apply {
-        color = Color.GRAY // Warna abu-abu untuk bulan yang kosong
+        color = Color.GRAY
         style = Paint.Style.FILL
     }
 
@@ -37,13 +37,13 @@ class MonthChartView @JvmOverloads constructor(
 
     private val textPaint = Paint().apply {
         color = Color.BLACK
-        textSize = 12f // **Ukuran teks diperkecil agar semua muat**
+        textSize = 12f
         textAlign = Paint.Align.CENTER
     }
 
     private val labelPaint = Paint().apply {
         color = Color.BLACK
-        textSize = 10f // **Ukuran label lebih kecil**
+        textSize = 10f
         textAlign = Paint.Align.CENTER
     }
 
@@ -52,14 +52,13 @@ class MonthChartView @JvmOverloads constructor(
     fun setData(data: Map<String, Int>) {
         val filteredData = data.mapKeys { convertMonthToEnglish(it.key) }
 
-        // **Pastikan ada 12 bulan dalam setahun, meskipun tidak ada data**
         val allMonths = listOf(
             "Jan", "Feb", "Mar", "Apr", "May", "Jun",
             "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
         )
         monthData = allMonths.associateWith { month -> filteredData[month] }.toMutableMap()
 
-        invalidate() // **Refresh tampilan grafik**
+        invalidate()
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -69,21 +68,19 @@ class MonthChartView @JvmOverloads constructor(
 
         val maxHeartRate = monthData.values.filterNotNull().maxOrNull()?.toFloat() ?: 150f
         val minHeartRate = 0f
-        val chartWidth = width.toFloat() - 50f // **Kurangi lebar agar muat dalam 300dp**
-        val chartHeight = height.toFloat() - 20f // **Kurangi tinggi agar angka 150 terlihat**
-        val axisY = chartHeight - 40f // **Naikkan sumbu X sedikit agar tidak terpotong**
+        val chartWidth = width.toFloat() - 50f
+        val chartHeight = height.toFloat() - 20f
+        val axisY = chartHeight - 40f
 
         val barCount = 12
-        val barWidth = 30f // **Kecilkan ukuran bar**
-        val barSpacing = 10f // **Kurangi spasi antar bar**
+        val barWidth = 30f
+        val barSpacing = 10f
 
         val totalChartWidth = (barCount * (barWidth + barSpacing))
-        val startX = (chartWidth - totalChartWidth) / 2 + 25f // **Pusatkan chart agar lebih rapi**
+        val startX = (chartWidth - totalChartWidth) / 2 + 25f
 
-        // **Gambar Garis sumbu X**
         canvas.drawLine(startX, axisY, startX + totalChartWidth, axisY, axisPaint)
 
-        // **Gambar Garis sumbu Y (grid horizontal)**
         for (i in 0..3) {
             val y = axisY - (i * (axisY / 3.5f))
             canvas.drawLine(startX, y, startX + totalChartWidth, y, gridPaint)
@@ -106,10 +103,13 @@ class MonthChartView @JvmOverloads constructor(
             canvas.drawText(month, xPosition + barWidth / 2, axisY + 15, textPaint)
 
             if (avgHeartRate != null) {
-                // **Tambahkan tulisan nilai heart rate di atas bar**
-                canvas.drawText("$avgHeartRate", xPosition + barWidth / 2, axisY - barHeight - 5, labelPaint)
+                canvas.drawText(
+                    "$avgHeartRate",
+                    xPosition + barWidth / 2,
+                    axisY - barHeight - 5,
+                    labelPaint
+                )
             } else {
-                // **Tampilkan "null" jika data kosong**
                 canvas.drawText("null", xPosition + barWidth / 2, axisY - 10, textPaint)
             }
 
@@ -131,7 +131,7 @@ class MonthChartView @JvmOverloads constructor(
             "oktober", "october" -> "Oct"
             "november" -> "Nov"
             "desember", "december" -> "Dec"
-            else -> month // **Jika sudah dalam bahasa Inggris, biarkan tetap**
+            else -> month
         }
     }
 }

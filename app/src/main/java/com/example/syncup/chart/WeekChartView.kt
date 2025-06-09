@@ -13,12 +13,12 @@ class WeekChartView @JvmOverloads constructor(
 ) : View(context, attrs) {
 
     private val barPaint = Paint().apply {
-        color = Color.parseColor("#484848") // Warna ungu Telkom
+        color = Color.parseColor("#484848")
         style = Paint.Style.FILL
     }
 
     private val nullBarPaint = Paint().apply {
-        color = Color.GRAY // Warna abu-abu untuk week yang kosong
+        color = Color.GRAY
         style = Paint.Style.FILL
     }
 
@@ -51,11 +51,10 @@ class WeekChartView @JvmOverloads constructor(
     fun setData(data: Map<String, Int>) {
         val filteredData = data.mapKeys { extractWeekNumber(it.key) }
 
-        // **Pastikan ada 5 week dalam satu bulan, jika tidak ada, set "null"**
         val allWeeks = (1..5).map { "Week $it" }
         weekData = allWeeks.associateWith { week -> filteredData[week] }.toMutableMap()
 
-        invalidate() // Refresh tampilan
+        invalidate()
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -65,21 +64,18 @@ class WeekChartView @JvmOverloads constructor(
 
         val maxHeartRate = 150f
         val minHeartRate = 0f
-        val chartWidth = width.toFloat() - 80f // **Perpendek sumbu X**
-        val chartHeight = height.toFloat() - 30f // **Kurangi tinggi agar angka 150 terlihat**
-        val axisY = chartHeight - 40f // **Naikkan sumbu X sedikit agar tidak terpotong**
+        val chartWidth = width.toFloat() - 80f
+        val chartHeight = height.toFloat() - 30f
+        val axisY = chartHeight - 40f
 
         val barCount = 5
-        val barWidth = 40f // **Tetapkan ukuran bar tetap sama**
-        val barSpacing = 30f // **Spasi antar bar dibuat lebih pendek**
+        val barWidth = 40f
+        val barSpacing = 30f
 
         val totalChartWidth = (barCount * (barWidth + barSpacing))
-        val startX = (chartWidth - totalChartWidth) / 2 + 50f // **Pusatkan chart agar lebih rapi**
-
-        // **Gambar Garis sumbu X**
+        val startX = (chartWidth - totalChartWidth) / 2 + 50f
         canvas.drawLine(startX, axisY, startX + totalChartWidth, axisY, axisPaint)
 
-        // **Gambar Garis sumbu Y (grid horizontal)**
         for (i in 0..3) {
             val y = axisY - (i * (axisY / 3.5f))
             canvas.drawLine(startX, y, startX + totalChartWidth, y, gridPaint)
@@ -102,11 +98,14 @@ class WeekChartView @JvmOverloads constructor(
             canvas.drawText(week, xPosition + barWidth / 2, axisY + 25, textPaint)
 
             if (avgHeartRate != null) {
-                // **Tambahkan tulisan "Avg Heart Rate" di atas bar**
                 canvas.drawText("Avg", xPosition + barWidth / 2, axisY - barHeight - 25, labelPaint)
-                canvas.drawText("$avgHeartRate", xPosition + barWidth / 2, axisY - barHeight - 5, labelPaint)
+                canvas.drawText(
+                    "$avgHeartRate",
+                    xPosition + barWidth / 2,
+                    axisY - barHeight - 5,
+                    labelPaint
+                )
             } else {
-                // **Tampilkan "null" jika data kosong**
                 canvas.drawText("null", xPosition + barWidth / 2, axisY - 10, textPaint)
             }
 

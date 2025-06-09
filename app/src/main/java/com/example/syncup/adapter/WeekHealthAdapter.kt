@@ -1,6 +1,5 @@
 package com.example.syncup.adapter
 
-import HealthData
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -39,6 +38,7 @@ class WeekHealthAdapter(private var items: List<WeekHealthItem>) :
                     .inflate(R.layout.item_week_header, parent, false)
                 WeekHeaderViewHolder(view)
             }
+
             else -> {
                 val view = LayoutInflater.from(parent.context)
                     .inflate(R.layout.item_health_data, parent, false)
@@ -72,7 +72,7 @@ class WeekHealthAdapter(private var items: List<WeekHealthItem>) :
     override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
         super.onViewRecycled(holder)
         if (holder is DataViewHolder) {
-            holder.stopUpdatingTime()  // **Hentikan pembaruan waktu saat di-recycle**
+            holder.stopUpdatingTime()
         }
     }
 
@@ -86,8 +86,8 @@ class WeekHealthAdapter(private var items: List<WeekHealthItem>) :
         private val handler = Handler(Looper.getMainLooper())
         private val updateTimeRunnable = object : Runnable {
             override fun run() {
-                timeTextView.text = formatTime()  // **Perbarui waktu**
-                handler.postDelayed(this, 1000)  // **Update setiap detik**
+                timeTextView.text = formatTime()
+                handler.postDelayed(this, 1000)
             }
         }
 
@@ -97,11 +97,9 @@ class WeekHealthAdapter(private var items: List<WeekHealthItem>) :
             bloodPressureTextView.text = healthData.bloodPressure
             batteryTextView.text = "${healthData.batteryLevel}%"
 
-            // **Mulai update waktu secara live**
             handler.removeCallbacks(updateTimeRunnable)
             handler.post(updateTimeRunnable)
 
-            // **Set indikator warna berdasarkan heart rate**
             val context = indicatorStatus.context
             val statusColor = if (healthData.heartRate in 60..100) {
                 ContextCompat.getColor(context, R.color.green)  // **Healthy**
@@ -118,7 +116,7 @@ class WeekHealthAdapter(private var items: List<WeekHealthItem>) :
         private fun formatTime(): String {
             return try {
                 val currentTime = System.currentTimeMillis()
-                val outputFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())  // 🔹 **Gunakan format HH:mm:ss**
+                val outputFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
                 outputFormat.format(Date(currentTime))
             } catch (e: Exception) {
                 Log.e("WeekHealthAdapter", "Error getting current time", e)
@@ -127,5 +125,5 @@ class WeekHealthAdapter(private var items: List<WeekHealthItem>) :
         }
 
 
-}
+    }
 }

@@ -15,10 +15,14 @@ import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.app.NotificationCompat
 import com.example.syncup.R
+import com.example.syncup.home.HomeDoctorFragment
+import com.example.syncup.home.HomeFragment
 import com.example.syncup.inbox.InboxDoctorFragment
 import com.example.syncup.inbox.InboxPatientFragment
 import com.example.syncup.model.MessageRequest
@@ -62,6 +66,25 @@ class FaqDoctorFragment : Fragment() {
         }
 
 
+        val arrow = view.findViewById<ImageView>(R.id.arrow)
+        arrow.setOnClickListener {
+            // Check if we're currently in the HomeFragment and navigate back to HomeFragment
+            val fragment = HomeDoctorFragment()
+
+            requireActivity().supportFragmentManager.beginTransaction()
+                .replace(R.id.frame, fragment)  // Assuming 'frame' is your container ID
+                .addToBackStack(null)  // Optionally add the transaction to back stack if you want to allow back navigation
+                .commit()
+        }
+
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner) {
+            // Navigate to HomeFragment when back is pressed
+            val homeFragment = HomeDoctorFragment()
+
+            requireActivity().supportFragmentManager.beginTransaction()
+                .replace(R.id.frame, homeFragment)  // Ensure 'frame' is the container ID for fragments
+                .commit()
+        }
         // Setup Retrofit
         val retrofit = Retrofit.Builder()
             .baseUrl("https://us-central1-sync-up-f40ee.cloudfunctions.net/") // Ganti sesuai project Firebase kamu

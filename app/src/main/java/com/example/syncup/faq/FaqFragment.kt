@@ -14,11 +14,14 @@ import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.app.NotificationCompat
 import androidx.fragment.app.Fragment
 import com.example.syncup.R
+import com.example.syncup.home.HomeFragment
 import com.example.syncup.inbox.InboxPatientFragment
 import com.example.syncup.model.MessageRequest
 import com.example.syncup.network.FirebaseFunctionService
@@ -50,6 +53,7 @@ class FaqFragment : Fragment() {
         messageEditText = view.findViewById(R.id.message_field)
         submitButton = view.findViewById(R.id.submit_button)
         parentLayout = view.findViewById(R.id.main)
+        val arrow = view.findViewById<ImageView>(R.id.arrow)
 
         // Dismiss keyboard when clicking outside
         parentLayout.setOnTouchListener { _, event ->
@@ -59,6 +63,23 @@ class FaqFragment : Fragment() {
             false
         }
 
+        arrow.setOnClickListener {
+            // Check if we're currently in the HomeFragment and navigate back to HomeFragment
+            val fragment = HomeFragment()
+
+            requireActivity().supportFragmentManager.beginTransaction()
+                .replace(R.id.frame, fragment)  // Assuming 'frame' is your container ID
+                .addToBackStack(null)  // Optionally add the transaction to back stack if you want to allow back navigation
+                .commit()
+        }
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner) {
+            // Navigate to HomeFragment when back is pressed
+            val homeFragment = HomeFragment()
+
+            requireActivity().supportFragmentManager.beginTransaction()
+                .replace(R.id.frame, homeFragment)  // Ensure 'frame' is the container ID for fragments
+                .commit()
+        }
 
         // Setup Retrofit
         val retrofit = Retrofit.Builder()

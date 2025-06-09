@@ -16,7 +16,7 @@ class DateChartViewDoctor(context: Context, attrs: AttributeSet?) : View(context
     private var viewHeight = 1f
 
     private val paintBar = Paint().apply {
-        color = Color.parseColor("#4CAF50") // Hijau
+        color = Color.parseColor("#4CAF50")
         style = Paint.Style.FILL
         isAntiAlias = true
     }
@@ -35,9 +35,6 @@ class DateChartViewDoctor(context: Context, attrs: AttributeSet?) : View(context
         isAntiAlias = true
     }
 
-    /**
-     * Meng-update data dan me-refresh tampilan.
-     */
     fun setData(newData: List<PatientData>) {
         data = newData
         invalidate()
@@ -55,12 +52,12 @@ class DateChartViewDoctor(context: Context, attrs: AttributeSet?) : View(context
 
         val leftMargin = 50f
 
-        // Gambar sumbu-Y
+
         canvas.drawLine(leftMargin, 0f, leftMargin, viewHeight, paintAxis)
-        // Gambar sumbu-X
+
         canvas.drawLine(leftMargin, viewHeight, viewWidth, viewHeight, paintAxis)
 
-        // Label sumbu-Y (misalnya 0, 50, 100, 150)
+
         val paintAxisText = Paint(paintText).apply { textAlign = Paint.Align.RIGHT }
         val yValues = listOf(0, 50, 100, 150)
         yValues.forEach { value ->
@@ -85,10 +82,10 @@ class DateChartViewDoctor(context: Context, attrs: AttributeSet?) : View(context
 
             canvas.drawRect(left, top, right, bottom, paintBar)
 
-            // Tampilkan nilai heart rate
+
             canvas.drawText(heartRate.toString(), left + (right - left) / 2, top - 4f, paintText)
 
-            // Tampilkan nama pasien di bawah bar
+
             val label = item.name.split(" ").firstOrNull() ?: "Pasien"
             canvas.drawText(label, left + (right - left) / 2, bottom + 20f, paintText)
         }

@@ -10,7 +10,6 @@ import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
 import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.example.syncup.R
 
@@ -27,9 +26,8 @@ class DeviceControlActivity : AppCompatActivity() {
             isBound = true
             Log.d(TAG, "BluetoothLeService connected")
 
-            // Initialize the BluetoothLeService
             if (bluetoothLeService?.initialize() == true) {
-                // Connect to the device if initialization is successful
+
                 bluetoothLeService?.connect(deviceAddress)
             } else {
                 Log.e(TAG, "BluetoothLeService initialization failed")
@@ -63,8 +61,8 @@ class DeviceControlActivity : AppCompatActivity() {
         super.onDestroy()
         if (isBound) {
             unbindService(serviceConnection)
-        }else {
-            Log.d(TAG,"Perangkat terbind") //ini masih renncana aja
+        } else {
+            Log.d(TAG, "Perangkat terbind")
         }
         unregisterReceiver(heartRateReceiver)
         Log.d(TAG, "Receiver unregistered and service unbound")

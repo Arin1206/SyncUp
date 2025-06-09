@@ -1,6 +1,5 @@
 package com.example.syncup.adapter
 
-import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -16,19 +15,12 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.syncup.R
 import com.example.syncup.chat.RoomChatDoctorFragment
-import com.example.syncup.model.MonthHealthItem
 import com.example.syncup.model.MonthHealthItemDoctor
-import com.example.syncup.model.WeekHealthItemDoctor
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import java.text.SimpleDateFormat
-import java.util.*
 
 class MonthHealthDoctorAdapter(private var monthData: List<MonthHealthItemDoctor>) :
     RecyclerView.Adapter<RecyclerView.ViewHolder>() {
-
-    private var doctorName: String? = null
-    private var doctorUid: String? = null
 
     companion object {
         private const val VIEW_TYPE_HEADER = 0
@@ -46,6 +38,7 @@ class MonthHealthDoctorAdapter(private var monthData: List<MonthHealthItemDoctor
                     .inflate(R.layout.item_month_header, parent, false)
                 MonthHeaderViewHolder(view)
             }
+
             else -> {
                 val view = LayoutInflater.from(parent.context)
                     .inflate(R.layout.item_patient, parent, false)
@@ -53,7 +46,6 @@ class MonthHealthDoctorAdapter(private var monthData: List<MonthHealthItemDoctor
             }
         }
     }
-
 
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
@@ -89,7 +81,7 @@ class MonthHealthDoctorAdapter(private var monthData: List<MonthHealthItemDoctor
         private val profileImage: ImageView = view.findViewById(R.id.profile_image)
         private val addButton: TextView = view.findViewById(R.id.request_button)
         private val chatIcon: ImageView =
-            view.findViewById(R.id.chat_icon)  // Add chat icon reference
+            view.findViewById(R.id.chat_icon)
 
         private val handler = Handler(Looper.getMainLooper())
         private val updateTimeRunnable = object : Runnable {
@@ -152,31 +144,31 @@ class MonthHealthDoctorAdapter(private var monthData: List<MonthHealthItemDoctor
             handler.removeCallbacks(updateTimeRunnable)
             handler.post(updateTimeRunnable)
 
-            // Fetch doctor data (doctorUid and doctorName)
             getActualDoctorUID { doctorUid, doctorName ->
                 if (doctorUid == null || doctorName == null) {
                     return@getActualDoctorUID
                 }
 
-                // Set up a click listener to navigate to RoomChatDoctorFragment when chatIcon is clicked
+
                 chatIcon.setOnClickListener {
                     val bundle = Bundle().apply {
-                        putString("doctor_name", doctorName)  // Pass doctorName
+                        putString("doctor_name", doctorName)
                         putString(
                             "doctor_phone_number",
                             patient.phoneNumber
-                        )  // Assuming phoneNumber is available
-                        putString("receiverUid", patient.id)  // Pass patientId as receiverUid
-                        putString("doctorUid", doctorUid)  // Pass doctorUid
-                        putString("profileImage", patient.photoUrl)  // Pass profile image URL
+                        )
+                        putString("receiverUid", patient.id)
+                        putString("doctorUid", doctorUid)
+                        putString("profileImage", patient.photoUrl)
+                        putString("patientName", patient.name)
                     }
 
-                    // Navigate to RoomChatDoctorFragment
+
                     val roomChatFragment = RoomChatDoctorFragment().apply {
                         arguments = bundle
                     }
 
-                    // Use the context (activity) to navigate to the RoomChatDoctorFragment
+
                     (context as? AppCompatActivity)?.supportFragmentManager?.beginTransaction()
                         ?.replace(R.id.frame, roomChatFragment)
                         ?.addToBackStack(null)
@@ -200,7 +192,7 @@ class MonthHealthDoctorAdapter(private var monthData: List<MonthHealthItemDoctor
                     .get()
                     .addOnSuccessListener { documents ->
                         val doctorUid = documents.firstOrNull()?.getString("userId")
-                        val doctorName = documents.firstOrNull()?.getString("fullName") // Assuming doctor name is stored as 'fullName'
+                        val doctorName = documents.firstOrNull()?.getString("fullName")
                         onResult(doctorUid, doctorName)
                     }
                     .addOnFailureListener {
@@ -212,7 +204,7 @@ class MonthHealthDoctorAdapter(private var monthData: List<MonthHealthItemDoctor
                     .get()
                     .addOnSuccessListener { documents ->
                         val doctorUid = documents.firstOrNull()?.getString("userId")
-                        val doctorName = documents.firstOrNull()?.getString("fullName") // Assuming doctor name is stored as 'fullName'
+                        val doctorName = documents.firstOrNull()?.getString("fullName")
                         onResult(doctorUid, doctorName)
                     }
                     .addOnFailureListener {

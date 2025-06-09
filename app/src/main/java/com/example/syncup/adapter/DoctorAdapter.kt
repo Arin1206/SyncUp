@@ -26,28 +26,27 @@ class DoctorAdapter(
 
     override fun onBindViewHolder(holder: DoctorViewHolder, position: Int) {
         val doctor = doctorList[position]
-
-        // Bind doctor name and profile image
         holder.nameTextView.text = doctor.name
 
-        // Load profile image with Glide
         Glide.with(holder.imageView.context)
-            .load(doctor.imageUrl)  // This is the URL of the doctor's profile image
-            .placeholder(R.drawable.doctor) // Placeholder image while loading
-            .transform(CircleCrop())  // Apply circular crop to the image
+            .load(doctor.imageUrl)
+            .placeholder(R.drawable.doctor)
+            .transform(CircleCrop())
             .into(holder.imageView)
 
-        // Set item click listener
         holder.itemView.setOnClickListener {
             onDoctorClick(
                 doctor.name,
-                doctor.phoneNumber,  // Pass the doctor's phone number
-                doctor.doctorUid,    // Ensure the correct doctor UID is passed
-                patientId,           // Patient ID
-                doctor.patientName,  // Assuming this is available in the Doctor object
-                doctor.imageUrl      // Profile image URL
+                doctor.phoneNumber,
+                doctor.doctorUid,
+                patientId,
+                doctor.patientName,
+                doctor.imageUrl
             )
-            Log.d("DoctorAdapter", "Doctor clicked: ${doctor.name}, doctorUid: ${doctor.doctorUid}")  // Log UID for debugging
+            Log.d(
+                "DoctorAdapter",
+                "Doctor clicked: ${doctor.name}, doctorUid: ${doctor.doctorUid}"
+            )
         }
 
 

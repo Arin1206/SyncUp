@@ -1,7 +1,6 @@
 package com.example.syncup.chat
 
 import android.graphics.Typeface
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -28,19 +27,24 @@ class ChatAdapter(
         val chat = chatList[position]
         holder.bind(chat)
 
-        // Set the click listener on the item view
         holder.itemView.setOnClickListener {
             chat.profileImage?.let { it1 ->
-                onItemClick(chat.doctorName, chat.doctorPhoneNumber, chat.doctorUid, chat.patientId, chat.patientName,
+                onItemClick(
+                    chat.doctorName,
+                    chat.doctorPhoneNumber,
+                    chat.doctorUid,
+                    chat.patientId,
+                    chat.patientName,
                     it1
                 )
-            }  // Pass doctorUid
+            }
         }
     }
 
     override fun getItemCount(): Int {
         return chatList.size
     }
+
     fun updateList(newList: List<Chat>) {
         chatList = newList
         notifyDataSetChanged()
@@ -51,11 +55,10 @@ class ChatAdapter(
         private val chatMessage: TextView = itemView.findViewById(R.id.chat_message)
         private val chatDate: TextView = itemView.findViewById(R.id.chat_date)
         private val profileImage: ImageView = itemView.findViewById(R.id.profile_image)
-        val unreadBadge: TextView = itemView.findViewById(R.id.unread_badge)
+        private val unreadBadge: TextView = itemView.findViewById(R.id.unread_badge)
 
         fun bind(chat: Chat) {
-            doctorName.text = chat.doctorName  // Displaying patient's name
-
+            doctorName.text = chat.doctorName
             if (chat.message == "Start Message Now") {
                 chatMessage.text = "Start Message Now"
                 chatDate.visibility = View.GONE
@@ -67,7 +70,12 @@ class ChatAdapter(
 
             if (chat.isUnread) {
                 chatMessage.setTypeface(null, Typeface.BOLD)
-                chatMessage.setTextColor(ContextCompat.getColor(itemView.context, R.color.purple_dark))
+                chatMessage.setTextColor(
+                    ContextCompat.getColor(
+                        itemView.context,
+                        R.color.purple_dark
+                    )
+                )
                 unreadBadge.visibility = View.VISIBLE
                 unreadBadge.text = chat.unreadCount.toString()
             } else {
@@ -75,12 +83,10 @@ class ChatAdapter(
                 chatMessage.setTextColor(ContextCompat.getColor(itemView.context, R.color.black))
                 unreadBadge.visibility = View.GONE
             }
-
-            // Set default profile image
             Glide.with(itemView.context)
-                .load(chat.profileImage)  // Load profile image URL
-                .placeholder(R.drawable.account_circle)  // Placeholder image
-                .transform(CircleCrop())  // Apply circular crop
+                .load(chat.profileImage)
+                .placeholder(R.drawable.account_circle)
+                .transform(CircleCrop())
                 .into(profileImage)
         }
     }

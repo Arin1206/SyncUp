@@ -13,19 +13,13 @@ class BarChartView @JvmOverloads constructor(
 ) : View(context, attrs) {
 
     private val barPaint = Paint().apply {
-        color = Color.parseColor("#009688")
+        color = Color.parseColor("#D3D3D3")
         style = Paint.Style.FILL
     }
 
-    private val labelPaint = Paint().apply {
-        color = Color.BLACK
-        textSize = 28f
-        textAlign = Paint.Align.CENTER
-    }
 
     var values: List<Float> = emptyList()
-        private set  // supaya gak bisa di-set langsung dari luar, kalau mau aman
-    // Kalau kamu mau tetap bisa set langsung, hapus 'private set'
+        private set
 
     fun setData(newValues: List<Float>) {
         values = newValues
@@ -37,9 +31,7 @@ class BarChartView @JvmOverloads constructor(
 
         if (values.isEmpty()) return
 
-        val leftMargin = 50f  // margin kiri untuk sumbu Y
-
-        // Gambar sumbu Y dan X (tidak berubah)
+        val leftMargin = 50f
         val paintAxis = Paint().apply {
             color = Color.BLACK
             strokeWidth = 4f
@@ -72,10 +64,9 @@ class BarChartView @JvmOverloads constructor(
             canvas.drawLine(leftMargin, yPos, width.toFloat(), yPos, gridPaint)
         }
 
-        // Hitung spacing dan barWidth seperti contoh HeartRateChartViewHome
         val availableWidth = width - leftMargin
         val spacing = availableWidth / values.size.toFloat()
-        val barWidth = spacing * 0.8f  // 80% dari spacing, sisanya untuk jarak antar bar
+        val barWidth = spacing * 0.8f
 
         val heightRatio = heightWithoutMargin / maxY
 
@@ -83,14 +74,12 @@ class BarChartView @JvmOverloads constructor(
             val left = leftMargin + i * spacing
             val top = heightWithoutMargin - value * heightRatio
             val right = left + barWidth
-            val bottom = heightWithoutMargin
 
-            canvas.drawRect(left, top, right, bottom, barPaint)
-            // Label bar di tengah bar, sedikit di bawah sumbu X
-            canvas.drawText("P${i + 1}", (left + right) / 2, bottom + 40f, labelPaint)
+            canvas.drawRect(left, top, right, heightWithoutMargin, barPaint)
+
+            canvas.drawText("P${i + 1}", (left + right) / 2, heightWithoutMargin + 40f, labelPaint)
         }
     }
-
 
 
 }

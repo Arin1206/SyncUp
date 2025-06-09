@@ -6,8 +6,12 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
+import androidx.activity.addCallback
 import androidx.viewpager2.widget.ViewPager2
 import com.example.syncup.R
+import com.example.syncup.home.HomeDoctorFragment
+import com.example.syncup.home.HomeFragment
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 
@@ -27,6 +31,26 @@ class AlertDoctorFragment : Fragment() {
 
         val adapter = HistoryPagerAdapterDoctor(this)
         viewPager.adapter = adapter
+
+        val arrow = view.findViewById<ImageView>(R.id.arrow)
+        arrow.setOnClickListener {
+            // Check if we're currently in the HomeFragment and navigate back to HomeFragment
+            val fragment = HomeDoctorFragment()
+
+            requireActivity().supportFragmentManager.beginTransaction()
+                .replace(R.id.frame, fragment)  // Assuming 'frame' is your container ID
+                .addToBackStack(null)  // Optionally add the transaction to back stack if you want to allow back navigation
+                .commit()
+        }
+
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner) {
+            // Navigate to HomeFragment when back is pressed
+            val homeFragment = HomeDoctorFragment()
+
+            requireActivity().supportFragmentManager.beginTransaction()
+                .replace(R.id.frame, homeFragment)  // Ensure 'frame' is the container ID for fragments
+                .commit()
+        }
 
         // **Optimasi: Simpan semua fragment di memori agar tidak reload**
         viewPager.offscreenPageLimit = 3  // Semua tab tetap aktif di memori

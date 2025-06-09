@@ -63,8 +63,15 @@ class PatientAdapter(patientList: List<PatientData>,  private val context: Conte
 
     override fun onBindViewHolder(holder: PatientViewHolder, position: Int) {
         val patient = patientList[position]
+
+        // Debugging: Log patient name to check if it's being fetched properly
+        Log.d("PatientAdapter", "Patient Name: ${patient.name}")
+
+        // Fallback for patient name if it's null or empty
+        val patientName = patient.name.takeIf { !it.isNullOrEmpty() } ?: "Unknown"
+
         holder.addbutton.visibility = if (hideAddButton) View.GONE else View.VISIBLE
-        holder.patientName.text = patient.name
+        holder.patientName.text = patientName  // Use the patient name, with fallback
         holder.ageGender.text = "Age: ${patient.age}  ${patient.gender}"
         holder.heartRate.text = "Heart rate ${patient.heartRate} Bpm"
 
@@ -167,14 +174,15 @@ class PatientAdapter(patientList: List<PatientData>,  private val context: Conte
         // Chat Icon click listener to navigate to RoomChat
         holder.itemView.findViewById<ImageView>(R.id.chat_icon).setOnClickListener {
             val bundle = Bundle().apply {
-                putString("doctor_name", doctorName)  // Pass doctorName
+                putString("patientName", patient.name)
+                Log.d("Patientname", "name:${patient.name}")
                 putString("doctor_phone_number", patient.phoneNumber)  // Pass doctor phone number
                 putString("receiverUid", patient.id)  // Pass patient ID as receiverUid
                 putString("doctorUid", doctorUid)  // Pass doctorUid (this is the actual doctor's UID)
                 putString("profileImage", patient.photoUrl)  // Pass profile image URL
             }
 
-            // Navigate to RoomChatFragment
+            // Navigate to RoomChatDoctorFragment
             val roomChatFragment = RoomChatDoctorFragment().apply {
                 arguments = bundle
             }
@@ -222,6 +230,7 @@ class PatientAdapter(patientList: List<PatientData>,  private val context: Conte
             holder.statusindicator.background = it
         }
     }
+
 
 
 

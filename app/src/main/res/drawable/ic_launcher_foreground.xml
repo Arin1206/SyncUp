@@ -9,7 +9,7 @@
       android:translateY="20.79">
     <path
         android:pathData="M0,0h154v154h-154z"
-        android:fillColor="#AC2C38"/>
+        android:fillColor="#00CAFF"/>
     <group>
       <clip-path
           android:pathData="M14,20h126v114h-126z"/>

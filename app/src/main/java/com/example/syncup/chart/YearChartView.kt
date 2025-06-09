@@ -8,19 +8,18 @@ import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.View
 import java.util.Calendar
-import java.util.Locale
 
 class YearChartView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null
 ) : View(context, attrs) {
 
     private val barPaint = Paint().apply {
-        color = Color.parseColor("#484848") // Warna ungu Telkom
+        color = Color.parseColor("#484848")
         style = Paint.Style.FILL
     }
 
     private val nullBarPaint = Paint().apply {
-        color = Color.GRAY // Warna abu-abu untuk tahun yang tidak memiliki data
+        color = Color.GRAY
         style = Paint.Style.FILL
     }
 
@@ -38,13 +37,13 @@ class YearChartView @JvmOverloads constructor(
 
     private val textPaint = Paint().apply {
         color = Color.BLACK
-        textSize = 12f // **Ukuran teks diperkecil agar semua muat**
+        textSize = 12f
         textAlign = Paint.Align.CENTER
     }
 
     private val labelPaint = Paint().apply {
         color = Color.BLACK
-        textSize = 10f // **Ukuran label lebih kecil**
+        textSize = 10f
         textAlign = Paint.Align.CENTER
     }
 
@@ -53,10 +52,8 @@ class YearChartView @JvmOverloads constructor(
     fun setData(data: Map<String, Int>) {
         val currentYear = getCurrentYear().toInt()
 
-        // **Pastikan hanya menampilkan tahun dari saat ini ke belakang**
         val availableYears = data.keys.map { it.toInt() }.filter { it <= currentYear }.sorted()
 
-        // **Jika tidak ada data, tampilkan hanya tahun saat ini**
         val allYears = if (availableYears.isEmpty()) {
             listOf(currentYear.toString())
         } else {
@@ -65,7 +62,7 @@ class YearChartView @JvmOverloads constructor(
 
         yearData = allYears.associateWith { year -> data[year] }.toMutableMap()
 
-        invalidate() // **Refresh tampilan grafik**
+        invalidate()
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -75,21 +72,19 @@ class YearChartView @JvmOverloads constructor(
 
         val maxHeartRate = yearData.values.filterNotNull().maxOrNull()?.toFloat() ?: 150f
         val minHeartRate = 0f
-        val chartWidth = width.toFloat() - 50f // **Kurangi lebar agar muat dalam 300dp**
-        val chartHeight = height.toFloat() - 20f // **Kurangi tinggi agar angka 150 terlihat**
-        val axisY = chartHeight - 40f // **Naikkan sumbu X sedikit agar tidak terpotong**
+        val chartWidth = width.toFloat() - 50f
+        val chartHeight = height.toFloat() - 20f
+        val axisY = chartHeight - 40f
 
         val barCount = yearData.size
-        val barWidth = 30f // **Kecilkan ukuran bar**
-        val barSpacing = 10f // **Kurangi spasi antar bar**
+        val barWidth = 30f
+        val barSpacing = 10f
 
         val totalChartWidth = (barCount * (barWidth + barSpacing))
-        val startX = (chartWidth - totalChartWidth) / 2 + 25f // **Pusatkan chart agar lebih rapi**
+        val startX = (chartWidth - totalChartWidth) / 2 + 25f
 
-        // **Gambar Garis sumbu X**
         canvas.drawLine(startX, axisY, startX + totalChartWidth, axisY, axisPaint)
 
-        // **Gambar Garis sumbu Y (grid horizontal)**
         for (i in 0..3) {
             val y = axisY - (i * (axisY / 3.5f))
             canvas.drawLine(startX, y, startX + totalChartWidth, y, gridPaint)
@@ -112,10 +107,15 @@ class YearChartView @JvmOverloads constructor(
             canvas.drawText(year, xPosition + barWidth / 2, axisY + 15, textPaint)
 
             if (avgHeartRate != null) {
-                // **Tambahkan tulisan nilai heart rate di atas bar dengan "bpm"**
-                canvas.drawText("$avgHeartRate bpm", xPosition + barWidth / 2, axisY - barHeight - 5, labelPaint)
+
+                canvas.drawText(
+                    "$avgHeartRate bpm",
+                    xPosition + barWidth / 2,
+                    axisY - barHeight - 5,
+                    labelPaint
+                )
             } else {
-                // **Tampilkan "null" jika data kosong**
+
                 canvas.drawText("null", xPosition + barWidth / 2, axisY - 10, textPaint)
             }
 

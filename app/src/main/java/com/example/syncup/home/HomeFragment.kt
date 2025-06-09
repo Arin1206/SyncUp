@@ -93,7 +93,13 @@ class HomeFragment : Fragment() {
     private lateinit var recyclerViewNews: RecyclerView
     private lateinit var newsAdapter: NewsAdapter
     private val newsList = mutableListOf<News>()
+    private var doctorUid: String? = null // Declare the doctorUid variable globally
+    private var receiverUid: String? = null  // Declare receiverUid globally
+    private var doctorName: String? = null  // Declare doctorName globally
+    private var patientName: String? = null  // Declare patientName globally
+    private lateinit var editTextMessage: EditText  // Declare editTextMessage globall
     private lateinit var homeViewModel: HomeViewModel
+    private lateinit var showToast: (String) -> Unit
     private var heartRateChartView: com.example.syncup.chart.HeartRateChartViewHome? = null
     private var doctoruid: String? = null
     private val firestore = FirebaseFirestore.getInstance()
@@ -190,6 +196,7 @@ class HomeFragment : Fragment() {
         imm.hideSoftInputFromWindow(view?.windowToken, 0)
     }
 
+
     private fun fetchDoctorsFromFirestore() {
         val db = FirebaseFirestore.getInstance()
         val doctorList = mutableListOf<Doctor>()
@@ -240,7 +247,7 @@ class HomeFragment : Fragment() {
                                         // After all doctors are fetched, update the adapter
                                         if (doctorList.size == doctorUids.size) {
                                             doctorAdapter = DoctorAdapter(doctorList, patientId) { doctorName, doctorPhoneNumber, doctorUid, patientId, patientName, profileImage ->
-                                                this.doctoruid = doctorUid  // Save the doctorUid globally
+                                                this.doctorUid = doctorUid // Store the doctorUid globally
                                                 navigateToRoomChat(doctorName, doctorPhoneNumber, doctorUid, patientId, patientName, profileImage)
                                             }
                                             recyclerViewDoctors.adapter = doctorAdapter
@@ -272,6 +279,7 @@ class HomeFragment : Fragment() {
                 }
         }
     }
+
 
 
 
@@ -327,6 +335,9 @@ class HomeFragment : Fragment() {
         val layoutManager = GridLayoutManager(requireContext(), 3)
         recyclerViewDoctors.layoutManager = layoutManager
 
+        showToast = { message: String ->
+            Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+        }
         // Initialize the doctor adapter
         getActualPatientUid { patientId ->
             if (patientId == null) {
@@ -594,7 +605,7 @@ class HomeFragment : Fragment() {
         val indicatorBox = view?.findViewById<View>(R.id.indicator_box)
 
         if (heartRate == -1 || userAge == null) {
-            // Jika nilai heart rate tidak valid atau usia belum tersedia, kondisi default
+            // Default condition when heart rate or age is invalid
             indicatorTextView?.text = "null"
             indicatorBox?.setBackgroundResource(R.drawable.bg_purple_box)
             return
@@ -606,21 +617,86 @@ class HomeFragment : Fragment() {
         when {
             heartRate >= maxWarning -> {
                 // Danger
-                indicatorTextView?.text = "anger"
+                indicatorTextView?.text = "Danger"
                 indicatorBox?.setBackgroundResource(R.drawable.bg_red_box)
+
+                // Send the location to the chat if in danger zone
+                sendLocationToChat()
             }
             heartRate < minWarning -> {
                 // Healthy
-                indicatorTextView?.text = "health"
+                indicatorTextView?.text = "Healthy"
                 indicatorBox?.setBackgroundResource(R.drawable.bg_green_box)
             }
             else -> {
                 // Warning
-                indicatorTextView?.text = "warning"
-                indicatorBox?.setBackgroundResource(R.drawable.bg_yellow_box) // Buat warna kuning kalau ada
+                indicatorTextView?.text = "Warning"
+                indicatorBox?.setBackgroundResource(R.drawable.bg_yellow_box)  // Yellow box for warning
             }
         }
     }
+
+    private fun sendLocationToChat() {
+        // Get the current location (latitude, longitude)
+        val currentLat = this.currentLat
+        val currentLon = this.currentLon
+
+        if (currentLat != null && currentLon != null) {
+            // Only send location if coordinates are available
+            val locationMessage = "Patient's current location: Latitude: $currentLat, Longitude: $currentLon"
+
+            // Send the location to Firestore
+            sendMessageToFirestore(locationMessage)
+        } else {
+            Log.e(TAG, "Location is not available, cannot send.")
+        }
+    }
+
+    private fun sendMessageToFirestore(message: String) {
+        // Ensure doctorUid and receiverUid are set
+        if (doctorUid == null || receiverUid == null) {
+            showToast("Please wait for user data to load.")
+            Log.d("ChatFragment", "Doctor UID: $doctorUid, Receiver UID: $receiverUid")
+            return
+        }
+
+        val timestamp = System.currentTimeMillis()
+        val dateFormat = java.text.SimpleDateFormat("dd MMM yyyy, HH:mm:ss", java.util.Locale.getDefault())
+        val formattedDate = dateFormat.format(java.util.Date(timestamp))
+
+        val currentUser = FirebaseAuth.getInstance().currentUser
+        val senderUid = currentUser?.uid ?: "Unknown" // Doctor's Firebase UID
+
+        val messageData = mapOf(
+            "senderName" to doctorName,  // Doctor's name as sender
+            "receiverName" to patientName,  // Patient's name as receiver
+            "message" to message,  // The message content
+            "timestamp" to formattedDate,  // Formatted timestamp
+            "senderUid" to doctorUid,  // Sender's UID (Doctor's UID)
+            "receiverUid" to receiverUid  // Receiver's UID (Patient's ID)
+        )
+
+        // Send message to Firestore in the correct chat collection
+        doctorUid?.let {
+            FirebaseFirestore.getInstance().collection("chats")
+                .document(it)  // Use doctorUid to identify chat for the specific doctor
+                .collection("patients")
+                .document(receiverUid!!)  // Use patientId as the document ID
+                .collection("messages")
+                .add(messageData)
+                .addOnSuccessListener {
+                    // Clear the message field after successfully sending the message
+                    editTextMessage.text.clear()
+                }
+                .addOnFailureListener {
+                    // Handle error if message sending fails
+                    showToast("Failed to send message.")
+                }
+        }
+    }
+
+
+
 
 
     private fun getCurrentMonthYear(): String {

@@ -3,7 +3,6 @@ package com.example.syncup.adapter
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -42,6 +41,7 @@ class WeekHealthDoctorAdapter(private var items: List<WeekHealthItemDoctor>) :
                     .inflate(R.layout.item_week_header, parent, false)
                 WeekHeaderViewHolder(view)
             }
+
             else -> {
                 val view = LayoutInflater.from(parent.context)
                     .inflate(R.layout.item_patient, parent, false)
@@ -87,7 +87,8 @@ class WeekHealthDoctorAdapter(private var items: List<WeekHealthItemDoctor>) :
         private val statusIndicator: TextView = view.findViewById(R.id.status_indicator)
         private val profileImage: ImageView = view.findViewById(R.id.profile_image)
         private val addButton: TextView = view.findViewById(R.id.request_button)
-        private val chatIcon: ImageView = view.findViewById(R.id.chat_icon)  // Add chat icon reference
+        private val chatIcon: ImageView =
+            view.findViewById(R.id.chat_icon)
 
         private val handler = Handler(Looper.getMainLooper())
         private val updateTimeRunnable = object : Runnable {
@@ -138,7 +139,8 @@ class WeekHealthDoctorAdapter(private var items: List<WeekHealthItemDoctor>) :
             statusIndicator.text = statusText
             statusIndicator.setTextColor(ContextCompat.getColor(context, android.R.color.black))
 
-            val background = ContextCompat.getDrawable(context, R.drawable.rounded_status_bg)?.mutate()
+            val background =
+                ContextCompat.getDrawable(context, R.drawable.rounded_status_bg)?.mutate()
             val wrappedDrawable = background?.let { DrawableCompat.wrap(it) }
             wrappedDrawable?.let {
                 DrawableCompat.setTint(it, ContextCompat.getColor(context, colorRes))
@@ -149,28 +151,29 @@ class WeekHealthDoctorAdapter(private var items: List<WeekHealthItemDoctor>) :
             handler.removeCallbacks(updateTimeRunnable)
             handler.post(updateTimeRunnable)
 
-            // Fetch doctor data (doctorUid and doctorName)
             getActualDoctorUID { doctorUid, doctorName ->
                 if (doctorUid == null || doctorName == null) {
                     return@getActualDoctorUID
                 }
 
-                // Set up a click listener to navigate to RoomChatDoctorFragment when chatIcon is clicked
+
                 chatIcon.setOnClickListener {
                     val bundle = Bundle().apply {
-                        putString("doctor_name", doctorName)  // Pass doctorName
-                        putString("doctor_phone_number", patient.phoneNumber)  // Assuming phoneNumber is available
-                        putString("receiverUid", patient.id)  // Pass patientId as receiverUid
-                        putString("doctorUid", doctorUid)  // Pass doctorUid
-                        putString("profileImage", patient.photoUrl)  // Pass profile image URL
+                        putString("patientName", patient.name)
+                        putString(
+                            "doctor_phone_number",
+                            patient.phoneNumber
+                        )
+                        putString("receiverUid", patient.id)
+                        putString("doctorUid", doctorUid)
+                        putString("profileImage", patient.photoUrl)
                     }
 
-                    // Navigate to RoomChatDoctorFragment
                     val roomChatFragment = RoomChatDoctorFragment().apply {
                         arguments = bundle
                     }
 
-                    // Use the context (activity) to navigate to the RoomChatDoctorFragment
+
                     (context as? AppCompatActivity)?.supportFragmentManager?.beginTransaction()
                         ?.replace(R.id.frame, roomChatFragment)
                         ?.addToBackStack(null)
@@ -180,8 +183,9 @@ class WeekHealthDoctorAdapter(private var items: List<WeekHealthItemDoctor>) :
         }
 
         fun stopUpdatingTime() {
-            handler.removeCallbacks(updateTimeRunnable) // This stops the time updates
+            handler.removeCallbacks(updateTimeRunnable)
         }
+
         private fun getActualDoctorUID(onResult: (String?, String?) -> Unit) {
             val auth = FirebaseAuth.getInstance()
             val currentUser = auth.currentUser ?: return onResult(null, null)
@@ -197,7 +201,8 @@ class WeekHealthDoctorAdapter(private var items: List<WeekHealthItemDoctor>) :
                     .get()
                     .addOnSuccessListener { documents ->
                         val doctorUid = documents.firstOrNull()?.getString("userId")
-                        val doctorName = documents.firstOrNull()?.getString("fullName") // Assuming doctor name is stored as 'fullName'
+                        val doctorName = documents.firstOrNull()
+                            ?.getString("fullName")
                         onResult(doctorUid, doctorName)
                     }
                     .addOnFailureListener {
@@ -209,7 +214,8 @@ class WeekHealthDoctorAdapter(private var items: List<WeekHealthItemDoctor>) :
                     .get()
                     .addOnSuccessListener { documents ->
                         val doctorUid = documents.firstOrNull()?.getString("userId")
-                        val doctorName = documents.firstOrNull()?.getString("fullName") // Assuming doctor name is stored as 'fullName'
+                        val doctorName = documents.firstOrNull()
+                            ?.getString("fullName")
                         onResult(doctorUid, doctorName)
                     }
                     .addOnFailureListener {

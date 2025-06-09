@@ -1,6 +1,5 @@
 package com.example.syncup.adapter
 
-import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -16,14 +15,9 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.syncup.R
 import com.example.syncup.chat.RoomChatDoctorFragment
-import com.example.syncup.model.MonthHealthItemDoctor
-import com.example.syncup.model.YearHealthItem
 import com.example.syncup.model.YearHealthItemDoctor
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import java.text.SimpleDateFormat
-import java.time.Year
-import java.util.*
 
 class YearHealthDoctorAdapter(private var yearData: List<YearHealthItemDoctor>) :
     RecyclerView.Adapter<RecyclerView.ViewHolder>() {
@@ -44,6 +38,7 @@ class YearHealthDoctorAdapter(private var yearData: List<YearHealthItemDoctor>) 
                     .inflate(R.layout.item_year_header, parent, false)
                 YearHeaderViewHolder(view)
             }
+
             else -> {
                 val view = LayoutInflater.from(parent.context)
                     .inflate(R.layout.item_patient, parent, false)
@@ -84,7 +79,8 @@ class YearHealthDoctorAdapter(private var yearData: List<YearHealthItemDoctor>) 
         private val statusIndicator: TextView = view.findViewById(R.id.status_indicator)
         private val profileImage: ImageView = view.findViewById(R.id.profile_image)
         private val addButton: TextView = view.findViewById(R.id.request_button)
-        private val chatIcon: ImageView = view.findViewById(R.id.chat_icon)  // Add chat icon reference
+        private val chatIcon: ImageView =
+            view.findViewById(R.id.chat_icon)  // Add chat icon reference
 
         private val handler = Handler(Looper.getMainLooper())
         private val updateTimeRunnable = object : Runnable {
@@ -135,7 +131,8 @@ class YearHealthDoctorAdapter(private var yearData: List<YearHealthItemDoctor>) 
             statusIndicator.text = statusText
             statusIndicator.setTextColor(ContextCompat.getColor(context, android.R.color.black))
 
-            val background = ContextCompat.getDrawable(context, R.drawable.rounded_status_bg)?.mutate()
+            val background =
+                ContextCompat.getDrawable(context, R.drawable.rounded_status_bg)?.mutate()
             val wrappedDrawable = background?.let { DrawableCompat.wrap(it) }
             wrappedDrawable?.let {
                 DrawableCompat.setTint(it, ContextCompat.getColor(context, colorRes))
@@ -155,8 +152,11 @@ class YearHealthDoctorAdapter(private var yearData: List<YearHealthItemDoctor>) 
                 // Set up a click listener to navigate to RoomChatDoctorFragment when chatIcon is clicked
                 chatIcon.setOnClickListener {
                     val bundle = Bundle().apply {
-                        putString("doctor_name", doctorName)  // Pass doctorName
-                        putString("doctor_phone_number", patient.phoneNumber)  // Assuming phoneNumber is available
+                        putString("patientName", patient.name)  // Pass doctorName
+                        putString(
+                            "doctor_phone_number",
+                            patient.phoneNumber
+                        )  // Assuming phoneNumber is available
                         putString("receiverUid", patient.id)  // Pass patientId as receiverUid
                         putString("doctorUid", doctorUid)  // Pass doctorUid
                         putString("profileImage", patient.photoUrl)  // Pass profile image URL
@@ -191,7 +191,8 @@ class YearHealthDoctorAdapter(private var yearData: List<YearHealthItemDoctor>) 
                     .get()
                     .addOnSuccessListener { documents ->
                         val doctorUid = documents.firstOrNull()?.getString("userId")
-                        val doctorName = documents.firstOrNull()?.getString("fullName") // Assuming doctor name is stored as 'fullName'
+                        val doctorName = documents.firstOrNull()
+                            ?.getString("fullName") // Assuming doctor name is stored as 'fullName'
                         onResult(doctorUid, doctorName)
                     }
                     .addOnFailureListener {
@@ -203,7 +204,8 @@ class YearHealthDoctorAdapter(private var yearData: List<YearHealthItemDoctor>) 
                     .get()
                     .addOnSuccessListener { documents ->
                         val doctorUid = documents.firstOrNull()?.getString("userId")
-                        val doctorName = documents.firstOrNull()?.getString("fullName") // Assuming doctor name is stored as 'fullName'
+                        val doctorName = documents.firstOrNull()
+                            ?.getString("fullName") // Assuming doctor name is stored as 'fullName'
                         onResult(doctorUid, doctorName)
                     }
                     .addOnFailureListener {
@@ -214,7 +216,6 @@ class YearHealthDoctorAdapter(private var yearData: List<YearHealthItemDoctor>) 
             }
         }
     }
-
 
 
 }

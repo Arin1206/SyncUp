@@ -6,8 +6,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.RecyclerView
 import com.example.syncup.R
@@ -25,7 +23,6 @@ class RoomChatAdapter(
         private const val TYPE_MESSAGE = 1
     }
 
-    // Build unified list with header and item
     private val chatItemList: MutableList<ChatItem> = mutableListOf()
 
 
@@ -45,6 +42,7 @@ class RoomChatAdapter(
                     .inflate(R.layout.item_date_label, parent, false)
                 DateLabelViewHolder(view)
             }
+
             else -> {
                 val view = LayoutInflater.from(parent.context)
                     .inflate(R.layout.item_message, parent, false)
@@ -56,40 +54,20 @@ class RoomChatAdapter(
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (val item = chatItemList[position]) {
             is ChatItem.DateLabel -> (holder as DateLabelViewHolder).bind(item)
-            is ChatItem.ChatMessage -> (holder as MessageViewHolder).bind(item.message, currentUserUid)
+            is ChatItem.ChatMessage -> (holder as MessageViewHolder).bind(
+                item.message,
+                currentUserUid
+            )
         }
     }
-
-    private fun buildChatItemList(): List<ChatItem> {
-        val result = mutableListOf<ChatItem>()
-        var lastDateLabel: String? = null
-
-        val sortedMessages = messageList.sortedBy {
-            try {
-                SimpleDateFormat("dd MMM yyyy, HH:mm:ss", Locale.getDefault()).parse(it.timestamp)
-            } catch (e: Exception) {
-                null // Return null for invalid timestamps
-            }
-        }
-
-        for (message in sortedMessages) {
-            val label = getMessageDateLabel(message.timestamp)
-            if (label != lastDateLabel) {
-                result.add(ChatItem.DateLabel(label))
-                lastDateLabel = label
-            }
-            result.add(ChatItem.ChatMessage(message))
-        }
-        return result
-    }
-
 
     private fun getMessageDateLabel(timestamp: String): String {
         if (timestamp.isEmpty()) {
             return "Unknown Date"
         }
 
-        val parsedDate = SimpleDateFormat("dd MMM yyyy, HH:mm:ss", Locale.getDefault()).parse(timestamp)
+        val parsedDate =
+            SimpleDateFormat("dd MMM yyyy, HH:mm:ss", Locale.getDefault()).parse(timestamp)
         val currentDate = Calendar.getInstance()
         val messageDate = Calendar.getInstance().apply { time = parsedDate }
 
@@ -105,8 +83,6 @@ class RoomChatAdapter(
         }
     }
 
-
-    // ViewHolder untuk pesan
     class MessageViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val messageLayout: ConstraintLayout = itemView.findViewById(R.id.message_layout)
         private val messageText: TextView = itemView.findViewById(R.id.message_text)
@@ -119,8 +95,12 @@ class RoomChatAdapter(
             // Check if timestamp is not empty before parsing
             if (timestamp.isNotEmpty()) {
                 try {
-                    val parsedDate = SimpleDateFormat("dd MMM yyyy, HH:mm:ss", Locale.getDefault()).parse(timestamp)
-                    val formattedTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(parsedDate)
+                    val parsedDate =
+                        SimpleDateFormat("dd MMM yyyy, HH:mm:ss", Locale.getDefault()).parse(
+                            timestamp
+                        )
+                    val formattedTime =
+                        SimpleDateFormat("HH:mm", Locale.getDefault()).format(parsedDate)
                     timestampText.text = formattedTime
                 } catch (e: Exception) {
                     // Handle the exception if parsing fails
@@ -134,18 +114,20 @@ class RoomChatAdapter(
                 messageLayout.setBackgroundResource(R.drawable.bg_red_box_message)
                 messageText.setTextColor(Color.BLACK)
                 timestampText.setTextColor(Color.BLACK)
-                messageLayout.layoutParams = (messageLayout.layoutParams as ConstraintLayout.LayoutParams).apply {
-                    endToEnd = ConstraintLayout.LayoutParams.PARENT_ID
-                    startToStart = -1
-                }
+                messageLayout.layoutParams =
+                    (messageLayout.layoutParams as ConstraintLayout.LayoutParams).apply {
+                        endToEnd = ConstraintLayout.LayoutParams.PARENT_ID
+                        startToStart = -1
+                    }
                 messageText.gravity = Gravity.END
             } else {
                 messageLayout.setBackgroundResource(R.drawable.bg_green_box_message)
                 messageText.setTextColor(Color.BLACK)
-                messageLayout.layoutParams = (messageLayout.layoutParams as ConstraintLayout.LayoutParams).apply {
-                    startToStart = ConstraintLayout.LayoutParams.PARENT_ID
-                    endToEnd = -1
-                }
+                messageLayout.layoutParams =
+                    (messageLayout.layoutParams as ConstraintLayout.LayoutParams).apply {
+                        startToStart = ConstraintLayout.LayoutParams.PARENT_ID
+                        endToEnd = -1
+                    }
                 timestampText.setTextColor(Color.BLACK)
                 messageText.gravity = Gravity.START
             }
@@ -153,7 +135,6 @@ class RoomChatAdapter(
 
     }
 
-    // ViewHolder untuk header (label tanggal)
     class DateLabelViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val dateLabel: TextView = itemView.findViewById(R.id.date_label)
 
@@ -161,6 +142,7 @@ class RoomChatAdapter(
             dateLabel.text = item.dateText
         }
     }
+
     fun updateMessages(newMessages: List<Message>) {
         val sortedMessages = newMessages.sortedBy {
             SimpleDateFormat("dd MMM yyyy, HH:mm:ss", Locale.getDefault()).parse(it.timestamp)

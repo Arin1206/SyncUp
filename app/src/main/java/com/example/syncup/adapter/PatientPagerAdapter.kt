@@ -10,7 +10,7 @@ class PatientPagerAdapter(fragment: Fragment) : FragmentStateAdapter(fragment) {
     override fun getItemCount(): Int = 2
 
     override fun createFragment(position: Int): Fragment {
-        return when(position) {
+        return when (position) {
             0 -> OnlineFragment()
             1 -> OfflineFragment()
             else -> throw IllegalStateException("Invalid position $position")

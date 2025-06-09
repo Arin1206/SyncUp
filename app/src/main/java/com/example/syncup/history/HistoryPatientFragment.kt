@@ -6,9 +6,12 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewGroup.MarginLayoutParams
+import android.widget.ImageView
+import androidx.activity.addCallback
 import androidx.fragment.app.Fragment
 import androidx.viewpager2.widget.ViewPager2
 import com.example.syncup.R
+import com.example.syncup.home.HomeFragment
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 
@@ -25,6 +28,8 @@ class HistoryPatientFragment : Fragment() {
 
         val tabLayout = view.findViewById<TabLayout>(R.id.tabLayout)
         viewPager = view.findViewById(R.id.viewPager)
+
+        val arrow = view.findViewById<ImageView>(R.id.arrow)
 
         val adapter = HistoryPagerAdapter(this)
         viewPager.adapter = adapter
@@ -53,6 +58,25 @@ class HistoryPatientFragment : Fragment() {
                 updateViewPagerHeight()
             }
         })
+
+        arrow.setOnClickListener {
+            // Check if we're currently in the HomeFragment and navigate back to HomeFragment
+            val fragment = HomeFragment()
+
+            requireActivity().supportFragmentManager.beginTransaction()
+                .replace(R.id.frame, fragment)  // Assuming 'frame' is your container ID
+                .addToBackStack(null)  // Optionally add the transaction to back stack if you want to allow back navigation
+                .commit()
+        }
+
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner) {
+            // Navigate to HomeFragment when back is pressed
+            val homeFragment = HomeFragment()
+
+            requireActivity().supportFragmentManager.beginTransaction()
+                .replace(R.id.frame, homeFragment)  // Ensure 'frame' is the container ID for fragments
+                .commit()
+        }
 
         // **Menambahkan Margin Antar Tab**
         tabLayout.post {

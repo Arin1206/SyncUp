@@ -16,21 +16,10 @@ class HeartRateChartViewHome @JvmOverloads constructor(
 ) : View(context, attrs) {
 
     private val heartRateData = mutableListOf<Int>()
-    private val highlightedIndices = mutableSetOf<Int>() // Indeks data baru yang di-highlight
+    private val highlightedIndices = mutableSetOf<Int>()
 
     private val handler = Handler(Looper.getMainLooper())
 
-    private val linePaint = Paint().apply {
-        color = Color.GRAY
-        strokeWidth = 5f
-        style = Paint.Style.STROKE
-    }
-
-    private val emptyTextPaint = Paint().apply {
-        color = Color.GRAY
-        textSize = 40f
-        textAlign = Paint.Align.CENTER
-    }
 
     private val axisPaint = Paint().apply {
         color = Color.BLACK
@@ -55,7 +44,6 @@ class HeartRateChartViewHome @JvmOverloads constructor(
     private val minRate = 0f
     private val maxRate = 150f
 
-    // **Konversi 80dp ke pixel**
     private val yAxisHeight = 100 * resources.displayMetrics.density
 
     fun addHeartRate(value: Int) {
@@ -67,9 +55,8 @@ class HeartRateChartViewHome @JvmOverloads constructor(
             }
 
             val newIndex = heartRateData.size - 1
-            highlightedIndices.add(newIndex) // Tandai sebagai data baru
+            highlightedIndices.add(newIndex)
 
-            // **Setelah 1 detik, ubah ke warna merah**
             handler.postDelayed({
                 highlightedIndices.remove(newIndex)
                 invalidate()
@@ -116,10 +103,15 @@ class HeartRateChartViewHome @JvmOverloads constructor(
                 val barHeight = ((value - minRate) / (maxRate - minRate)) * yAxisHeight
                 val x = leftPadding + i * spacing
 
-                // **Jika indeks ada di highlightedIndices, warna hijau, jika tidak merah**
                 val paint = if (highlightedIndices.contains(i)) greenPaint else redPaint
 
-                canvas.drawRect(x, topPadding + yAxisHeight - barHeight, x + barWidth, topPadding + yAxisHeight, paint)
+                canvas.drawRect(
+                    x,
+                    topPadding + yAxisHeight - barHeight,
+                    x + barWidth,
+                    topPadding + yAxisHeight,
+                    paint
+                )
             }
         }
     }

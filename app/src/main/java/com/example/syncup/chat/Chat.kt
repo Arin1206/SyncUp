@@ -5,11 +5,11 @@ data class Chat(
     var message: String,
     var date: String,
     val doctorEmail: String,
-    val profileImage: String? = null, // You can add an image URL here
+    val profileImage: String? = null,
     val doctorPhoneNumber: String,
-    val doctorUid : String,
+    val doctorUid: String,
     var unreadCount: Int = 0,
     val isUnread: Boolean = false,
     var patientId: String,
     var patientName: String
-): java.io.Serializable
+) : java.io.Serializable

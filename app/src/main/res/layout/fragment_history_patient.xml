@@ -40,6 +40,8 @@
             app:layout_constraintHorizontal_bias="0.193"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
+            android:clickable="true"
+            android:focusable="true"
             app:srcCompat="@drawable/arrow_1" />
 
         <!-- Judul "History" -->

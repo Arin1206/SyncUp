@@ -32,6 +32,7 @@ class MonthHealthAdapter(private var monthData: List<MonthHealthItem>) :
                     .inflate(R.layout.item_month_header, parent, false)
                 MonthHeaderViewHolder(view)
             }
+
             else -> {
                 val view = LayoutInflater.from(parent.context)
                     .inflate(R.layout.item_health_data, parent, false)
@@ -71,11 +72,11 @@ class MonthHealthAdapter(private var monthData: List<MonthHealthItem>) :
         private val indicatorStatus: View = view.findViewById(R.id.indicator_status)
         private val tvTime: TextView = view.findViewById(R.id.tv_time)
 
-        private val handler = Handler(Looper.getMainLooper()) // **Handler untuk update waktu live**
+        private val handler = Handler(Looper.getMainLooper())
         private val timeUpdateRunnable = object : Runnable {
             override fun run() {
-                tvTime.text = getCurrentTime() // **Perbarui waktu setiap detik**
-                handler.postDelayed(this, 1000) // **Jalankan ulang setiap 1 detik**
+                tvTime.text = getCurrentTime()
+                handler.postDelayed(this, 1000)
             }
         }
 
@@ -84,20 +85,17 @@ class MonthHealthAdapter(private var monthData: List<MonthHealthItem>) :
             avgBloodPressure.text = item.avgBloodPressure
             avgBattery.text = "${item.avgBattery}%"
 
-            // **Set indikator warna berdasarkan heart rate**
             val statusColor = if (item.avgHeartRate in 60..100) {
-                Color.GREEN  // **Healthy**
+                Color.GREEN
             } else {
-                Color.RED  // **Danger**
+                Color.RED
             }
             indicatorStatus.setBackgroundColor(statusColor)
 
-            // **Mulai update waktu secara live**
-            handler.removeCallbacks(timeUpdateRunnable) // **Pastikan handler tidak dobel**
+            handler.removeCallbacks(timeUpdateRunnable)
             handler.post(timeUpdateRunnable)
         }
 
-        // **Fungsi untuk mendapatkan waktu lokal perangkat dalam format HH:MM:SS**
         private fun getCurrentTime(): String {
             val sdf = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
             return sdf.format(Date())

@@ -9,7 +9,6 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
-import com.example.syncup.data.HeartRateRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
@@ -26,17 +25,16 @@ class BluetoothLeService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private var previousSBP: Double = 120.0
     private var previousDBP: Double = 80.0
-    private var batteryLevel: Int = -1 // Default -1 jika belum ada pembacaan
+    private var batteryLevel: Int = -1
 
     private var lastHeartRate: Int = -1
-    // Firestore dan Realtime Database
-    private val realtimeDatabase: DatabaseReference = FirebaseDatabase.getInstance().reference.child("heart_rate")
-    private val firestore = FirebaseFirestore.getInstance()
+
+    private val realtimeDatabase: DatabaseReference =
+        FirebaseDatabase.getInstance().reference.child("heart_rate")
 
     private var reconnectRunnable: Runnable? = null
-    private val heartRateBuffer = mutableListOf<Int>() // Buffer untuk menyimpan heart rate selama 5 menit
+    private val heartRateBuffer = mutableListOf<Int>()
 
-    // Handler untuk menyimpan data ke Firestore setiap 5 menit
     private val saveToFirestoreRunnable = object : Runnable {
         override fun run() {
             if (heartRateBuffer.isNotEmpty()) {
@@ -44,9 +42,13 @@ class BluetoothLeService : Service() {
                 val timestamp = System.currentTimeMillis()
 
                 val ptt = 0.25
-                val (systolicBP, diastolicBP) = calculateBloodPressure(ptt, mostFrequentHR, previousSBP, previousDBP)
+                val (systolicBP, diastolicBP) = calculateBloodPressure(
+                    ptt,
+                    mostFrequentHR,
+                    previousSBP,
+                    previousDBP
+                )
 
-                // **Simpan ke Firestore hanya jika sudah lebih dari 5 menit**
                 saveToFirestore(mostFrequentHR, systolicBP, diastolicBP, batteryLevel, timestamp)
 
                 heartRateBuffer.clear()
@@ -65,13 +67,12 @@ class BluetoothLeService : Service() {
                 Log.i(TAG, "Connected to GATT server.")
                 bluetoothGatt?.discoverServices()
 
-                val intent = Intent(ACTION_GATT_CONNECTED) // 🔹 Kirim broadcast ke UI
+                val intent = Intent(ACTION_GATT_CONNECTED)
                 sendBroadcast(intent)
 
-                // Jalankan penyimpanan ke Firestore setiap 5 menit
                 handler.postDelayed(saveToFirestoreRunnable, SAVE_INTERVAL_MS)
 
-            }else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 connectionState = STATE_DISCONNECTED
                 broadcastUpdate(ACTION_GATT_DISCONNECTED)
                 Log.w(TAG, "Disconnected from GATT server. Status: $status")
@@ -84,7 +85,10 @@ class BluetoothLeService : Service() {
                                 .child(patientUid)
                                 .removeValue()
                                 .addOnSuccessListener {
-                                    Log.i(TAG, "Connected device removed for patient UID: $patientUid")
+                                    Log.i(
+                                        TAG,
+                                        "Connected device removed for patient UID: $patientUid"
+                                    )
                                 }
                                 .addOnFailureListener { e ->
                                     Log.e(TAG, "Failed to remove connected device: ${e.message}")
@@ -94,17 +98,18 @@ class BluetoothLeService : Service() {
                         }
                     }
                 } else {
-                    Log.w(TAG, "Auto-disconnected, hiding UI without removing device from Firebase.")
+                    Log.w(
+                        TAG,
+                        "Auto-disconnected, hiding UI without removing device from Firebase."
+                    )
                 }
 
 
-
-                // 🔹 Kirim broadcast ke UI agar bisa menyembunyikan tampilan
                 val intent = Intent(ACTION_DEVICE_DISCONNECTED)
                 sendBroadcast(intent)
 
                 if (!isManualDisconnect) {
-                    handleDisconnect(status)  // Reconnect otomatis jika perlu
+                    handleDisconnect(status)
                 } else {
                     Log.i(TAG, "Manually disconnected from GATT server.")
                     isManualDisconnect = false
@@ -127,32 +132,41 @@ class BluetoothLeService : Service() {
                 for (service in gatt?.services ?: emptyList()) {
                     if (service.uuid == UUID.fromString(HEART_RATE_SERVICE_UUID)) {
                         for (characteristic in service.characteristics) {
-                            if (characteristic.uuid == UUID.fromString(HEART_RATE_CHARACTERISTIC_UUID)) {
+                            if (characteristic.uuid == UUID.fromString(
+                                    HEART_RATE_CHARACTERISTIC_UUID
+                                )
+                            ) {
                                 enableHeartRateNotification(characteristic)
                             }
                         }
-                    }
-                    // ✅ Tambahkan timeout jika BLE tidak merespons dalam 2 detik
-                    else if (service.uuid == UUID.fromString(BATTERY_SERVICE_UUID)) {
+                    } else if (service.uuid == UUID.fromString(BATTERY_SERVICE_UUID)) {
                         for (characteristic in service.characteristics) {
                             if (characteristic.uuid == UUID.fromString(BATTERY_CHARACTERISTIC_UUID)) {
-                                Log.i(TAG, "Battery Level characteristic found. Enabling Read & Notify...")
+                                Log.i(
+                                    TAG,
+                                    "Battery Level characteristic found. Enabling Read & Notify..."
+                                )
 
                                 handler.postDelayed({
                                     val success = readBatteryLevel(characteristic)
                                     if (!success) {
-                                        Log.w(TAG, "Battery Level READ failed. Enabling NOTIFY instead.")
+                                        Log.w(
+                                            TAG,
+                                            "Battery Level READ failed. Enabling NOTIFY instead."
+                                        )
                                         enableBatteryNotification(characteristic)
                                     }
-                                }, 1000) // Delay 1 detik sebelum mencoba Read
+                                }, 1000)
 
-                                // 🔹 Timeout jika tidak ada respons dalam 2 detik
                                 handler.postDelayed({
                                     if (batteryLevel == -1) {
-                                        Log.e(TAG, "Battery Level Read Timeout! Switching to NOTIFY mode.")
+                                        Log.e(
+                                            TAG,
+                                            "Battery Level Read Timeout! Switching to NOTIFY mode."
+                                        )
                                         enableBatteryNotification(characteristic)
                                     }
-                                }, 3000) // Timeout setelah 3 detik
+                                }, 3000)
                             }
                         }
                     }
@@ -160,26 +174,29 @@ class BluetoothLeService : Service() {
             }
         }
 
-        override fun onCharacteristicRead(gatt: BluetoothGatt?, characteristic: BluetoothGattCharacteristic?, status: Int) {
+        override fun onCharacteristicRead(
+            gatt: BluetoothGatt?,
+            characteristic: BluetoothGattCharacteristic?,
+            status: Int
+        ) {
             if (status == BluetoothGatt.GATT_SUCCESS && characteristic != null) {
                 if (characteristic.uuid == UUID.fromString(BATTERY_CHARACTERISTIC_UUID)) {
                     val rawData = characteristic.value
                     Log.i(TAG, "Raw Battery Level Data (via READ): ${rawData?.joinToString(" ")}")
 
-                    batteryLevel = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 0) ?:
-                            characteristic.value?.get(0)?.toInt() ?: -1
+                    batteryLevel =
+                        characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 0)
+                            ?: characteristic.value?.get(0)?.toInt() ?: -1
                     Log.i(TAG, "Battery level received via READ: $batteryLevel%")
                     broadcastBatteryUpdate(batteryLevel)
                 }
             } else {
                 Log.e(TAG, "Failed to read Battery Level characteristic. Status: $status")
 
-                // 🔹 Jika READ gagal, gunakan NOTIFY sebagai cadangan
                 Log.w(TAG, "Using NOTIFY as a fallback for Battery Level.")
                 enableBatteryNotification(characteristic)
             }
         }
-
 
 
         override fun onCharacteristicChanged(
@@ -188,46 +205,59 @@ class BluetoothLeService : Service() {
         ) {
             super.onCharacteristicChanged(gatt, characteristic)
 
-            if (characteristic != null && characteristic.uuid == UUID.fromString(HEART_RATE_CHARACTERISTIC_UUID)) {
-                val heartRate = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 1) ?: -1
+            if (characteristic != null && characteristic.uuid == UUID.fromString(
+                    HEART_RATE_CHARACTERISTIC_UUID
+                )
+            ) {
+                val heartRate =
+                    characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 1) ?: -1
                 lastHeartRate = heartRate
                 Log.i(TAG, "Heart rate characteristic changed: $heartRate")
 
-                // Tambahkan ke buffer
                 heartRateBuffer.add(heartRate)
 
-                // Ambil UID pasien secara asinkron
                 getActualPatientUID { patientUid ->
                     if (patientUid != null) {
-                        val userHeartRateDatabase = realtimeDatabase.child(patientUid).child("latest")
+                        val userHeartRateDatabase =
+                            realtimeDatabase.child(patientUid).child("latest")
 
                         userHeartRateDatabase.setValue(heartRate)
                             .addOnSuccessListener {
-                                Log.i(TAG, "Live heart rate updated for user $patientUid: $heartRate BPM")
+                                Log.i(
+                                    TAG,
+                                    "Live heart rate updated for user $patientUid: $heartRate BPM"
+                                )
                             }
                             .addOnFailureListener { e ->
-                                Log.e(TAG, "Failed to update live heart rate for user $patientUid: ${e.message}")
+                                Log.e(
+                                    TAG,
+                                    "Failed to update live heart rate for user $patientUid: ${e.message}"
+                                )
                             }
                     } else {
                         Log.e(TAG, "Patient UID not found. Skipping heart rate update.")
                     }
                 }
 
-                // Broadcast ke UI
                 broadcastUpdate(ACTION_HEART_RATE_MEASUREMENT, heartRate)
 
-                // HAPUS bagian ini agar tidak overwrite semua pasien
-                // realtimeDatabase.child("latest").setValue(heartRate)
             }
 
-            if (characteristic != null && characteristic.uuid == UUID.fromString(BATTERY_CHARACTERISTIC_UUID)) {
+            if (characteristic != null && characteristic.uuid == UUID.fromString(
+                    BATTERY_CHARACTERISTIC_UUID
+                )
+            ) {
                 val rawData = characteristic.value
                 Log.i(TAG, "Raw Battery Level Data (via NOTIFY): ${rawData?.joinToString(" ")}")
 
-                var tempBatteryLevel = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 0) ?: -1
+                var tempBatteryLevel =
+                    characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 0) ?: -1
                 if (tempBatteryLevel == -1 && rawData != null && rawData.isNotEmpty()) {
                     tempBatteryLevel = rawData[0].toInt()
-                    Log.w(TAG, "Using manual value extraction for Battery Level: $tempBatteryLevel%")
+                    Log.w(
+                        TAG,
+                        "Using manual value extraction for Battery Level: $tempBatteryLevel%"
+                    )
                 }
 
                 batteryLevel = tempBatteryLevel
@@ -235,7 +265,13 @@ class BluetoothLeService : Service() {
                 broadcastBatteryUpdate(batteryLevel)
 
                 if (batteryLevel in 0..100) {
-                    saveToFirestore(lastHeartRate, previousSBP, previousDBP, batteryLevel, System.currentTimeMillis())
+                    saveToFirestore(
+                        lastHeartRate,
+                        previousSBP,
+                        previousDBP,
+                        batteryLevel,
+                        System.currentTimeMillis()
+                    )
                 } else {
                     Log.e(TAG, "Invalid Battery Level received: $batteryLevel%")
                 }
@@ -244,7 +280,7 @@ class BluetoothLeService : Service() {
 
     }
 
-        inner class LocalBinder : Binder() {
+    inner class LocalBinder : Binder() {
         fun getService(): BluetoothLeService = this@BluetoothLeService
     }
 
@@ -269,11 +305,6 @@ class BluetoothLeService : Service() {
         return true
     }
 
-    @SuppressLint("MissingPermission")
-    fun disconnect() {
-        bluetoothGatt?.disconnect()
-        isManualDisconnect = true
-    }
 
     @SuppressLint("MissingPermission")
     fun close() {
@@ -291,7 +322,6 @@ class BluetoothLeService : Service() {
     private fun enableHeartRateNotification(characteristic: BluetoothGattCharacteristic?) {
         bluetoothGatt?.setCharacteristicNotification(characteristic, true)
 
-        // **Menulis ke Client Characteristic Configuration Descriptor (CCCD)**
         characteristic?.descriptors?.forEach { descriptor ->
             if (descriptor.uuid == UUID.fromString(CLIENT_CHARACTERISTIC_CONFIG)) {
                 descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
@@ -310,7 +340,7 @@ class BluetoothLeService : Service() {
     }
 
     private fun calculateMode(values: List<Int>): Int {
-        return values.filterNotNull() // pastikan tidak ada nilai null
+        return values.filterNotNull()
             .groupingBy { it }
             .eachCount()
             .maxByOrNull { it.value }
@@ -321,7 +351,6 @@ class BluetoothLeService : Service() {
     @SuppressLint("MissingPermission")
     private fun readBatteryLevel(characteristic: BluetoothGattCharacteristic?): Boolean {
         return characteristic?.let {
-            // ✅ Periksa apakah karakteristik mendukung operasi READ
             if ((it.properties and BluetoothGattCharacteristic.PROPERTY_READ) == 0) {
                 Log.e(TAG, "Battery Level Characteristic does NOT support READ!")
                 return false
@@ -344,7 +373,6 @@ class BluetoothLeService : Service() {
         previousSBP: Double,
         previousDBP: Double
     ): Pair<Double, Double> {
-        // Parameter hasil optimasi
         val a = 28.25
         val b = 0.3949
         val c = 0.7149
@@ -355,14 +383,13 @@ class BluetoothLeService : Service() {
         val g = 0.5470
         val h = 69.83
 
-        // Tidak ada normalisasi PTT agar bisa mendeteksi anomali tekanan darah
         val sbp = (a * Math.log(ptt) + b * heartRate + c * previousSBP + d)
         val dbp = (e * Math.log(ptt) + f * heartRate + g * previousDBP + h)
 
         return sbp to dbp
     }
 
-    private var lastSaveTime: Long = 0 // Waktu terakhir penyimpanan data
+    private var lastSaveTime: Long = 0
 
     private fun getActualPatientUID(onResult: (String?) -> Unit) {
         val auth = FirebaseAuth.getInstance()
@@ -451,7 +478,6 @@ class BluetoothLeService : Service() {
         characteristic?.let {
             bluetoothGatt?.setCharacteristicNotification(it, true)
 
-            // **Menulis ke Client Characteristic Configuration Descriptor (CCCD)**
             for (descriptor in it.descriptors) {
                 if (descriptor.uuid == UUID.fromString(CLIENT_CHARACTERISTIC_CONFIG)) {
                     descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
@@ -470,33 +496,28 @@ class BluetoothLeService : Service() {
     companion object {
         private const val TAG = "BluetoothLeService"
 
-        // **Interval penyimpanan ke Firestore setiap 5 menit (300.000 ms)**
         private const val SAVE_INTERVAL_MS = 60000L
 
-        // **Action Constants untuk Broadcast**
         const val ACTION_GATT_CONNECTED = "com.example.syncup.ACTION_GATT_CONNECTED"
         const val ACTION_GATT_DISCONNECTED = "com.example.syncup.ACTION_GATT_DISCONNECTED"
         const val ACTION_HEART_RATE_MEASUREMENT = "com.example.syncup.ACTION_HEART_RATE_MEASUREMENT"
         const val EXTRA_HEART_RATE = "com.example.syncup.EXTRA_HEART_RATE"
 
-        // **Status Koneksi**
         private const val STATE_DISCONNECTED = 0
         private const val STATE_CONNECTING = 1
         private const val STATE_CONNECTED = 2
 
-        // **UUID untuk Service & Characteristic Heart Rate**
         private const val HEART_RATE_SERVICE_UUID = "0000180d-0000-1000-8000-00805f9b34fb"
         private const val HEART_RATE_CHARACTERISTIC_UUID = "00002a37-0000-1000-8000-00805f9b34fb"
 
-        // **UUID untuk Client Characteristic Configuration Descriptor (CCCD)**
         private const val CLIENT_CHARACTERISTIC_CONFIG = "00002902-0000-1000-8000-00805f9b34fb"
 
         private const val BATTERY_SERVICE_UUID = "0000180f-0000-1000-8000-00805f9b34fb"
 
-        const val ACTION_BATTERY_LEVEL_MEASUREMENT = "com.example.syncup.ACTION_BATTERY_LEVEL_MEASUREMENT"
+        const val ACTION_BATTERY_LEVEL_MEASUREMENT =
+            "com.example.syncup.ACTION_BATTERY_LEVEL_MEASUREMENT"
         const val EXTRA_BATTERY_LEVEL = "com.example.syncup.EXTRA_BATTERY_LEVEL"
 
-        // ✅ UUID untuk Battery Level Characteristic
         private const val BATTERY_CHARACTERISTIC_UUID = "00002a19-0000-1000-8000-00805f9b34fb"
         const val ACTION_DEVICE_DISCONNECTED = "com.example.syncup.ACTION_DEVICE_DISCONNECTED"
     }

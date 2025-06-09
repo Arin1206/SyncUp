@@ -32,6 +32,7 @@ class YearHealthAdapter(private var yearData: List<YearHealthItem>) :
                     .inflate(R.layout.item_year_header, parent, false)
                 YearHeaderViewHolder(view)
             }
+
             else -> {
                 val view = LayoutInflater.from(parent.context)
                     .inflate(R.layout.item_health_data, parent, false)
@@ -74,26 +75,23 @@ class YearHealthAdapter(private var yearData: List<YearHealthItem>) :
         private val handler = Handler(Looper.getMainLooper())
         private val timeUpdateRunnable = object : Runnable {
             override fun run() {
-                tvTime.text = getCurrentTime() // **Perbarui waktu setiap detik**
-                handler.postDelayed(this, 1000) // **Update setiap 1 detik**
+                tvTime.text = getCurrentTime()
+                handler.postDelayed(this, 1000)
             }
         }
 
         fun bind(item: YearHealthItem.YearData) {
-            avgHeartRate.text = "${item.avgHeartRate} BPM"  // **Tambahkan "bpm" setelah nilai heart rate**
+            avgHeartRate.text = "${item.avgHeartRate} BPM"
             avgBloodPressure.text = item.avgBloodPressure
-            avgBattery.text = "${item.avgBattery}%"  // **Tambahkan "%" setelah nilai battery**
+            avgBattery.text = "${item.avgBattery}%"
 
-            // **Set indikator warna berdasarkan heart rate**
             val statusColor = if (item.avgHeartRate in 60..100) Color.GREEN else Color.RED
             indicatorStatus.setBackgroundColor(statusColor)
 
-            // **Mulai update waktu secara live**
-            handler.removeCallbacks(timeUpdateRunnable) // **Pastikan tidak ada handler dobel**
+            handler.removeCallbacks(timeUpdateRunnable)
             handler.post(timeUpdateRunnable)
         }
 
-        // **Fungsi untuk mendapatkan waktu lokal perangkat dalam format HH:mm:ss (Locale Inggris)**
         private fun getCurrentTime(): String {
             val sdf = SimpleDateFormat("HH:mm:ss", Locale.ENGLISH)
             return sdf.format(Date())

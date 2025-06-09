@@ -6,10 +6,14 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.syncup.R
+import com.example.syncup.home.HomeDoctorFragment
+import com.example.syncup.home.HomeFragment
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -32,6 +36,26 @@ class InboxDoctorFragment : Fragment() {
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
         recyclerView.adapter = adapter
 
+
+        val arrow = view.findViewById<ImageView>(R.id.arrow)
+        arrow.setOnClickListener {
+            // Check if we're currently in the HomeFragment and navigate back to HomeFragment
+            val fragment = HomeDoctorFragment()
+
+            requireActivity().supportFragmentManager.beginTransaction()
+                .replace(R.id.frame, fragment)  // Assuming 'frame' is your container ID
+                .addToBackStack(null)  // Optionally add the transaction to back stack if you want to allow back navigation
+                .commit()
+        }
+
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner) {
+            // Navigate to HomeFragment when back is pressed
+            val homeFragment = HomeDoctorFragment()
+
+            requireActivity().supportFragmentManager.beginTransaction()
+                .replace(R.id.frame, homeFragment)  // Ensure 'frame' is the container ID for fragments
+                .commit()
+        }
         // 🔽 Panggil fungsi untuk dengarkan perubahan data Firestore
         listenToNotifications()
 

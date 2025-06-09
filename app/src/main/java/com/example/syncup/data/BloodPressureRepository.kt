@@ -19,7 +19,7 @@ object BloodPressureRepository {
     private val bpCollection = firestore.collection("patient_heart_rate")
 
     private val handler = Handler(Looper.getMainLooper())
-    private val updateInterval = 30000L // Update setiap 30 detik
+    private val updateInterval = 30000L
 
     private var lastUpdatedTime: Long = 0
     private var cachedBloodPressure: BloodPressure? = null
@@ -34,14 +34,11 @@ object BloodPressureRepository {
     private fun fetchLatestBloodPressure() {
         val currentTime = System.currentTimeMillis()
 
-        // **Jika cache masih valid (kurang dari 5 menit), gunakan langsung**
         if (cachedBloodPressure != null && (currentTime - lastUpdatedTime) < 60000) {
-            Log.d("BloodPressureRepository", "🟢 Menggunakan cached BP: ${cachedBloodPressure}")
+            Log.d("BloodPressureRepository", "🟢 Menggunakan cached BP: $cachedBloodPressure")
             _bloodPressureLiveData.postValue(cachedBloodPressure)
             return
         }
-
-        // **Jika cache tidak valid, ambil data terbaru dari Firestore**
         bpCollection.orderBy("timestamp", Query.Direction.DESCENDING)
             .limit(5)
             .get()
@@ -50,8 +47,12 @@ object BloodPressureRepository {
                     for (data in snapshot.documents) {
                         val hr = data.getDouble("heartRate")?.roundToInt() ?: 0
                         if (hr > 0) {
-                            val sbp = data.get("systolicBP")?.toString()?.toDoubleOrNull()?.roundToInt() ?: -1
-                            val dbp = data.get("diastolicBP")?.toString()?.toDoubleOrNull()?.roundToInt() ?: -1
+                            val sbp =
+                                data.get("systolicBP")?.toString()?.toDoubleOrNull()?.roundToInt()
+                                    ?: -1
+                            val dbp =
+                                data.get("diastolicBP")?.toString()?.toDoubleOrNull()?.roundToInt()
+                                    ?: -1
 
                             if (sbp > 0 && dbp > 0) {
                                 val newBP = BloodPressure(sbp, dbp)
@@ -82,7 +83,7 @@ object BloodPressureRepository {
 
     fun delayedStartPolling() {
         Log.d("BloodPressureRepository", "⏳ Menunda polling BP selama 5 menit...")
-        handler.postDelayed(bpRunnable, 60000) // 5 menit
+        handler.postDelayed(bpRunnable, 60000)
     }
 
     fun stopPolling() {

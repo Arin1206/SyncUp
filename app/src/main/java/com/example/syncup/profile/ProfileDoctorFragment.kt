@@ -20,12 +20,14 @@ import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.Spinner
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.bumptech.glide.Glide
 import com.example.syncup.R
 import com.example.syncup.databinding.FragmentProfileDoctorBinding
 import com.example.syncup.databinding.FragmentProfilePatientBinding
+import com.example.syncup.home.HomeDoctorFragment
 import com.example.syncup.inbox.InboxPatientFragment
 import com.example.syncup.welcome.WelcomeActivity
 import com.google.firebase.auth.FirebaseAuth
@@ -75,6 +77,14 @@ class ProfileDoctorFragment : Fragment() {
             requireActivity().supportFragmentManager.popBackStack()
         }
 
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner) {
+            // Navigate to HomeFragment when back is pressed
+            val homeFragment = HomeDoctorFragment()
+
+            requireActivity().supportFragmentManager.beginTransaction()
+                .replace(R.id.frame, homeFragment)  // Ensure 'frame' is the container ID for fragments
+                .commit()
+        }
 
 
         // Tambahkan fungsi edit ketika tombol edit ditekan
@@ -453,6 +463,7 @@ class ProfileDoctorFragment : Fragment() {
 
         dialog.show()
     }
+
 
 
 

@@ -31,7 +31,6 @@ class NewsAdapter(private val newsList: List<News>, private val activity: Fragme
         holder.newsImage.setImageResource(news.imageRes)
         holder.newsTitle.text = news.title
 
-        // Saat berita diklik, tampilkan pop-up dialog
         holder.itemView.setOnClickListener {
             NewsDialogFragment(news).show(activity.supportFragmentManager, "NewsDialog")
         }
