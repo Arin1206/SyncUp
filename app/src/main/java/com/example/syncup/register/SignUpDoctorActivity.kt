@@ -30,7 +30,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import java.util.UUID
 
 class SignUpDoctorActivity : AppCompatActivity() {
-    private lateinit var binding: ActivitySignUpDoctorBinding
+    lateinit var binding: ActivitySignUpDoctorBinding
     private lateinit var auth: FirebaseAuth
     private lateinit var googleSignInClient: GoogleSignInClient
     private val db = FirebaseFirestore.getInstance()
@@ -108,7 +108,7 @@ class SignUpDoctorActivity : AppCompatActivity() {
         binding.genderSpinner.adapter = spinnerAdapter
     }
 
-    private fun registerWithFirestore() {
+    fun registerWithFirestore() {
         val fullName = binding.edRegisFullname.text.toString().trim()
         val phoneNumber = binding.edRegisPhone.text.toString().trim()
         val age = binding.edRegisAge.text.toString().trim()
@@ -131,6 +131,12 @@ class SignUpDoctorActivity : AppCompatActivity() {
         if (phoneNumber.isEmpty()) {
             binding.edRegisPhone.error = "Phone Number is required"
             binding.edRegisPhone.requestFocus()
+            return
+        }
+
+        if (age.isEmpty()) {
+            binding.edRegisAge.error = "Age is required"
+            binding.edRegisAge.requestFocus()
             return
         }
 

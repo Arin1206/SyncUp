@@ -600,7 +600,7 @@ class HomeFragment : Fragment() {
             }
         }
     }
-    private fun updateIndicator(heartRate: Int, userAge: Int?) {
+    fun updateIndicator(heartRate: Int, userAge: Int?) {
         val indicatorTextView = view?.findViewById<TextView>(R.id.indicator_value)
         val indicatorBox = view?.findViewById<View>(R.id.indicator_box)
 
@@ -1432,6 +1432,11 @@ class HomeFragment : Fragment() {
     }
 
     private fun loadProfilePicture(userId: String) {
+        // Check if the fragment is attached to the activity
+        if (!isAdded) {
+            return  // Do not attempt to load the image if the fragment is not attached
+        }
+
         firestore.collection("patient_photoprofile").document(userId).get()
             .addOnSuccessListener { document ->
                 if (document.exists()) {
@@ -1441,9 +1446,9 @@ class HomeFragment : Fragment() {
                         Glide.with(this)
                             .load(photoUrl)
                             .circleCrop()
-                            .placeholder(R.drawable.account_circle) // gambar default sementara
-                            .error(R.drawable.account_circle)        // gambar error jika gagal load
-                            .into(binding.profile)
+                            .placeholder(R.drawable.account_circle) // Default placeholder
+                            .error(R.drawable.account_circle)        // Default error image
+                            .into(binding.profile) // Load the image into the ImageView
                     } else {
                         Log.w("HomeFragment", "photoUrl field is empty or null")
                     }
@@ -1454,8 +1459,8 @@ class HomeFragment : Fragment() {
             .addOnFailureListener { e ->
                 Log.e("HomeFragment", "Failed to get photo profile", e)
             }
-
     }
+
 
 
     companion object {

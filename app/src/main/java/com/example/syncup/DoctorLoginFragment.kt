@@ -79,6 +79,13 @@ class DoctorLoginFragment : Fragment() {
     }
 
     private fun checkPhoneNumberInFirestore(phoneNumber: String) {
+        if (!isAdded) {
+            // Fragment is not attached to the activity, return early
+            return
+        }
+
+        val context = activity?.applicationContext ?: return
+
         try {
             db.collection("users_doctor_phonenumber")
                 .whereEqualTo("phoneNumber", phoneNumber)
@@ -87,15 +94,15 @@ class DoctorLoginFragment : Fragment() {
                     if (!documents.isEmpty) {
                         sendOTP(phoneNumber)
                     } else {
-                        Toast.makeText(requireContext(), "Phone number or STR not registered", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Phone number or STR not registered", Toast.LENGTH_SHORT).show()
                     }
                 }
                 .addOnFailureListener { e ->
-                    Toast.makeText(requireContext(), "Error checking phone number: ${e.message}", Toast.LENGTH_SHORT).show()
-                    e.printStackTrace() // **Cetak error ke logcat untuk debugging**
+                    Toast.makeText(context, "Error checking phone number: ${e.message}", Toast.LENGTH_SHORT).show()
+                    e.printStackTrace() // Debugging error
                 }
         } catch (e: Exception) {
-            Toast.makeText(requireContext(), "Unexpected error: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Unexpected error: ${e.message}", Toast.LENGTH_SHORT).show()
             e.printStackTrace()
         }
     }

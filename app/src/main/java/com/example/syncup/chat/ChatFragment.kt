@@ -23,9 +23,9 @@ import com.google.firebase.firestore.Query
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-class ChatFragment : Fragment() {
+open class ChatFragment : Fragment() {
 
-    private lateinit var recyclerViewChats: RecyclerView
+    lateinit var recyclerViewChats: RecyclerView
     private lateinit var chatAdapter: ChatAdapter
     private val chatList = mutableListOf<Chat>()
     private lateinit var searchInput: EditText
@@ -260,7 +260,7 @@ class ChatFragment : Fragment() {
     }
 
 
-    private fun updateChatListWithSort(chats: List<Chat>) {
+    fun updateChatListWithSort(chats: List<Chat>) {
         val sortedList = chats.sortedByDescending {
             try {
                 SimpleDateFormat("dd MMM yyyy, HH:mm:ss", Locale.getDefault()).parse(it.date)?.time

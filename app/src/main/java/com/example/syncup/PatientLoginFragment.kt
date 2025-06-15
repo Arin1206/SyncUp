@@ -139,20 +139,23 @@ class PatientLoginFragment : Fragment() {
     }
 
     private fun checkPhoneNumberInFirestore(phoneNumber: String) {
+        // Using application context to avoid IllegalStateException
+        val context = activity?.applicationContext ?: return
+
         db.collection("users_patient_phonenumber")
             .whereEqualTo("phoneNumber", phoneNumber)
             .get()
             .addOnSuccessListener { documents ->
                 if (!documents.isEmpty) {
-                    // **Jika nomor telepon terdaftar, kirim OTP**
+                    // If phone number is registered, send OTP
                     sendOTP(phoneNumber)
                 } else {
-                    // **Jika nomor telepon tidak ditemukan, tetap di WelcomeActivity**
-                    Toast.makeText(requireContext(), "Phone number not registered", Toast.LENGTH_SHORT).show()
+                    // If phone number is not registered, show toast
+                    Toast.makeText(context, "Phone number not registered", Toast.LENGTH_SHORT).show()
                 }
             }
             .addOnFailureListener {
-                Toast.makeText(requireContext(), "Error checking phone number", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Error checking phone number", Toast.LENGTH_SHORT).show()
             }
     }
 

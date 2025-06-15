@@ -24,10 +24,10 @@ import com.google.firebase.firestore.FirebaseFirestore
 import java.util.UUID
 
 class SignUpPatientActivity : AppCompatActivity() {
-    private lateinit var binding: ActivitySignUpPatientBinding
-    private lateinit var auth: FirebaseAuth
-    private lateinit var googleSignInClient: GoogleSignInClient
-    private val db = FirebaseFirestore.getInstance()
+    lateinit var binding: ActivitySignUpPatientBinding
+    lateinit var auth: FirebaseAuth
+    lateinit var googleSignInClient: GoogleSignInClient
+    var db = FirebaseFirestore.getInstance()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -65,12 +65,12 @@ class SignUpPatientActivity : AppCompatActivity() {
         }
 
     }
-    private fun logoutUser() {
+    fun logoutUser() {
         auth.signOut()
         googleSignInClient.signOut()
     }
 
-    private fun setupGenderSpinner() {
+    fun setupGenderSpinner() {
         val genderOptions = arrayOf("Select Gender", "Male", "Female")
 
         val spinnerAdapter = object : ArrayAdapter<String>(this, android.R.layout.simple_spinner_dropdown_item, genderOptions) {
@@ -92,7 +92,7 @@ class SignUpPatientActivity : AppCompatActivity() {
 
         binding.genderSpinner.adapter = spinnerAdapter
     }
-    private fun setupGoogleSignIn() {
+    fun setupGoogleSignIn() {
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestIdToken("652599682808-b41jbc9uolpnssgmptijkbufgbo1vvrd.apps.googleusercontent.com")
             .requestEmail()
@@ -101,7 +101,7 @@ class SignUpPatientActivity : AppCompatActivity() {
         googleSignInClient = GoogleSignIn.getClient(this, gso)
     }
 
-    private fun registerWithFirestore() {
+    fun registerWithFirestore() {
         val fullName = binding.edRegisFullname.text.toString().trim()
         val phoneNumber = binding.edRegisPhone.text.toString().trim()
         val age = binding.edRegisAge.text.toString().trim()
@@ -119,6 +119,12 @@ class SignUpPatientActivity : AppCompatActivity() {
             binding.edRegisPhone.requestFocus()
             return
         }
+        if (age.isEmpty()) {
+            binding.edRegisAge.error = "Age is required"
+            binding.edRegisAge.requestFocus()
+            return
+        }
+
 
         // **Nonaktifkan tombol untuk mencegah klik ganda**
         binding.customTextView.isEnabled = false
@@ -163,7 +169,7 @@ class SignUpPatientActivity : AppCompatActivity() {
     }
 
 
-    private fun registerNewUser(fullName: String, phoneNumber: String, age: String, gender: String) {
+    fun registerNewUser(fullName: String, phoneNumber: String, age: String, gender: String) {
         // **Generate user ID acak**
         val userId = UUID.randomUUID().toString()
 
@@ -190,7 +196,7 @@ class SignUpPatientActivity : AppCompatActivity() {
     }
 
 
-    private val googleSignInLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+    val googleSignInLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
         try {
             val account = task.getResult(ApiException::class.java)
@@ -200,12 +206,12 @@ class SignUpPatientActivity : AppCompatActivity() {
         }
     }
 
-    private fun signInWithGoogle() {
+    fun signInWithGoogle() {
         val signInIntent = googleSignInClient.signInIntent
         googleSignInLauncher.launch(signInIntent)
     }
 
-    private fun firebaseAuthWithGoogle(idToken: String) {
+    fun firebaseAuthWithGoogle(idToken: String) {
         val credential = GoogleAuthProvider.getCredential(idToken, null)
         auth.signInWithCredential(credential)
             .addOnCompleteListener { task ->
@@ -234,7 +240,7 @@ class SignUpPatientActivity : AppCompatActivity() {
                 }
             }
     }
-    private fun checkPatientEmailBeforeRegister(userId: String, email: String, fullName: String?) {
+    fun checkPatientEmailBeforeRegister(userId: String, email: String, fullName: String?) {
         db.collection("users_patient_email").whereEqualTo("email", email).get()
             .addOnSuccessListener { doctorDocs ->
                 if (!doctorDocs.isEmpty) {
@@ -250,7 +256,7 @@ class SignUpPatientActivity : AppCompatActivity() {
                 Toast.makeText(this, "Error checking doctor database", Toast.LENGTH_SHORT).show()
             }
     }
-    private fun registerNewPatient(userId: String, email: String, fullName: String?) {
+    fun registerNewPatient(userId: String, email: String, fullName: String?) {
         val userData = hashMapOf(
             "userId" to userId,
             "fullName" to (fullName ?: "Google User"),
@@ -273,7 +279,7 @@ class SignUpPatientActivity : AppCompatActivity() {
     }
 
 
-    private fun hideKeyboardWhenClickedOutside() {
+    fun hideKeyboardWhenClickedOutside() {
         binding.main.setOnTouchListener { _, event ->
             if (event.action == MotionEvent.ACTION_DOWN) {
                 hideKeyboard()
@@ -282,7 +288,7 @@ class SignUpPatientActivity : AppCompatActivity() {
         }
     }
 
-    private fun hideKeyboard() {
+   fun hideKeyboard() {
         val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         val view = currentFocus
         if (view != null) {
@@ -290,4 +296,9 @@ class SignUpPatientActivity : AppCompatActivity() {
             view.clearFocus()
         }
     }
+
+    fun showErrorMessage(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    }
+
 }

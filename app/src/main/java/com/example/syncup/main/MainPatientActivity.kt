@@ -44,7 +44,7 @@ class MainPatientActivity : AppCompatActivity() {
     private lateinit var bluetoothAdapter: BluetoothAdapter
     private val handler = Handler(Looper.getMainLooper())
     private val scanInterval: Long = 15000 // Interval scanning 15 detik
-    private val scanResults = mutableListOf<Map<String, String>>()
+    val scanResults = mutableListOf<Map<String, String>>()
     private lateinit var listAdapter: SimpleAdapter
     private val deviceAddresses = mutableSetOf<String>()
     private lateinit var database: DatabaseReference

@@ -19,6 +19,9 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+
+
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -35,6 +38,7 @@ android {
     kotlinOptions {
         jvmTarget = "1.8"
     }
+
     buildFeatures {
         viewBinding = true
     }
@@ -53,7 +57,11 @@ dependencies {
     implementation(libs.play.services.location)
     implementation(libs.androidx.foundation.android)
     implementation(libs.firebase.storage.ktx)
+    implementation(libs.core.ktx)
+    implementation(libs.androidx.junit.ktx)
     testImplementation(libs.junit)
+    testImplementation("org.junit.jupiter:junit-jupiter:5.8.1")
+    testImplementation("junit:junit:4.12")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     implementation("androidx.core:core-splashscreen:1.1.0-alpha02")
@@ -70,4 +78,31 @@ dependencies {
     implementation("androidx.fragment:fragment-ktx:1.5.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.5.1")
     implementation("com.google.android.gms:play-services-auth:20.7.0")
+
+
+    // Espresso dependencies
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.3.0")
+    androidTestImplementation("androidx.test.ext:junit:1.1.3")
+    androidTestImplementation("androidx.test.espresso:espresso-contrib:3.3.0") // optional, for extra functionality
+    testImplementation("androidx.test.espresso:espresso-core:3.3.0")
+    testImplementation("androidx.test.espresso:espresso-contrib:3.3.0")
+    // Mockito dependencies
+    testImplementation("org.mockito:mockito-core:4.6.1")
+    androidTestImplementation("org.mockito:mockito-android:5.18.0")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:4.0.0")
+    testImplementation("io.mockk:mockk-android:1.12.0") // Correct dependency for Android
+    testImplementation("org.mockito:mockito-inline:4.6.1")
+
+    androidTestImplementation("androidx.test.espresso:espresso-intents:3.4.0")
+
+    testImplementation("org.mockito:mockito-core:4.6.1")
+
+    androidTestImplementation("androidx.fragment:fragment-testing:1.6.1")
+
+
+    testImplementation("io.mockk:mockk-android:1.12.0")
+    // Robolectric for Android unit tests
+    testImplementation("org.robolectric:robolectric:4.6.1")
+    testImplementation("androidx.test:core:1.4.0")
+
 }

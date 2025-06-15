@@ -74,7 +74,11 @@ class ProfileDoctorFragment : Fragment() {
 
 
         binding.arrow.setOnClickListener {
-            requireActivity().supportFragmentManager.popBackStack()
+            val homeFragment = HomeDoctorFragment()
+
+            requireActivity().supportFragmentManager.beginTransaction()
+                .replace(R.id.frame, homeFragment)  // Ensure 'frame' is the container ID for fragments
+                .commit()
         }
 
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner) {

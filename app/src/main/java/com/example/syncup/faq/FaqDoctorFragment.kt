@@ -144,14 +144,17 @@ class FaqDoctorFragment : Fragment() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val response = apiService.sendMessage(messageRequest)
+                if (!isAdded) return@launch // Tambahkan ini untuk keamanan
+
                 requireActivity().runOnUiThread {
+                    if (!isAdded) return@runOnUiThread // Tambahkan ini juga
                     if (response.isSuccessful) {
                         Toast.makeText(requireContext(), "Message sent successfully!", Toast.LENGTH_SHORT).show()
                         emailEditText.text.clear()
                         messageEditText.text.clear()
                         showNotification()
 
-                        requireActivity().supportFragmentManager.beginTransaction()
+                        parentFragmentManager.beginTransaction()
                             .replace(R.id.frame, InboxDoctorFragment())
                             .addToBackStack(null)
                             .commit()
@@ -160,10 +163,13 @@ class FaqDoctorFragment : Fragment() {
                     }
                 }
             } catch (e: Exception) {
+                if (!isAdded) return@launch // Cegah crash
+
                 requireActivity().runOnUiThread {
                     Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         }
+
     }
 }

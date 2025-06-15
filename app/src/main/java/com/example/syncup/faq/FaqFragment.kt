@@ -42,7 +42,6 @@ class FaqFragment : Fragment() {
     val currentUser = FirebaseAuth.getInstance().currentUser
 
 
-
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -77,7 +76,10 @@ class FaqFragment : Fragment() {
             val homeFragment = HomeFragment()
 
             requireActivity().supportFragmentManager.beginTransaction()
-                .replace(R.id.frame, homeFragment)  // Ensure 'frame' is the container ID for fragments
+                .replace(
+                    R.id.frame,
+                    homeFragment
+                )  // Ensure 'frame' is the container ID for fragments
                 .commit()
         }
 
@@ -98,7 +100,8 @@ class FaqFragment : Fragment() {
     }
 
     private fun hideKeyboard() {
-        val imm = requireActivity().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        val imm =
+            requireActivity().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imm.hideSoftInputFromWindow(view?.windowToken, 0)
     }
 
@@ -111,7 +114,8 @@ class FaqFragment : Fragment() {
             val channel = NotificationChannel(channelId, channelName, importance)
             channel.description = channelDescription
 
-            val notificationManager = requireContext().getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val notificationManager =
+                requireContext().getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
         }
     }
@@ -119,7 +123,8 @@ class FaqFragment : Fragment() {
     private fun showNotification() {
         createNotificationChannel() // Panggil ini dulu
 
-        val notificationManager = requireContext().getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notificationManager =
+            requireContext().getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val channelId = "message_channel_id"
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -148,7 +153,11 @@ class FaqFragment : Fragment() {
 
         val userId = currentUser?.uid ?: ""
         if (email.isEmpty() || message.isEmpty()) {
-            Toast.makeText(requireContext(), "Email and message cannot be empty.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                requireContext(),
+                "Email and message cannot be empty.",
+                Toast.LENGTH_SHORT
+            ).show()
             return
         }
 
@@ -157,26 +166,39 @@ class FaqFragment : Fragment() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val response = apiService.sendMessage(messageRequest)
-                requireActivity().runOnUiThread {
-                    if (response.isSuccessful) {
-                        Toast.makeText(requireContext(), "Message sent successfully!", Toast.LENGTH_SHORT).show()
-                        emailEditText.text.clear()
-                        messageEditText.text.clear()
-                        showNotification()
+                if (isAdded) {
+                    activity?.runOnUiThread {
+                        if (response.isSuccessful) {
+                            Toast.makeText(
+                                requireContext(),
+                                "Message sent successfully!",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            emailEditText.text.clear()
+                            messageEditText.text.clear()
+                            showNotification()
 
-                        requireActivity().supportFragmentManager.beginTransaction()
-                            .replace(R.id.frame, InboxPatientFragment())
-                            .addToBackStack(null)
-                            .commit()
-                    } else {
-                        Toast.makeText(requireContext(), "Failed to send message.", Toast.LENGTH_SHORT).show()
+                            parentFragmentManager.beginTransaction()
+                                .replace(R.id.frame, InboxPatientFragment())
+                                .addToBackStack(null)
+                                .commit()
+                        } else {
+                            Toast.makeText(
+                                requireContext(),
+                                "Failed to send message.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
                     }
                 }
             } catch (e: Exception) {
-                requireActivity().runOnUiThread {
-                    Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                if (isAdded) {
+                    activity?.runOnUiThread {
+                        Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         }
+
     }
 }
