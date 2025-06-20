@@ -171,6 +171,48 @@ class PatientAdapter(patientList: List<PatientData>,  private val context: Conte
                 }
         }
 
+        holder.itemView.setOnClickListener {
+            val dialog = AlertDialog.Builder(context)
+                .setTitle("Konfirmasi Penambahan")
+                .setMessage("Apakah Anda ingin menambahkan ${patient.name} sebagai pasien Anda?")
+                .setPositiveButton("Ya") { _, _ ->
+                    val assignedPatient = hashMapOf(
+                        "patientId" to patient.id,
+                        "doctorUid" to doctorUid,
+                        "name" to patient.name,
+                        "age" to patient.age,
+                        "gender" to patient.gender,
+                        "heartRate" to patient.heartRate,
+                        "systolicBP" to patient.systolicBP,
+                        "diastolicBP" to patient.diastolicBP,
+                        "photoUrl" to patient.photoUrl,
+                        "email" to patient.email,
+                        "phoneNumber" to patient.phoneNumber
+                    )
+
+                    FirebaseFirestore.getInstance()
+                        .collection("assigned_patient")
+                        .add(assignedPatient)
+                        .addOnSuccessListener {
+                            Toast.makeText(context, "${patient.name} telah ditambahkan sebagai pasien Anda.", Toast.LENGTH_SHORT).show()
+                            notifyItemChanged(position)
+                        }
+                        .addOnFailureListener { e ->
+                            Toast.makeText(context, "Gagal menambahkan pasien: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                }
+                .setNegativeButton("Batal", null)
+                .create()
+
+            dialog.setOnShowListener {
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(ContextCompat.getColor(context, android.R.color.white))
+                dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(ContextCompat.getColor(context, android.R.color.white))
+            }
+
+            dialog.show()
+        }
+
+
         // Chat Icon click listener to navigate to RoomChat
         holder.itemView.findViewById<ImageView>(R.id.chat_icon).setOnClickListener {
             val bundle = Bundle().apply {
