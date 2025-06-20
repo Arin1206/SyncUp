@@ -60,7 +60,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="40dp"
             android:fontFamily="@font/bold_font"
-            android:text="80"
+            android:text=""
             android:textColor="@color/black"
             android:textSize="28sp"
             app:layout_constraintBottom_toTopOf="@+id/recycler_view_health"

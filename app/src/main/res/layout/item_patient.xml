@@ -31,10 +31,13 @@
         android:textSize="16sp"
         android:textStyle="bold"
         android:fontFamily="@font/bold_font"
+        android:maxLines="1"
+        android:ellipsize="end"
 
-        app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintStart_toEndOf="@id/profile_image"
-        app:layout_constraintTop_toTopOf="@id/profile_image" />
+    app:layout_constraintHorizontal_bias="0.0"
+    app:layout_constraintStart_toEndOf="@id/profile_image"
+    app:layout_constraintTop_toTopOf="@id/profile_image" />
+
 
     <TextView
         android:id="@+id/age_gender"
