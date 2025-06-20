@@ -92,7 +92,6 @@ class PatientAdapter(patientList: List<PatientData>,  private val context: Conte
         getActualDoctorUID { doctorUid, doctorName ->  // Now you have both `doctorUid` and `doctorName`
             if (doctorUid == null || doctorName == null) return@getActualDoctorUID
 
-            // Check if the patient is already assigned
             FirebaseFirestore.getInstance()
                 .collection("assigned_patient")
                 .whereEqualTo("patientId", patient.id)
