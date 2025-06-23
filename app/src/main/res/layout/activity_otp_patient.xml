@@ -7,14 +7,12 @@
     android:layout_height="match_parent"
     android:fillViewport="true"
     android:background="@color/white">
-
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/main"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/white"
         tools:context=".otp.OtpPatientActivity">
-
         <ImageView
             android:id="@+id/imageView5"
             android:layout_width="wrap_content"
@@ -27,7 +25,6 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintVertical_bias="0.666"
             app:srcCompat="@drawable/logo" />
-
         <ImageView
             android:id="@+id/arrow"
             android:layout_width="wrap_content"
@@ -38,7 +35,6 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:srcCompat="@drawable/arrow_1" />
-
         <TextView
             android:id="@+id/textView6"
             android:layout_width="wrap_content"
@@ -51,7 +47,6 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
-
         <TextView
             android:id="@+id/textView7"
             android:layout_width="wrap_content"
@@ -67,8 +62,6 @@
             app:layout_constraintHorizontal_bias="1.0"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/textView6" />
-
-        <!-- OTP Input Field (6 Kotak) -->
         <androidx.gridlayout.widget.GridLayout
             android:id="@+id/otpGrid"
             android:layout_width="wrap_content"
@@ -81,7 +74,6 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/textView7"
             app:rowCount="1">
-
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/otp1"
                 android:layout_width="50dp"
@@ -92,7 +84,6 @@
                 android:maxLength="1"
                 android:textColor="@color/white"
                 android:textSize="18sp"/>
-
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/otp2"
                 android:layout_width="50dp"
@@ -103,7 +94,6 @@
                 android:maxLength="1"
                 android:textColor="@color/white"
                 android:textSize="18sp"/>
-
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/otp3"
                 android:layout_width="50dp"
@@ -114,7 +104,6 @@
                 android:maxLength="1"
                 android:textColor="@color/white"
                 android:textSize="18sp"/>
-
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/otp4"
                 android:layout_width="50dp"
@@ -125,7 +114,6 @@
                 android:maxLength="1"
                 android:textColor="@color/white"
                 android:textSize="18sp"/>
-
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/otp5"
                 android:layout_width="50dp"
@@ -136,7 +124,6 @@
                 android:maxLength="1"
                 android:textColor="@color/white"
                 android:textSize="18sp"/>
-
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/otp6"
                 android:layout_width="50dp"
@@ -148,7 +135,6 @@
                 android:textColor="@color/white"
                 android:textSize="18sp"/>
         </androidx.gridlayout.widget.GridLayout>
-
         <TextView
             android:id="@+id/customTextView"
             android:layout_width="158dp"
@@ -170,7 +156,6 @@
             app:layout_constraintHorizontal_bias="0.497"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/otpGrid" />
-
         <TextView
             android:id="@+id/textView3"
             android:layout_width="wrap_content"
@@ -184,7 +169,6 @@
             app:layout_constraintHorizontal_bias="0.316"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/customTextView" />
-
         <TextView
             android:id="@+id/login"
             android:layout_width="wrap_content"
@@ -200,7 +184,5 @@
             app:layout_constraintHorizontal_bias="0.069"
             app:layout_constraintStart_toEndOf="@+id/textView3"
             app:layout_constraintTop_toBottomOf="@+id/customTextView" />
-
-
     </androidx.constraintlayout.widget.ConstraintLayout>
 </ScrollView>

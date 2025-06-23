@@ -45,7 +45,7 @@ class SignUpDoctorActivity : AppCompatActivity() {
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(0 ,0, 0, systemBars.bottom)
+            v.setPadding(0, 0, 0, systemBars.bottom)
             insets
         }
         setupGoogleSignIn()
@@ -56,24 +56,21 @@ class SignUpDoctorActivity : AppCompatActivity() {
 
         window.navigationBarColor = getColor(R.color.black)
 
-        // **Navigasi kembali**
         binding.arrow.setOnClickListener {
             val intent = Intent(this, WelcomeActivity::class.java)
             intent.putExtra("fragment", "doctor")
             startActivity(intent)
         }
 
-        // **Submit Data ke Firestore ketika `customTextView` diklik**
         binding.customTextView.setOnClickListener {
             registerWithFirestore()
         }
 
-        // **Sign Up dengan Google**
         binding.customgoogle.setOnClickListener {
             signInWithGoogle()
         }
 
-        binding.login.setOnClickListener{
+        binding.login.setOnClickListener {
             val intent = Intent(this, WelcomeActivity::class.java)
             intent.putExtra("fragment", "doctor")
             startActivity(intent)
@@ -88,7 +85,11 @@ class SignUpDoctorActivity : AppCompatActivity() {
     private fun setupGenderSpinner() {
         val genderOptions = arrayOf("Select Gender", "Male", "Female")
 
-        val spinnerAdapter = object : ArrayAdapter<String>(this, android.R.layout.simple_spinner_dropdown_item, genderOptions) {
+        val spinnerAdapter = object : ArrayAdapter<String>(
+            this,
+            android.R.layout.simple_spinner_dropdown_item,
+            genderOptions
+        ) {
             override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
                 val view = super.getView(position, convertView, parent) as TextView
                 view.setTextColor(Color.WHITE)
@@ -96,7 +97,11 @@ class SignUpDoctorActivity : AppCompatActivity() {
                 return view
             }
 
-            override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
+            override fun getDropDownView(
+                position: Int,
+                convertView: View?,
+                parent: ViewGroup
+            ): View {
                 val view = super.getDropDownView(position, convertView, parent) as TextView
                 view.setTextColor(Color.WHITE)
                 view.textSize = 16f
@@ -113,20 +118,14 @@ class SignUpDoctorActivity : AppCompatActivity() {
         val phoneNumber = binding.edRegisPhone.text.toString().trim()
         val age = binding.edRegisAge.text.toString().trim()
         val gender = binding.genderSpinner.selectedItem.toString()
-//        val str = binding.edRegisStr.text.toString().trim()
 
-        // **Validasi: Full Name dan Phone Number harus diisi**
         if (fullName.isEmpty()) {
             binding.edRegisFullname.error = "Full Name is required"
             binding.edRegisFullname.requestFocus()
             return
         }
 
-//        if (str.isEmpty()) {
-//            binding.edRegisStr.error = "STR is required"
-//            binding.edRegisStr.requestFocus()
-//            return
-//        }
+
 
         if (phoneNumber.isEmpty()) {
             binding.edRegisPhone.error = "Phone Number is required"
@@ -140,7 +139,7 @@ class SignUpDoctorActivity : AppCompatActivity() {
             return
         }
 
-        // **Nonaktifkan tombol untuk mencegah klik ganda**
+
         binding.customTextView.isEnabled = false
         binding.customTextView.text = "Checking phone number..."
 
@@ -154,24 +153,24 @@ class SignUpDoctorActivity : AppCompatActivity() {
             .whereEqualTo("phoneNumber", phoneNumber)
             .get()
 
-        // **Jalankan kedua query Firestore secara paralel**
+
         patientQuery.addOnSuccessListener { patientDocs ->
             doctorQuery.addOnSuccessListener { doctorDocs ->
                 if (!patientDocs.isEmpty || !doctorDocs.isEmpty) {
-                    // **Jika nomor sudah terdaftar di salah satu koleksi**
-                    Toast.makeText(this, "Phone number already registered!", Toast.LENGTH_SHORT).show()
+
+                    Toast.makeText(this, "Phone number already registered!", Toast.LENGTH_SHORT)
+                        .show()
                     binding.edRegisPhone.error = "Phone number already in use"
                     binding.edRegisPhone.requestFocus()
-
-                    // **Aktifkan kembali tombol karena registrasi gagal**
                     binding.customTextView.isEnabled = true
                     binding.customTextView.text = "Continue"
                 } else {
-                    // **Jika nomor telepon belum digunakan, lanjutkan registrasi**
-                    registerNewUser(fullName, phoneNumber, age, gender )
+
+                    registerNewUser(fullName, phoneNumber, age, gender)
                 }
             }.addOnFailureListener {
-                Toast.makeText(this, "Error checking doctor phone number!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Error checking doctor phone number!", Toast.LENGTH_SHORT)
+                    .show()
                 binding.customTextView.isEnabled = true
                 binding.customTextView.text = "Continue"
             }
@@ -182,8 +181,12 @@ class SignUpDoctorActivity : AppCompatActivity() {
         }
     }
 
-    private fun registerNewUser(fullName: String, phoneNumber: String, age: String, gender: String) {
-        // **Generate user ID acak**
+    private fun registerNewUser(
+        fullName: String,
+        phoneNumber: String,
+        age: String,
+        gender: String
+    ) {
         val userId = UUID.randomUUID().toString()
 
         val userData = hashMapOf(
@@ -192,7 +195,6 @@ class SignUpDoctorActivity : AppCompatActivity() {
             "phoneNumber" to phoneNumber,
             "age" to if (age.isNotEmpty()) age else "N/A",
             "gender" to if (gender != "Select Gender") gender else "N/A",
-//            "str" to str
         )
 
         db.collection("users_doctor_phonenumber").document(userId)
@@ -221,15 +223,16 @@ class SignUpDoctorActivity : AppCompatActivity() {
         googleSignInClient = GoogleSignIn.getClient(this, gso)
     }
 
-    private val googleSignInLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-        try {
-            val account = task.getResult(ApiException::class.java)
-            firebaseAuthWithGoogle(account.idToken!!)
-        } catch (e: ApiException) {
-            Toast.makeText(this, "Google Sign-In Failed", Toast.LENGTH_SHORT).show()
+    private val googleSignInLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            try {
+                val account = task.getResult(ApiException::class.java)
+                firebaseAuthWithGoogle(account.idToken!!)
+            } catch (e: ApiException) {
+                Toast.makeText(this, "Google Sign-In Failed", Toast.LENGTH_SHORT).show()
+            }
         }
-    }
 
     private fun signInWithGoogle() {
         val signInIntent = googleSignInClient.signInIntent
@@ -244,21 +247,25 @@ class SignUpDoctorActivity : AppCompatActivity() {
                     val user = auth.currentUser
                     val email = user?.email ?: ""
 
-                    // **Cek apakah email sudah ada di users_patient_email**
                     db.collection("users_patient_email").whereEqualTo("email", email).get()
                         .addOnSuccessListener { patientDocs ->
                             if (!patientDocs.isEmpty) {
-                                // **Langsung tampilkan akun Google untuk dipilih ulang tanpa pesan tambahan**
+
                                 auth.signOut()
                                 googleSignInClient.signOut()
                                 signInWithGoogle()
                             } else {
-                                // **Jika tidak ada di users_patient_email, cek di users_doctor_email**
-                                checkDoctorEmailBeforeRegister(user?.uid ?: "", email, user?.displayName)
+
+                                checkDoctorEmailBeforeRegister(
+                                    user?.uid ?: "",
+                                    email,
+                                    user?.displayName
+                                )
                             }
                         }
                         .addOnFailureListener {
-                            Toast.makeText(this, "Error checking user data", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this, "Error checking user data", Toast.LENGTH_SHORT)
+                                .show()
                         }
                 } else {
                     Toast.makeText(this, "Google Authentication Failed", Toast.LENGTH_SHORT).show()
@@ -305,6 +312,7 @@ class SignUpDoctorActivity : AppCompatActivity() {
                 Toast.makeText(this, "Failed to save Google user data", Toast.LENGTH_SHORT).show()
             }
     }
+
     private fun hideKeyboardWhenClickedOutside() {
         binding.main.setOnTouchListener { _, event ->
             if (event.action == MotionEvent.ACTION_DOWN) {

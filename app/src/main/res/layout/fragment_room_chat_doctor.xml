@@ -7,8 +7,6 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:background="@drawable/send_message_background"
     tools:context=".chat.RoomChatDoctorFragment">
-
-    <!-- Header Section: Doctor's Info -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/linearLayout"
         android:layout_width="0dp"
@@ -19,10 +17,6 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHeight_default="wrap">
-
-        <!-- Back Arrow -->
-
-        <!-- Doctor Profile Image -->
         <ImageView
             android:id="@+id/arrow"
             android:layout_width="wrap_content"
@@ -33,9 +27,6 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
-
-        <!-- Doctor Name -->
-
         <ImageView
             android:id="@+id/profile_image"
             android:layout_width="40dp"
@@ -47,12 +38,11 @@
             app:layout_constraintStart_toEndOf="@id/arrow"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintVertical_bias="1.0" />
-
         <TextView
             android:id="@+id/doctor_name"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Doctor Name"
+            android:text="Patient Name"
             android:textColor="@color/white"
             android:textSize="18sp"
             android:textStyle="bold"
@@ -64,8 +54,6 @@
             app:layout_constraintVertical_bias="0.576"
             app:layout_constraintWidth_percent="0.8" />
     </androidx.constraintlayout.widget.ConstraintLayout>
-
-    <!-- RecyclerView for Messages: Takes up remaining space -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerViewMessages"
         android:layout_width="0dp"
@@ -75,8 +63,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toTopOf="@id/sendMessageLayout" />
-
-    <!-- Send Message Layout: Always at the bottom -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/sendMessageLayout"
         android:layout_width="0dp"
@@ -87,8 +73,6 @@
         app:layout_constraintEnd_toEndOf="parent"
         android:layout_marginHorizontal="10dp"
         android:padding="8dp">
-
-        <!-- Message EditText -->
         <EditText
             android:id="@+id/editTextMessage"
             android:layout_width="0dp"
@@ -102,8 +86,6 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintEnd_toStartOf="@id/buttonSend" />
-
-        <!-- Send Button -->
         <ImageView
             android:id="@+id/buttonSend"
             android:layout_width="wrap_content"
@@ -113,5 +95,4 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
     </androidx.constraintlayout.widget.ConstraintLayout>
-
 </androidx.constraintlayout.widget.ConstraintLayout>

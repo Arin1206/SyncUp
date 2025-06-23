@@ -19,11 +19,21 @@ import com.example.syncup.welcome.WelcomeActivity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthProvider
+import com.google.android.gms.auth.api.phone.SmsRetriever
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
+import android.os.Build
+import com.google.firebase.FirebaseException
+import com.google.firebase.auth.PhoneAuthOptions
+import java.util.concurrent.TimeUnit
 
 class OtpPatientActivity : AppCompatActivity() {
+
     private lateinit var binding: ActivityOtpPatientBinding
     private lateinit var auth: FirebaseAuth
     private var verificationId: String? = null
+    private var otpReceiver: OtpRetriever? = null
+    private var autoCredential: PhoneAuthCredential? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,6 +51,10 @@ class OtpPatientActivity : AppCompatActivity() {
         // Setup OTP input fields
         setupOtpInputs()
 
+        // Start SMS Retriever API for auto OTP retrieval
+        startAutoOtpReceiver()
+
+        // Set navigation bar color
         window.navigationBarColor = getColor(R.color.black)
 
         hideKeyboardWhenClickedOutside()
@@ -122,6 +136,30 @@ class OtpPatientActivity : AppCompatActivity() {
             }
     }
 
+    private fun startAutoOtpReceiver() {
+        otpReceiver = OtpRetriever().also { receiver ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(otpReceiver, IntentFilter(SmsRetriever.SMS_RETRIEVED_ACTION), Context.RECEIVER_EXPORTED)
+            } else {
+                registerReceiver(otpReceiver, IntentFilter(SmsRetriever.SMS_RETRIEVED_ACTION))
+            }
+            receiver.initListener(object : OtpRetriever.OtpReceiverListener {
+                override fun onOtpSuccess(otp: String) {
+                    // Set OTP in text fields automatically
+                    binding.otp1.setText(otp[0].toString())
+                    binding.otp2.setText(otp[1].toString())
+                    binding.otp3.setText(otp[2].toString())
+                    binding.otp4.setText(otp[3].toString())
+                    binding.otp5.setText(otp[4].toString())
+                    binding.otp6.setText(otp[5].toString())
+                }
+
+                override fun onOtpTimeout() {
+                    Toast.makeText(this@OtpPatientActivity, "Failed to retrieve OTP.", Toast.LENGTH_SHORT).show()
+                }
+            })
+        }
+    }
 
     private fun hideKeyboardWhenClickedOutside() {
         binding.main.setOnTouchListener { _, event ->
@@ -138,6 +176,60 @@ class OtpPatientActivity : AppCompatActivity() {
         if (view != null) {
             imm.hideSoftInputFromWindow(view.windowToken, 0)
             view.clearFocus()
+        }
+    }
+
+    // Resend OTP
+    private fun resendOtp() {
+        val phoneNumber = intent.getStringExtra("phoneNumber")
+        val options = PhoneAuthOptions.newBuilder(auth)
+            .setPhoneNumber(phoneNumber!!)
+            .setTimeout(60L, TimeUnit.SECONDS)
+            .setActivity(this)
+            .setCallbacks(object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+                override fun onVerificationCompleted(credential: PhoneAuthCredential) {
+                    // Simpan credential untuk digunakan nanti saat user klik tombol
+                    autoCredential = credential
+
+                    // Jika ada SMS code, isi otomatis field OTP (optional)
+                    val smsCode = credential.smsCode
+                    if (!smsCode.isNullOrEmpty() && smsCode.length == 6) {
+                        binding.otp1.setText(smsCode[0].toString())
+                        binding.otp2.setText(smsCode[1].toString())
+                        binding.otp3.setText(smsCode[2].toString())
+                        binding.otp4.setText(smsCode[3].toString())
+                        binding.otp5.setText(smsCode[4].toString())
+                        binding.otp6.setText(smsCode[5].toString())
+                    }
+
+                    // Jangan panggil signInWithCredential di sini!!!
+                    // Tunggu user klik tombol
+                }
+
+                override fun onVerificationFailed(e: FirebaseException) {
+                    Toast.makeText(this@OtpPatientActivity, e.localizedMessage, Toast.LENGTH_SHORT).show()
+                }
+
+                override fun onCodeSent(
+                    verificationId: String,
+                    token: PhoneAuthProvider.ForceResendingToken
+                ) {
+                    this@OtpPatientActivity.verificationId = verificationId
+                    Toast.makeText(this@OtpPatientActivity, "OTP Resent!", Toast.LENGTH_SHORT).show()
+                }
+            })
+            .build()
+        PhoneAuthProvider.verifyPhoneNumber(options)
+    }
+
+    // Unregister the OTP receiver to avoid memory leaks
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            unregisterReceiver(otpReceiver)
+        } catch (e: IllegalArgumentException) {
+            // Receiver was not registered
+            e.printStackTrace()
         }
     }
 }

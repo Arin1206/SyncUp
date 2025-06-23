@@ -1,5 +1,6 @@
 package com.example.syncup
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -148,7 +149,7 @@ class PatientLoginFragment : Fragment() {
             .addOnSuccessListener { documents ->
                 if (!documents.isEmpty) {
                     // If phone number is registered, send OTP
-                    sendOTP(phoneNumber)
+                    sendOTP(phoneNumber,requireActivity())
                 } else {
                     // If phone number is not registered, show toast
                     Toast.makeText(context, "Phone number not registered", Toast.LENGTH_SHORT).show()
@@ -159,41 +160,50 @@ class PatientLoginFragment : Fragment() {
             }
     }
 
-    private fun sendOTP(phoneNumber: String) {
+    private fun sendOTP(phoneNumber: String, activity: Activity) {
         var formattedPhoneNumber = phoneNumber.trim()
 
-        // Jika nomor dimulai dengan '0', ganti dengan '+62'
+        // Format nomor telepon dengan kode negara Indonesia
         if (formattedPhoneNumber.startsWith("0")) {
             formattedPhoneNumber = "+62" + formattedPhoneNumber.substring(1)
         }
 
         val options = PhoneAuthOptions.newBuilder(auth)
-            .setPhoneNumber(formattedPhoneNumber)
-            .setTimeout(60L, TimeUnit.SECONDS)
-            .setActivity(requireActivity())
+            .setPhoneNumber(formattedPhoneNumber)  // Nomor telepon yang ingin diverifikasi
+            .setTimeout(60L, TimeUnit.SECONDS)     // Timeout untuk verifikasi
+            .setActivity(activity)                 // Konteks activity untuk menerima callback
             .setCallbacks(object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+                // Verifikasi selesai otomatis
                 override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-                    // **HAPUS BAGIAN INI supaya tidak langsung verifikasi otomatis**
-                    // signInWithCredential(credential)
+                    // Jangan langsung verifikasi otomatis
                 }
 
+                // Jika verifikasi gagal
                 override fun onVerificationFailed(e: FirebaseException) {
                     Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
 
+                // Ketika OTP berhasil dikirim
                 override fun onCodeSent(verificationId: String, token: PhoneAuthProvider.ForceResendingToken) {
+                    // Menyimpan verificationId yang akan digunakan nanti
                     this@PatientLoginFragment.verificationId = verificationId
+
+                    // Beralih ke Activity untuk memasukkan OTP
                     val intent = Intent(requireContext(), OtpPatientActivity::class.java)
-                    intent.putExtra("phoneNumber", formattedPhoneNumber)
-                    intent.putExtra("verificationId", verificationId)
+                    intent.putExtra("phoneNumber", formattedPhoneNumber) // Pass nomor telepon
+                    intent.putExtra("verificationId", verificationId) // Pass verificationId
                     startActivity(intent)
 
+                    // Menampilkan pesan sukses
                     Toast.makeText(requireContext(), "OTP sent to $formattedPhoneNumber", Toast.LENGTH_SHORT).show()
                 }
             })
             .build()
+
+        // Mulai verifikasi nomor telepon
         PhoneAuthProvider.verifyPhoneNumber(options)
     }
+
 
 
     private fun signInWithCredential(credential: PhoneAuthCredential) {

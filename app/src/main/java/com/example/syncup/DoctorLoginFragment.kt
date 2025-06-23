@@ -1,5 +1,6 @@
 package com.example.syncup
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -92,7 +93,7 @@ class DoctorLoginFragment : Fragment() {
                 .get()
                 .addOnSuccessListener { documents ->
                     if (!documents.isEmpty) {
-                        sendOTP(phoneNumber)
+                        sendOTP(phoneNumber,requireActivity())
                     } else {
                         Toast.makeText(context, "Phone number or STR not registered", Toast.LENGTH_SHORT).show()
                     }
@@ -109,10 +110,9 @@ class DoctorLoginFragment : Fragment() {
 
 
 
-    private fun sendOTP(phoneNumber: String) {
+    private fun sendOTP(phoneNumber: String, activity: Activity) {
         var formattedPhoneNumber = phoneNumber.trim()
 
-        // **Jika nomor dimulai dengan '0', ubah ke format internasional (+62)**
         if (formattedPhoneNumber.startsWith("0")) {
             formattedPhoneNumber = "+62" + formattedPhoneNumber.substring(1)
         }
@@ -120,12 +120,9 @@ class DoctorLoginFragment : Fragment() {
         val options = PhoneAuthOptions.newBuilder(auth)
             .setPhoneNumber(formattedPhoneNumber)
             .setTimeout(60L, TimeUnit.SECONDS)
-            .setActivity(requireActivity())
+            .setActivity(activity) // gunakan dari parameter, bukan requireActivity()
             .setCallbacks(object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
-                override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-                    // **Verifikasi otomatis berhasil, langsung masuk tanpa pindah ke OTP screen**
-                    signInWithCredential(credential)
-                }
+                override fun onVerificationCompleted(credential: PhoneAuthCredential) {}
 
                 override fun onVerificationFailed(e: FirebaseException) {
                     Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -145,6 +142,7 @@ class DoctorLoginFragment : Fragment() {
 
         PhoneAuthProvider.verifyPhoneNumber(options)
     }
+
 
     private fun signInWithCredential(credential: PhoneAuthCredential) {
         auth.signInWithCredential(credential)

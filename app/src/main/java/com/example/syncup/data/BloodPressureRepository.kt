@@ -36,7 +36,9 @@ object BloodPressureRepository {
 
         if (cachedBloodPressure != null && (currentTime - lastUpdatedTime) < 60000) {
             Log.d("BloodPressureRepository", "🟢 Menggunakan cached BP: $cachedBloodPressure")
-            _bloodPressureLiveData.postValue(cachedBloodPressure)
+            cachedBloodPressure?.let {
+                _bloodPressureLiveData.postValue(it)
+            }
             return
         }
         bpCollection.orderBy("timestamp", Query.Direction.DESCENDING)

@@ -160,8 +160,8 @@ class PatientAdapter(patientList: List<PatientData>,  private val context: Conte
                             assignedPatients.add(patient.id)
                             notifyItemChanged(position)
                             dialog.setOnShowListener {
-                                dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(ContextCompat.getColor(context, android.R.color.white))
-                                dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(ContextCompat.getColor(context, android.R.color.white))
+                                dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(ContextCompat.getColor(context, R.color.purple_dark))
+                                dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(ContextCompat.getColor(context, R.color.purple_dark))
                             }
 
                             dialog.show()
@@ -171,45 +171,74 @@ class PatientAdapter(patientList: List<PatientData>,  private val context: Conte
         }
 
         holder.itemView.setOnClickListener {
+            // Show the confirmation dialog
             val dialog = AlertDialog.Builder(context)
                 .setTitle("Konfirmasi Penambahan")
                 .setMessage("Apakah Anda ingin menambahkan ${patient.name} sebagai pasien Anda?")
                 .setPositiveButton("Ya") { _, _ ->
-                    val assignedPatient = hashMapOf(
-                        "patientId" to patient.id,
-                        "doctorUid" to doctorUid,
-                        "name" to patient.name,
-                        "age" to patient.age,
-                        "gender" to patient.gender,
-                        "heartRate" to patient.heartRate,
-                        "systolicBP" to patient.systolicBP,
-                        "diastolicBP" to patient.diastolicBP,
-                        "photoUrl" to patient.photoUrl,
-                        "email" to patient.email,
-                        "phoneNumber" to patient.phoneNumber
-                    )
+                    // Fetch the doctor UID before adding the patient
+                    getActualDoctorUID { doctorUid, doctorName ->
+                        if (doctorUid != null) {
+                            // Proceed to add the patient only if doctorUid is not null
+                            val assignedPatient = hashMapOf(
+                                "patientId" to patient.id,
+                                "doctorUid" to doctorUid,
+                                "name" to patient.name,
+                                "age" to patient.age,
+                                "gender" to patient.gender,
+                                "heartRate" to patient.heartRate,
+                                "systolicBP" to patient.systolicBP,
+                                "diastolicBP" to patient.diastolicBP,
+                                "photoUrl" to patient.photoUrl,
+                                "email" to patient.email,
+                                "phoneNumber" to patient.phoneNumber
+                            )
 
-                    FirebaseFirestore.getInstance()
-                        .collection("assigned_patient")
-                        .add(assignedPatient)
-                        .addOnSuccessListener {
-                            Toast.makeText(context, "${patient.name} telah ditambahkan sebagai pasien Anda.", Toast.LENGTH_SHORT).show()
-                            notifyItemChanged(position)
+                            // Add patient to the Firestore "assigned_patient" collection
+                            FirebaseFirestore.getInstance()
+                                .collection("assigned_patient")
+                                .add(assignedPatient)
+                                .addOnSuccessListener {
+                                    // After successfully adding, update the button state to "Assigned"
+                                    val bgDrawable = ContextCompat.getDrawable(context, R.drawable.button_background)?.mutate()
+                                    val wrappedDrawable = bgDrawable?.let { DrawableCompat.wrap(it) }
+                                    wrappedDrawable?.let {
+                                        DrawableCompat.setTint(it, ContextCompat.getColor(context, R.color.light_gray))
+                                        holder.addbutton.background = it
+                                    }
+                                    holder.addbutton.text = "Assigned"
+                                    holder.addbutton.isEnabled = false
+                                    holder.addbutton.setTextColor(ContextCompat.getColor(context, android.R.color.white))
+
+                                    // Show a success message
+                                    Toast.makeText(context, "${patient.name} telah ditambahkan sebagai pasien Anda.", Toast.LENGTH_SHORT).show()
+
+                                    // Notify the adapter about the updated state
+                                    notifyItemChanged(position)
+                                }
+                                .addOnFailureListener { e ->
+                                    // Show an error message in case of failure
+                                    Toast.makeText(context, "Gagal menambahkan pasien: ${e.message}", Toast.LENGTH_SHORT).show()
+                                }
+                        } else {
+                            // If doctorUid is null, show an error
+                            Toast.makeText(context, "Doctor UID is unavailable. Please try again.", Toast.LENGTH_SHORT).show()
                         }
-                        .addOnFailureListener { e ->
-                            Toast.makeText(context, "Gagal menambahkan pasien: ${e.message}", Toast.LENGTH_SHORT).show()
-                        }
+                    }
                 }
                 .setNegativeButton("Batal", null)
                 .create()
 
+            // Set colors for the dialog buttons
             dialog.setOnShowListener {
-                dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(ContextCompat.getColor(context, android.R.color.white))
-                dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(ContextCompat.getColor(context, android.R.color.white))
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(ContextCompat.getColor(context, R.color.purple_dark))
+                dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(ContextCompat.getColor(context, R.color.purple_dark))
             }
 
+            // Show the dialog
             dialog.show()
         }
+
 
 
         // Chat Icon click listener to navigate to RoomChat
@@ -281,23 +310,26 @@ class PatientAdapter(patientList: List<PatientData>,  private val context: Conte
         val currentUser = auth.currentUser ?: return onResult(null, null)
 
         val email = currentUser.email
-        val phoneNumber = currentUser.phoneNumber
+        var phoneNumber = currentUser.phoneNumber
+
+        // Format the phone number if it starts with "+62"
+        phoneNumber = formatPhoneNumber(phoneNumber)
 
         val firestore = FirebaseFirestore.getInstance()
 
-        if (email != null) {
+        if (!email.isNullOrEmpty()) {
             firestore.collection("users_doctor_email")
                 .whereEqualTo("email", email)
                 .get()
                 .addOnSuccessListener { documents ->
-                    doctorUid = documents.firstOrNull()?.getString("userId")
-                    doctorName = documents.firstOrNull()?.getString("fullName") // Assuming doctor name is stored as 'fullName'
+                    val doctorUid = documents.firstOrNull()?.getString("userId")
+                    val doctorName = documents.firstOrNull()?.getString("fullName") // Assuming doctor name is stored as 'fullName'
                     onResult(doctorUid, doctorName)
                 }
                 .addOnFailureListener {
                     onResult(null, null)
                 }
-        } else if (phoneNumber != null) {
+        } else if (!phoneNumber.isNullOrEmpty()) {
             firestore.collection("users_doctor_phonenumber")
                 .whereEqualTo("phoneNumber", phoneNumber)
                 .get()
@@ -310,10 +342,20 @@ class PatientAdapter(patientList: List<PatientData>,  private val context: Conte
                     onResult(null, null)
                 }
         } else {
-            onResult(null, null)
+            onResult(null, null) // If neither email nor phone number is available
         }
     }
 
+    // Helper function to format phone number
+    private fun formatPhoneNumber(phoneNumber: String?): String? {
+        return phoneNumber?.let {
+            if (it.startsWith("+62")) {
+                "0" + it.substring(3)  // Replace +62 with 0
+            } else {
+                it  // If it doesn't start with +62, return the number as is
+            }
+        }
+    }
 
     override fun getItemCount(): Int = patientList.size
 

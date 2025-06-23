@@ -8,15 +8,12 @@
     android:background="@color/white"
     android:id="@+id/scroll_container"
     tools:context=".history.HistoryPatientFragment">
-
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/main"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:paddingHorizontal="10dp"
         android:background="@color/white">
-
-        <!-- Logo -->
         <ImageView
             android:id="@+id/imageView5"
             android:layout_width="wrap_content"
@@ -29,8 +26,6 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintVertical_bias="0.26"
             app:srcCompat="@drawable/logo" />
-
-        <!-- Tombol Back -->
         <ImageView
             android:id="@+id/arrow"
             android:layout_width="wrap_content"
@@ -43,8 +38,6 @@
             android:clickable="true"
             android:focusable="true"
             app:srcCompat="@drawable/arrow_1" />
-
-        <!-- Judul "History" -->
         <TextView
             android:id="@+id/textView6"
             android:layout_width="wrap_content"
@@ -58,8 +51,6 @@
             app:layout_constraintHorizontal_bias="0.498"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
-
-        <!-- Tab Layout -->
         <com.google.android.material.tabs.TabLayout
             android:id="@+id/tabLayout"
             android:layout_width="match_parent"
@@ -77,33 +68,27 @@
             app:layout_constraintTop_toBottomOf="@id/textView6"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
-
             <com.google.android.material.tabs.TabItem
                 android:id="@+id/tab_date"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Date" />
-
             <com.google.android.material.tabs.TabItem
                 android:id="@+id/tab_week"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Week" />
-
             <com.google.android.material.tabs.TabItem
                 android:id="@+id/tab_month"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Month" />
-
             <com.google.android.material.tabs.TabItem
                 android:id="@+id/tab_year"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Year" />
-
         </com.google.android.material.tabs.TabLayout>
-
         <androidx.viewpager2.widget.ViewPager2
             android:id="@+id/viewPager"
             android:layout_width="match_parent"
@@ -112,7 +97,6 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"/>
-
         <ImageView
             android:id="@+id/btnScrollUp"
             android:layout_width="30dp"
@@ -124,8 +108,5 @@
             app:srcCompat="@drawable/ic_arrow_up"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"/>
-
-
     </androidx.constraintlayout.widget.ConstraintLayout>
-
 </ScrollView>

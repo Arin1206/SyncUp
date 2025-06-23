@@ -12,6 +12,7 @@ import android.view.WindowInsets
 import android.view.WindowInsetsController
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.syncup.R
@@ -20,8 +21,6 @@ import com.example.syncup.main.MainPatientActivity
 import com.example.syncup.welcome.WelcomeActivity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import androidx.core.splashscreen.SplashScreen
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 
 @SuppressLint("CustomSplashScreen")
 class SplashActivity : AppCompatActivity() {
@@ -44,19 +43,11 @@ class SplashActivity : AppCompatActivity() {
             val controller = window.insetsController
             controller?.let {
                 it.hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
-                it.systemBarsBehavior =
-                    WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                it.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             }
         } else {
-            @Suppress("DEPRECATION")
-            window.decorView.systemUiVisibility = (
-                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
-                            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
-                            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
-                            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
-                            View.SYSTEM_UI_FLAG_FULLSCREEN or
-                            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                    )
+            @Suppress("DEPRECATION") window.decorView.systemUiVisibility =
+                (View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
         }
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
@@ -70,6 +61,7 @@ class SplashActivity : AppCompatActivity() {
             checkUserAuthentication()
         }, 2000)
     }
+
     private fun checkUserAuthentication() {
         val currentUser = auth.currentUser
 
@@ -77,7 +69,10 @@ class SplashActivity : AppCompatActivity() {
             val userEmail = currentUser.email
             var userPhoneNumber = currentUser.phoneNumber
 
-            Log.d("UserCheck", "Checking authentication for: email=$userEmail, phone=$userPhoneNumber")
+            Log.d(
+                "UserCheck",
+                "Checking authentication for: email=$userEmail, phone=$userPhoneNumber"
+            )
 
             if (!userPhoneNumber.isNullOrEmpty()) {
                 // **Format phoneNumber: Ubah "+62" ke "0" agar sesuai Firestore**
@@ -95,16 +90,17 @@ class SplashActivity : AppCompatActivity() {
             logoutAndRedirect()
         }
     }
+
     private fun checkUserByPhone(userPhoneNumber: String) {
         val db = FirebaseFirestore.getInstance()
 
-        val patientQuery = db.collection("users_patient_phonenumber")
-            .whereEqualTo("phoneNumber", userPhoneNumber)
-            .get()
+        val patientQuery =
+            db.collection("users_patient_phonenumber").whereEqualTo("phoneNumber", userPhoneNumber)
+                .get()
 
-        val doctorQuery = db.collection("users_doctor_phonenumber")
-            .whereEqualTo("phoneNumber", userPhoneNumber)
-            .get()
+        val doctorQuery =
+            db.collection("users_doctor_phonenumber").whereEqualTo("phoneNumber", userPhoneNumber)
+                .get()
 
         // **Jalankan kedua query Firestore secara paralel**
         patientQuery.addOnSuccessListener { patientDocs ->
@@ -115,11 +111,13 @@ class SplashActivity : AppCompatActivity() {
                         Log.d("UserCheck", "User found in users_doctor_phonenumber")
                         navigateToMainDoctor()
                     }
+
                     !patientDocs.isEmpty -> {
                         // **Jika nomor ditemukan di koleksi pasien, arahkan ke halaman pasien**
                         Log.d("UserCheck", "User found in users_patient_phonenumber")
                         navigateToMain()
                     }
+
                     else -> {
                         // **Jika nomor tidak ditemukan di kedua koleksi, logout dan redirect**
                         Log.d("UserCheck", "Phone number not found in both collections")
@@ -140,13 +138,10 @@ class SplashActivity : AppCompatActivity() {
     private fun checkUserByEmail(userEmail: String) {
         val db = FirebaseFirestore.getInstance()
 
-        val patientQuery = db.collection("users_patient_email")
-            .whereEqualTo("email", userEmail)
-            .get()
+        val patientQuery =
+            db.collection("users_patient_email").whereEqualTo("email", userEmail).get()
 
-        val doctorQuery = db.collection("users_doctor_email")
-            .whereEqualTo("email", userEmail)
-            .get()
+        val doctorQuery = db.collection("users_doctor_email").whereEqualTo("email", userEmail).get()
 
         // **Jalankan kedua query Firestore secara paralel**
         patientQuery.addOnSuccessListener { patientDocs ->
@@ -157,11 +152,13 @@ class SplashActivity : AppCompatActivity() {
                         Log.d("UserCheck", "User found in users_doctor_email")
                         navigateToMainDoctor()
                     }
+
                     !patientDocs.isEmpty -> {
                         // **Jika email ditemukan di koleksi pasien, arahkan ke halaman pasien**
                         Log.d("UserCheck", "User found in users_patient_email")
                         navigateToMain()
                     }
+
                     else -> {
                         // **Jika email tidak ditemukan di kedua koleksi, logout dan redirect**
                         Log.d("UserCheck", "Email not found in both collections")
@@ -183,6 +180,7 @@ class SplashActivity : AppCompatActivity() {
         startActivity(Intent(this, MainPatientActivity::class.java))
         finish()
     }
+
     private fun navigateToMainDoctor() {
         startActivity(Intent(this, MainDoctorActivity::class.java))
         finish()

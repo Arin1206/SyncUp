@@ -45,7 +45,8 @@ class HomeFragmentTest {
     fun testProfileButtonClick() {
         // Launch the MainPatientActivity
         ActivityScenario.launch(MainPatientActivity::class.java).use { scenario ->
-            // Simulate a click on the profile image button
+
+            Thread.sleep(1000)
             Espresso.onView(ViewMatchers.withId(R.id.profile))
                 .perform(ViewActions.click())
 

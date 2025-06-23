@@ -37,6 +37,8 @@ class DoctorLoginFragmentTest {
         Intents.release()
     }
 
+
+
     @Test
     fun testGoogleSignIn() {
         // Launch the fragment using ActivityScenario
@@ -111,17 +113,22 @@ class DoctorLoginFragmentTest {
         // Launch the WelcomeActivity containing the ViewPager
         ActivityScenario.launch(WelcomeActivity::class.java).use { scenario ->
             // Ensure the ViewPager is showing the "Doctor" tab
+            Thread.sleep(1000)
             Espresso.onView(ViewMatchers.withText("Doctor"))
+                .check(ViewAssertions.matches(ViewMatchers.withEffectiveVisibility(ViewMatchers.Visibility.VISIBLE)))  // Check if visible
                 .perform(ViewActions.click()) // Simulate clicking on the "Doctor" tab
 
-            // Now that we are on the DoctorLoginFragment, simulate clicking the sign-up button
-            Espresso.onView(ViewMatchers.withId(R.id.textView4))  // Sign-up button in Doctor Login Fragment
-                .perform(ViewActions.click())
+            // Now that we are on the DoctorLoginFragment, simulate scrolling to the sign-up button and clicking it
+            Espresso.onView(ViewMatchers.withId(R.id.textView4))
+                .perform(ViewActions.scrollTo())  // Scroll to the button if it's not visible
+                .check(ViewAssertions.matches(ViewMatchers.withEffectiveVisibility(ViewMatchers.Visibility.VISIBLE)))  // Check if visible
+                .perform(ViewActions.click())  // Perform the click
 
             // Verify that the SignUpDoctorActivity is launched
             Intents.intended(IntentMatchers.hasComponent(SignUpDoctorActivity::class.java.name))
         }
     }
+
 
 
 

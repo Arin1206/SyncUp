@@ -226,36 +226,62 @@ class HomeFragment : Fragment() {
                     val fetchDoctors = mutableListOf<Task<DocumentSnapshot>>()
 
                     doctorUids.forEach { doctorUid ->
+                        // Query the users_doctor_email collection first
                         val fetchEmailDetails = db.collection("users_doctor_email")
                             .document(doctorUid)
                             .get()
                             .addOnSuccessListener { doctorDoc ->
-                                val fullName = "Dr. ${doctorDoc.getString("fullName") ?: "Unknown"}"
-                                Log.d("fetchDoctors", "Doctor fetched from users_doctor_email: $fullName")
+                                var fullName: String? = doctorDoc.getString("fullName")
+                                // Add "Dr." prefix to the fullName
+                                if (fullName != null) {
+                                    fullName = "Dr. $fullName"
+                                    Log.d("fetchDoctors", "Doctor fetched from users_doctor_email: $fullName")
+                                } else {
+                                    Log.d("fetchDoctors", "No fullName found in users_doctor_email for UID: $doctorUid")
+                                }
 
-                                // Fetch profile image from doctor_photoprofile collection
-                                db.collection("doctor_photoprofile")
+                                // Fetch phone number from the 'users_doctor_phonenumber' collection
+                                db.collection("users_doctor_phonenumber")
                                     .document(doctorUid)
                                     .get()
-                                    .addOnSuccessListener { photoDoc ->
-                                        val profileImageUrl = photoDoc.getString("photoUrl") ?: ""
-                                        Log.d("fetchDoctors", "Profile image URL: $profileImageUrl")
+                                    .addOnSuccessListener { phoneDoc ->
+                                        val phoneNumber = phoneDoc.getString("phoneNumber") ?: "Unknown"
+                                        Log.d("fetchDoctors", "Doctor phone number: $phoneNumber")
 
-                                        // Create the Doctor object with the correct doctorUid
-                                        doctorList.add(Doctor(fullName, profileImageUrl, doctorUid))
-
-                                        // After all doctors are fetched, update the adapter
-                                        if (doctorList.size == doctorUids.size) {
-                                            doctorAdapter = DoctorAdapter(doctorList, patientId) { doctorName, doctorPhoneNumber, doctorUid, patientId, patientName, profileImage ->
-                                                this.doctorUid = doctorUid // Store the doctorUid globally
-                                                navigateToRoomChat(doctorName, doctorPhoneNumber, doctorUid, patientId, patientName, profileImage)
-                                            }
-                                            recyclerViewDoctors.adapter = doctorAdapter
-                                            doctorAdapter.notifyDataSetChanged()
+                                        // If fullName was not found in email, try phone number collection
+                                        if (fullName == null) {
+                                            fullName = phoneDoc.getString("fullName") ?: "Dr. Unknown"
+                                            fullName = "Dr. $fullName"
+                                            Log.d("fetchDoctors", "Doctor fetched from users_doctor_phonenumber: $fullName")
                                         }
+
+                                        // Fetch profile image from doctor_photoprofile collection
+                                        db.collection("doctor_photoprofile")
+                                            .document(doctorUid)
+                                            .get()
+                                            .addOnSuccessListener { photoDoc ->
+                                                val profileImageUrl = photoDoc.getString("photoUrl") ?: ""
+                                                Log.d("fetchDoctors", "Profile image URL: $profileImageUrl")
+
+                                                // Create the Doctor object with the correct doctorUid, fullName, phone number, and profile image
+                                                doctorList.add(Doctor(fullName!!, profileImageUrl, doctorUid, phoneNumber))
+
+                                                // After all doctors are fetched, update the adapter
+                                                if (doctorList.size == doctorUids.size) {
+                                                    doctorAdapter = DoctorAdapter(doctorList, patientId) { doctorName, doctorPhoneNumber, doctorUid, patientId, patientName, profileImage ->
+                                                        this.doctorUid = doctorUid // Store the doctorUid globally
+                                                        navigateToRoomChat(doctorName, doctorPhoneNumber, doctorUid, patientId, patientName, profileImage)
+                                                    }
+                                                    recyclerViewDoctors.adapter = doctorAdapter
+                                                    doctorAdapter.notifyDataSetChanged()
+                                                }
+                                            }
+                                            .addOnFailureListener { exception ->
+                                                Log.e("Firestore", "Error fetching doctor profile image: ", exception)
+                                            }
                                     }
                                     .addOnFailureListener { exception ->
-                                        Log.e("Firestore", "Error fetching doctor profile image: ", exception)
+                                        Log.e("Firestore", "Error fetching doctor phone number: ", exception)
                                     }
                             }
                             .addOnFailureListener { exception ->
@@ -279,6 +305,11 @@ class HomeFragment : Fragment() {
                 }
         }
     }
+
+
+
+
+
 
 
 
@@ -704,42 +735,8 @@ class HomeFragment : Fragment() {
         return SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(calendar.time)
     }
 
-    private fun getUserAge(onResult: (Int?) -> Unit) {
-        val currentUser = auth.currentUser
-        if (currentUser == null) {
-            onResult(null)
-            return
-        }
 
-        val email = currentUser.email
-        val phoneNumber = currentUser.phoneNumber
 
-        if (email != null) {
-            firestore.collection("users_patient_email")
-                .whereEqualTo("email", email)
-                .get()
-                .addOnSuccessListener { documents ->
-                    val age = documents.firstOrNull()?.getString("age")?.toInt()
-                    onResult(age)
-                }
-                .addOnFailureListener {
-                    onResult(null)
-                }
-        } else if (phoneNumber != null) {
-            firestore.collection("users_patient_phonenumber")
-                .whereEqualTo("phoneNumber", phoneNumber)
-                .get()
-                .addOnSuccessListener { documents ->
-                    val age = documents.firstOrNull()?.getLong("age")?.toInt()
-                    onResult(age)
-                }
-                .addOnFailureListener {
-                    onResult(null)
-                }
-        } else {
-            onResult(null)
-        }
-    }
 
     private fun fetchWeeklyAverages() {
         getUserAge { age ->
@@ -952,34 +949,131 @@ class HomeFragment : Fragment() {
         val currentUser = auth.currentUser ?: return onResult(null)
 
         val email = currentUser.email
-        val phoneNumber = currentUser.phoneNumber
+        var phoneNumber = currentUser.phoneNumber
+
+        // Format the phone number if it starts with "+62"
+        phoneNumber = formatPhoneNumber(phoneNumber)
 
         val firestore = FirebaseFirestore.getInstance()
 
-        if (email != null) {
+        Log.d("ProfilePatient", "Current User Email: $email")
+        Log.d("ProfilePatient", "Formatted Phone: $phoneNumber")
+
+        if (!email.isNullOrEmpty()) {
             firestore.collection("users_patient_email")
                 .whereEqualTo("email", email)
                 .get()
                 .addOnSuccessListener { documents ->
-                    val uid = documents.firstOrNull()?.getString("userId")
-                    onResult(uid)
+                    Log.d("ProfilePatient", "Email query result size: ${documents.size()}")
+                    if (documents.isEmpty) {
+                        Log.e("ProfilePatient", "No user document found for email")
+                        onResult(null)  // No user document found for email
+                    } else {
+                        val uid = documents.firstOrNull()?.getString("userId")
+                        Log.d("ProfilePatient", "Found userId for email: $uid")
+                        onResult(uid)
+                    }
                 }
-                .addOnFailureListener {
+                .addOnFailureListener { e ->
+                    Log.e("ProfilePatient", "Error querying email", e)
                     onResult(null)
                 }
-        } else if (phoneNumber != null) {
+        } else if (!phoneNumber.isNullOrEmpty()) {
             firestore.collection("users_patient_phonenumber")
                 .whereEqualTo("phoneNumber", phoneNumber)
                 .get()
                 .addOnSuccessListener { documents ->
-                    val uid = documents.firstOrNull()?.getString("userId")
-                    onResult(uid)
+                    Log.d("ProfilePatient", "Phone number query result size: ${documents.size()}")
+                    if (documents.isEmpty) {
+                        Log.e("ProfilePatient", "No user document found for phone number")
+                        onResult(null)  // No user document found for phone number
+                    } else {
+                        val uid = documents.firstOrNull()?.getString("userId")
+                        Log.d("ProfilePatient", "Found userId for phone number: $uid")
+                        onResult(uid)
+                    }
                 }
-                .addOnFailureListener {
+                .addOnFailureListener { e ->
+                    Log.e("ProfilePatient", "Error querying phone number", e)
                     onResult(null)
                 }
         } else {
+            Log.e("ProfilePatient", "No email or phone number found for the current user")
+            onResult(null)  // If neither email nor phone is available
+        }
+    }
+    private fun getUserAge(onResult: (Int?) -> Unit) {
+        val currentUser = auth.currentUser
+        if (currentUser == null) {
+            Log.e(TAG, "User is not logged in.")
             onResult(null)
+            return
+        }
+
+        val email = currentUser.email
+        var phoneNumber = currentUser.phoneNumber
+
+        // Format the phone number if it starts with "+62"
+        phoneNumber = formatPhoneNumber(phoneNumber)
+
+        val firestore = FirebaseFirestore.getInstance()
+
+        Log.d(TAG, "Current User Email: $email")
+        Log.d(TAG, "Formatted Phone Number: $phoneNumber")
+
+        if (!email.isNullOrEmpty()) {
+            firestore.collection("users_patient_email")
+                .whereEqualTo("email", email)
+                .get()
+                .addOnSuccessListener { documents ->
+                    Log.d(TAG, "Email query result size: ${documents.size()}")
+                    if (documents.isEmpty) {
+                        Log.e(TAG, "No user document found for email.")
+                        onResult(null)  // No user document found for email
+                    } else {
+                        val age = documents.firstOrNull()?.getString("age")?.toInt()
+                        Log.d(TAG, "Found age for email: $age")
+                        onResult(age)
+                    }
+                }
+                .addOnFailureListener { e ->
+                    Log.e(TAG, "Error querying email", e)
+                    onResult(null)
+                }
+        } else if (!phoneNumber.isNullOrEmpty()) {
+            firestore.collection("users_patient_phonenumber")
+                .whereEqualTo("phoneNumber", phoneNumber)
+                .get()
+                .addOnSuccessListener { documents ->
+                    Log.d(TAG, "Phone number query result size: ${documents.size()}")
+                    if (documents.isEmpty) {
+                        Log.e(TAG, "No user document found for phone number.")
+                        onResult(null)  // No user document found for phone number
+                    } else {
+                        val age = documents.firstOrNull()?.getString("age")?.toInt()
+                        Log.d(TAG, "Found age for phone number: $age")
+                        onResult(age)
+                    }
+                }
+                .addOnFailureListener { e ->
+                    Log.e(TAG, "Error querying phone number", e)
+                    onResult(null)
+                }
+        } else {
+            Log.e(TAG, "No email or phone number found for the current user.")
+            onResult(null)  // If neither email nor phone is available
+        }
+    }
+
+
+    // Helper function to format phone number
+    private fun formatPhoneNumber(phoneNumber: String?): String? {
+        return phoneNumber?.let {
+            if (it.startsWith("+62")) {
+                "0" + it.substring(3)  // Replace +62 with 0
+            } else {
+                it  // Return phone number as is if it doesn't start with +62
+            }
         }
     }
 

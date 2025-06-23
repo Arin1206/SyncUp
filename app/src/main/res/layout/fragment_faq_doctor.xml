@@ -8,7 +8,6 @@
     android:background="@color/white"
     android:id="@+id/scroll_container"
     tools:context=".faq.FaqDoctorFragment">
-
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/main"
         android:layout_width="match_parent"
@@ -16,9 +15,6 @@
         android:paddingHorizontal="10dp"
         android:paddingBottom="10dp"
         android:background="@color/white">
-
-        <!-- Logo -->
-
         <TextView
             android:id="@+id/subjudul3"
             android:layout_width="wrap_content"
@@ -33,7 +29,6 @@
             app:layout_constraintHorizontal_bias="0.026"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/textviewgq2" />
-
         <ImageView
             android:id="@+id/imageView5"
             android:layout_width="wrap_content"
@@ -46,11 +41,6 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintVertical_bias="0.26"
             app:srcCompat="@drawable/logo" />
-
-        <!-- Tombol Back -->
-
-        <!-- Judul "Faq" -->
-
         <ImageView
             android:id="@+id/arrow"
             android:layout_width="wrap_content"
@@ -61,7 +51,6 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:srcCompat="@drawable/arrow_1" />
-
         <TextView
             android:id="@+id/textView6"
             android:layout_width="wrap_content"
@@ -75,7 +64,6 @@
             app:layout_constraintHorizontal_bias="0.498"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
-
         <TextView
             android:id="@+id/textviewgq3"
             android:layout_width="wrap_content"
@@ -89,7 +77,6 @@
             app:layout_constraintHorizontal_bias="0.025"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/isi4" />
-
         <TextView
             android:id="@+id/textviewgq2"
             android:layout_width="wrap_content"
@@ -103,7 +90,6 @@
             app:layout_constraintHorizontal_bias="0.026"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/isi2" />
-
         <TextView
             android:id="@+id/textView16"
             android:layout_width="wrap_content"
@@ -117,7 +103,6 @@
             app:layout_constraintHorizontal_bias="0.024"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
-
         <TextView
             android:id="@+id/subjudul5"
             android:layout_width="wrap_content"
@@ -132,7 +117,6 @@
             app:layout_constraintHorizontal_bias="0.016"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/textviewgq3" />
-
         <TextView
             android:id="@+id/subjudul4"
             android:layout_width="wrap_content"
@@ -147,7 +131,6 @@
             app:layout_constraintHorizontal_bias="0.037"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/isi3" />
-
         <TextView
             android:id="@+id/subjudul2"
             android:layout_width="wrap_content"
@@ -162,7 +145,6 @@
             app:layout_constraintHorizontal_bias="0.037"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/textView23" />
-
         <TextView
             android:id="@+id/textView18"
             android:layout_width="wrap_content"
@@ -177,7 +159,6 @@
             app:layout_constraintHorizontal_bias="0.026"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/textView16" />
-
         <TextView
             android:id="@+id/isi4"
             android:layout_width="350dp"
@@ -191,7 +172,6 @@
             app:layout_constraintHorizontal_bias="0.146"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/subjudul4" />
-
         <TextView
             android:id="@+id/isi2"
             android:layout_width="350dp"
@@ -205,7 +185,6 @@
             app:layout_constraintHorizontal_bias="0.146"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/subjudul2" />
-
         <TextView
             android:id="@+id/isi3"
             android:layout_width="350dp"
@@ -219,7 +198,6 @@
             app:layout_constraintHorizontal_bias="0.146"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/subjudul3" />
-
         <TextView
             android:id="@+id/textView23"
             android:layout_width="350dp"
@@ -233,7 +211,6 @@
             app:layout_constraintHorizontal_bias="0.146"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/textView18" />
-
         <TextView
             android:id="@+id/subjudul6"
             android:layout_width="wrap_content"
@@ -248,7 +225,6 @@
             app:layout_constraintHorizontal_bias="0.017"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/fullNameEditTextLayout" />
-
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/fullNameEditTextLayout"
             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
@@ -267,7 +243,6 @@
             app:boxStrokeWidth="0dp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/subjudul5">
-
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/ed_regis_fullname"
                 android:layout_width="match_parent"
@@ -283,7 +258,6 @@
                 android:focusableInTouchMode="true"
                 tools:ignore="SpeakableTextPresentCheck" />
         </com.google.android.material.textfield.TextInputLayout>
-
         <EditText
             android:id="@+id/message_field"
             android:layout_width="0dp"
@@ -303,7 +277,6 @@
             app:layout_constraintHorizontal_bias="1.0"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/subjudul6" />
-
         <Button
             android:id="@+id/submit_button"
             android:layout_width="wrap_content"
@@ -320,5 +293,4 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/message_field" />
     </androidx.constraintlayout.widget.ConstraintLayout>
-
 </ScrollView>

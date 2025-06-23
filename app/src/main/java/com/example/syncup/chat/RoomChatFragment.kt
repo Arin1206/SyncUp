@@ -108,9 +108,13 @@ class RoomChatFragment : Fragment() {
     }
 
     private fun formatNomorTelepon(phone: String): String {
-
-        return phone.replace("-", "").trim()
+        return if (phone.startsWith("+62")) {
+            "0" + phone.substring(3) // Replace +62 with 0
+        } else {
+            phone.replace("-", "").trim() // Clean up any hyphens and trim the number
+        }
     }
+
 
     private fun fetchUserData() {
         val currentUser = FirebaseAuth.getInstance().currentUser ?: return
@@ -120,12 +124,7 @@ class RoomChatFragment : Fragment() {
 
         val (collection, field, identifier) = when {
             !userEmail.isNullOrEmpty() -> Triple("users_patient_email", "email", userEmail)
-            !userPhone.isNullOrEmpty() -> Triple(
-                "users_patient_phonenumber",
-                "phoneNumber",
-                userPhone
-            )
-
+            !userPhone.isNullOrEmpty() -> Triple("users_patient_phonenumber", "phoneNumber", userPhone)
             else -> return
         }
 
@@ -142,6 +141,7 @@ class RoomChatFragment : Fragment() {
                 }
             }
     }
+
 
 
     fun showNotification(context: Context, title: String, message: String) {

@@ -27,6 +27,7 @@ class MainDoctorActivityTest{
     @Test
     fun testNavigationToInboxDoctorFragment() {
         ActivityScenario.launch(MainDoctorActivity::class.java).use {
+            Thread.sleep(1000)
             onView(withId(R.id.inbox)).perform(click())
             Thread.sleep(500)
 

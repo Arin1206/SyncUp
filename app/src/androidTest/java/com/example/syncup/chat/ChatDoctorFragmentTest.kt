@@ -21,25 +21,12 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class ChatDoctorFragmentTest{
-    @Test
-    fun testSearchQuery_valid_shouldShowResults() {
-        ActivityScenario.launch(MainDoctorActivity::class.java).use {
-            onView(withId(R.id.chat)).perform(click())
-            Thread.sleep(1000)
 
-            onView(withId(R.id.search_input)).perform(typeText("follow up"))
-            Thread.sleep(1500) // tunggu proses search/filter
-            onView(withId(R.id.recyclerViewChats)).check(matches(
-                ViewMatchers.withEffectiveVisibility(
-                    ViewMatchers.Visibility.VISIBLE
-                )
-            ))
-        }
-    }
 
     @Test
     fun testSearchQuery_invalid_shouldShowEmptyList() {
         ActivityScenario.launch(MainDoctorActivity::class.java).use {
+            Thread.sleep(1000)
             onView(withId(R.id.chat)).perform(click())
             Thread.sleep(1000)
 
@@ -52,6 +39,7 @@ class ChatDoctorFragmentTest{
     @Test
     fun testSearchQuery_empty_shouldShowAll() {
         ActivityScenario.launch(MainDoctorActivity::class.java).use {
+            Thread.sleep(1000)
             onView(withId(R.id.chat)).perform(click())
             Thread.sleep(1000)
 
@@ -68,11 +56,28 @@ class ChatDoctorFragmentTest{
     @Test
     fun testSearchQuery_specialCharacters_shouldHandleGracefully() {
         ActivityScenario.launch(MainDoctorActivity::class.java).use {
+            Thread.sleep(1000)
             onView(withId(R.id.chat)).perform(click())
             Thread.sleep(1000)
 
             onView(withId(R.id.search_input)).perform(typeText("@#$%!"))
             Thread.sleep(1500)
+            onView(withId(R.id.recyclerViewChats)).check(matches(
+                ViewMatchers.withEffectiveVisibility(
+                    ViewMatchers.Visibility.VISIBLE
+                )
+            ))
+        }
+    }
+
+    @Test
+    fun testSearchQuery_valid_shouldShowResults() {
+        ActivityScenario.launch(MainDoctorActivity::class.java).use {
+            Thread.sleep(1000)
+            onView(withId(R.id.chat)).perform(click())
+            Thread.sleep(1000)
+            onView(withId(R.id.search_input)).perform(typeText("follow up"))
+            Thread.sleep(1500) // tunggu proses search/filter
             onView(withId(R.id.recyclerViewChats)).check(matches(
                 ViewMatchers.withEffectiveVisibility(
                     ViewMatchers.Visibility.VISIBLE

@@ -21,6 +21,7 @@ class InboxPatientFragmentTest {
     @Test
     fun testInboxFragment_VisibleElements() {
         ActivityScenario.launch(MainPatientActivity::class.java).use {
+            Thread.sleep(1000)
             onView(withId(R.id.profile)).perform(click()) // navigasi ke ProfileFragment
             Thread.sleep(500)
 
@@ -36,6 +37,7 @@ class InboxPatientFragmentTest {
     @Test
     fun testBackButtonNavigatesToHome() {
         ActivityScenario.launch(MainPatientActivity::class.java).use {
+            Thread.sleep(1000)
             onView(withId(R.id.profile)).perform(click())
             Thread.sleep(500)
 
@@ -54,6 +56,8 @@ class InboxPatientFragmentTest {
     @Test
     fun testEmptyNotificationList_HandledGracefully() {
         ActivityScenario.launch(MainPatientActivity::class.java).use {
+
+            Thread.sleep(1000)
             onView(withId(R.id.profile)).perform(click())
             Thread.sleep(500)
 

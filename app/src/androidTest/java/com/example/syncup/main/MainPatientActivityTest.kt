@@ -52,6 +52,7 @@ class MainPatientActivityTest {
         // Launch the MainPatientActivity
         ActivityScenario.launch(MainPatientActivity::class.java).use { scenario ->
 
+            Thread.sleep(1000)
             // Simulate that the age data is missing by mocking the response in the method `checkUserAgeBeforeScan`
             // For this test, we're assuming that the age is not available, so the alert dialog should show up
 
@@ -105,6 +106,7 @@ class MainPatientActivityTest {
     fun testNavigateToProfileFragment() {
         // Trigger the navigation to ProfilePatientFragment
         ActivityScenario.launch(MainPatientActivity::class.java).use { scenario ->
+            Thread.sleep(1000)
             Espresso.onView(withId(R.id.profile)).perform(ViewActions.click()) // Assuming "profile" button ID
             // Verify that ProfileFragment is displayed by checking a unique UI element from ProfileFragment
             Espresso.onView(withId(R.id.textView22)) // Replace with actual unique element from ProfileFragment

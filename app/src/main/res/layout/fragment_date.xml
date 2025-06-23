@@ -5,12 +5,9 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".history.fragment.DateFragment">
-
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">
-        <!-- TODO: Update blank fragment layout -->
-
         <TextView
             android:id="@+id/textView9"
             android:layout_width="wrap_content"
@@ -23,7 +20,6 @@
             app:layout_constraintHorizontal_bias="0.045"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
-
         <TextView
             android:id="@+id/textView8"
             android:layout_width="wrap_content"
@@ -37,7 +33,6 @@
             app:layout_constraintHorizontal_bias="0.717"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
-
         <TextView
             android:id="@+id/textView10"
             android:layout_width="wrap_content"
@@ -51,7 +46,6 @@
             app:layout_constraintHorizontal_bias="0.59"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
-
         <TextView
             android:id="@+id/avg_heartrate"
             android:layout_width="wrap_content"
@@ -66,7 +60,6 @@
             app:layout_constraintVertical_bias="0.272"
             tools:ignore="MissingConstraints"
             tools:layout_editor_absoluteX="0dp" />
-
         <TextView
             android:id="@+id/avg_bloodpressure"
             android:layout_width="wrap_content"
@@ -75,13 +68,11 @@
             android:fontFamily="@font/bold_font"
             android:text=""
             android:textColor="@color/black"
-
             android:textSize="28sp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintHorizontal_bias="0.268"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/textView8" />
-
         <TextView
             android:id="@+id/textView13"
             android:layout_width="wrap_content"
@@ -97,7 +88,6 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/textView10"
             app:layout_constraintVertical_bias="0.0" />
-
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recycler_view_health"
             android:layout_width="match_parent"
@@ -107,8 +97,7 @@
             app:layout_constraintTop_toBottomOf="@+id/avg_bloodpressure"
             tools:ignore="MissingConstraints"
             tools:layout_editor_absoluteX="0dp" />
-
-                <com.example.syncup.chart.HeartRateChartView
+        <com.example.syncup.chart.HeartRateChartView
             android:id="@+id/heartRateChart"
             android:layout_width="90dp"
             android:layout_height="80dp"
@@ -121,7 +110,6 @@
             app:layout_constraintHorizontal_bias="1.0"
             app:layout_constraintStart_toEndOf="@+id/textView13"
             app:layout_constraintTop_toTopOf="parent" />
-
         <ImageView
             android:id="@+id/btnScrollUp"
             android:layout_width="30dp"
@@ -135,11 +123,7 @@
             android:visibility="gone"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
-
-
     </androidx.constraintlayout.widget.ConstraintLayout>
-
-    <!-- Empty State View -->
     <LinearLayout
         android:id="@+id/emptyStateView"
         android:layout_width="match_parent"
@@ -148,14 +132,12 @@
         android:gravity="center"
         android:visibility="gone"
         android:background="@android:color/white">
-
         <ImageView
             android:id="@+id/emptyImage"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:src="@drawable/empty_image"
             android:contentDescription="Empty State" />
-
         <TextView
             android:id="@+id/emptyText"
             android:layout_width="wrap_content"
@@ -165,6 +147,4 @@
             android:textSize="16sp"
             android:layout_marginTop="8dp" />
     </LinearLayout>
-
-
 </FrameLayout>

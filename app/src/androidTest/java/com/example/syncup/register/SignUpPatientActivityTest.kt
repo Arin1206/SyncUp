@@ -147,7 +147,7 @@ class SignUpPatientActivityTest {
     fun loginButton_navigatesToWelcomeActivity() {
         // Launch the activity using ActivityScenario
         ActivityScenario.launch(SignUpPatientActivity::class.java).use { scenario ->
-
+            Thread.sleep(1000)
             // Simulate clicking the login button (which navigates to WelcomeActivity)
             Espresso.onView(ViewMatchers.withId(R.id.login))
                 .perform(ViewActions.click())

@@ -128,46 +128,52 @@ class MainPatientActivity : AppCompatActivity() {
     }
 
     private fun checkUserAgeBeforeScan(onResult: (Boolean) -> Unit) {
-        val auth = FirebaseAuth.getInstance()
-        val currentUser = auth.currentUser ?: return onResult(false)
+        getActualPatientUid { userId ->
+            if (userId == null) {
+                onResult(false)  // If no userId, return false
+                return@getActualPatientUid
+            }
 
-        val email = currentUser.email
-        val phoneNumber = currentUser.phoneNumber
-        val firestore = FirebaseFirestore.getInstance()
+            val firestore = FirebaseFirestore.getInstance()
 
-        val collectionName: String
-        val queryField: String
-        val queryValue: String
-
-        if (email != null) {
-            collectionName = "users_patient_email"
-            queryField = "email"
-            queryValue = email
-        } else if (phoneNumber != null) {
-            collectionName = "users_patient_phonenumber"
-            queryField = "phoneNumber"
-            queryValue = phoneNumber
-        } else {
-            return onResult(false)
-        }
-
-        firestore.collection(collectionName)
-            .whereEqualTo(queryField, queryValue)
-            .get()
-            .addOnSuccessListener { documents ->
-                val age = documents.firstOrNull()?.get("age")
-
-                val isValid = when (age) {
-                    is Long -> age > 0 // Jika age berupa angka
-                    is String -> age != "0" && age.lowercase() != "n/a" && age.isNotBlank()
-                    else -> false
+            // Querying the users_patient_email or users_patient_phonenumber collection by userId
+            firestore.collection("users_patient_email")
+                .whereEqualTo("userId", userId)
+                .get()
+                .addOnSuccessListener { documents ->
+                    // Check if the user is found in users_patient_email
+                    if (documents.isEmpty) {
+                        // If not found, check users_patient_phonenumber
+                        firestore.collection("users_patient_phonenumber")
+                            .whereEqualTo("userId", userId)
+                            .get()
+                            .addOnSuccessListener { phoneDocuments ->
+                                if (phoneDocuments.isEmpty) {
+                                    onResult(false)  // If no user document found in both collections
+                                } else {
+                                    val age = phoneDocuments.firstOrNull()?.get("age") as? String
+                                    validateAge(age, onResult)
+                                }
+                            }
+                            .addOnFailureListener {
+                                onResult(false)
+                            }
+                    } else {
+                        val age = documents.firstOrNull()?.get("age") as? String
+                        validateAge(age, onResult)
+                    }
                 }
+                .addOnFailureListener {
+                    onResult(false)  // Handle failure cases
+                }
+        }
+    }
 
-                onResult(isValid)
-            }
-            .addOnFailureListener {
-                onResult(false)
-            }
+
+    private fun validateAge(age: String?, onResult: (Boolean) -> Unit) {
+        // Check if the age is a valid, non-empty string
+        val isValid = !age.isNullOrBlank() && age != "0" && age.lowercase() != "n/a"
+        onResult(isValid)  // Return the result
     }
 
 
@@ -416,34 +422,69 @@ class MainPatientActivity : AppCompatActivity() {
         val currentUser = auth.currentUser ?: return onResult(null)
 
         val email = currentUser.email
-        val phoneNumber = currentUser.phoneNumber
+        var phoneNumber = currentUser.phoneNumber
+
+        // Format the phone number if it starts with "+62"
+        phoneNumber = formatPhoneNumber(phoneNumber)
 
         val firestore = FirebaseFirestore.getInstance()
 
-        if (email != null) {
+        Log.d("ProfilePatient", "Current User Email: $email")
+        Log.d("ProfilePatient", "Formatted Phone: $phoneNumber")
+
+        if (!email.isNullOrEmpty()) {
             firestore.collection("users_patient_email")
                 .whereEqualTo("email", email)
                 .get()
                 .addOnSuccessListener { documents ->
-                    val uid = documents.firstOrNull()?.getString("userId")
-                    onResult(uid)
+                    Log.d("ProfilePatient", "Email query result size: ${documents.size()}")
+                    if (documents.isEmpty) {
+                        Log.e("ProfilePatient", "No user document found for email")
+                        onResult(null)  // No user document found for email
+                    } else {
+                        val uid = documents.firstOrNull()?.getString("userId")
+                        Log.d("ProfilePatient", "Found userId for email: $uid")
+                        onResult(uid)
+                    }
                 }
-                .addOnFailureListener {
+                .addOnFailureListener { e ->
+                    Log.e("ProfilePatient", "Error querying email", e)
                     onResult(null)
                 }
-        } else if (phoneNumber != null) {
+        } else if (!phoneNumber.isNullOrEmpty()) {
             firestore.collection("users_patient_phonenumber")
                 .whereEqualTo("phoneNumber", phoneNumber)
                 .get()
                 .addOnSuccessListener { documents ->
-                    val uid = documents.firstOrNull()?.getString("userId")
-                    onResult(uid)
+                    Log.d("ProfilePatient", "Phone number query result size: ${documents.size()}")
+                    if (documents.isEmpty) {
+                        Log.e("ProfilePatient", "No user document found for phone number")
+                        onResult(null)  // No user document found for phone number
+                    } else {
+                        val uid = documents.firstOrNull()?.getString("userId")
+                        Log.d("ProfilePatient", "Found userId for phone number: $uid")
+                        onResult(uid)
+                    }
                 }
-                .addOnFailureListener {
+                .addOnFailureListener { e ->
+                    Log.e("ProfilePatient", "Error querying phone number", e)
                     onResult(null)
                 }
         } else {
-            onResult(null)
+            Log.e("ProfilePatient", "No email or phone number found for the current user")
+            onResult(null)  // If neither email nor phone is available
+        }
+    }
+
+
+    // Helper function to format phone number
+    private fun formatPhoneNumber(phoneNumber: String?): String? {
+        return phoneNumber?.let {
+            if (it.startsWith("+62")) {
+                "0" + it.substring(3)  // Replace +62 with 0
+            } else {
+                it  // Return phone number as is if it doesn't start with +62
+            }
         }
     }
 

@@ -69,11 +69,12 @@ class PatientLoginFragmentTest {
         // Launch the fragment using ActivityScenario
         ActivityScenario.launch(WelcomeActivity::class.java).use { scenario ->
 
+            Thread.sleep(1000)
             // Simulate clicking the Google Sign-In button
             Espresso.onView(ViewMatchers.withId(R.id.customgoogle))
                 .perform(ViewActions.click())
 
-            // Verify that the Google Sign-In intent is launched
+            // Verify  that the Google Sign-In intent is launched
             Intents.intended(IntentMatchers.hasComponent("com.google.android.gms.auth.api.signin.internal.SignInHubActivity"))
 
             // Optional: End the test after verifying the intent is launched

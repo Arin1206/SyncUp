@@ -91,34 +91,69 @@ class ProfilePatientFragment :Fragment() {
         val currentUser = auth.currentUser ?: return onResult(null)
 
         val email = currentUser.email
-        val phoneNumber = currentUser.phoneNumber
+        var phoneNumber = currentUser.phoneNumber
+
+        // Format the phone number if it starts with "+62"
+        phoneNumber = formatPhoneNumber(phoneNumber)
 
         val firestore = FirebaseFirestore.getInstance()
 
-        if (email != null) {
+        Log.d("ProfilePatient", "Current User Email: $email")
+        Log.d("ProfilePatient", "Formatted Phone: $phoneNumber")
+
+        if (!email.isNullOrEmpty()) {
             firestore.collection("users_patient_email")
                 .whereEqualTo("email", email)
                 .get()
                 .addOnSuccessListener { documents ->
-                    val uid = documents.firstOrNull()?.getString("userId")
-                    onResult(uid)
+                    Log.d("ProfilePatient", "Email query result size: ${documents.size()}")
+                    if (documents.isEmpty) {
+                        Log.e("ProfilePatient", "No user document found for email")
+                        onResult(null)  // No user document found for email
+                    } else {
+                        val uid = documents.firstOrNull()?.getString("userId")
+                        Log.d("ProfilePatient", "Found userId for email: $uid")
+                        onResult(uid)
+                    }
                 }
-                .addOnFailureListener {
+                .addOnFailureListener { e ->
+                    Log.e("ProfilePatient", "Error querying email", e)
                     onResult(null)
                 }
-        } else if (phoneNumber != null) {
+        } else if (!phoneNumber.isNullOrEmpty()) {
             firestore.collection("users_patient_phonenumber")
                 .whereEqualTo("phoneNumber", phoneNumber)
                 .get()
                 .addOnSuccessListener { documents ->
-                    val uid = documents.firstOrNull()?.getString("userId")
-                    onResult(uid)
+                    Log.d("ProfilePatient", "Phone number query result size: ${documents.size()}")
+                    if (documents.isEmpty) {
+                        Log.e("ProfilePatient", "No user document found for phone number")
+                        onResult(null)  // No user document found for phone number
+                    } else {
+                        val uid = documents.firstOrNull()?.getString("userId")
+                        Log.d("ProfilePatient", "Found userId for phone number: $uid")
+                        onResult(uid)
+                    }
                 }
-                .addOnFailureListener {
+                .addOnFailureListener { e ->
+                    Log.e("ProfilePatient", "Error querying phone number", e)
                     onResult(null)
                 }
         } else {
-            onResult(null)
+            Log.e("ProfilePatient", "No email or phone number found for the current user")
+            onResult(null)  // If neither email nor phone is available
+        }
+    }
+
+
+    // Helper function to format phone number
+    private fun formatPhoneNumber(phoneNumber: String?): String? {
+        return phoneNumber?.let {
+            if (it.startsWith("+62")) {
+                "0" + it.substring(3)  // Replace +62 with 0
+            } else {
+                it  // Return phone number as is if it doesn't start with +62
+            }
         }
     }
 

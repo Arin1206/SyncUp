@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "652599682808",
+    "firebase_url": "https://sync-up-f40ee-default-rtdb.firebaseio.com",
     "project_id": "sync-up-f40ee",
     "storage_bucket": "sync-up-f40ee.firebasestorage.app"
   },
@@ -19,6 +20,14 @@
           "android_info": {
             "package_name": "com.example.snycup",
             "certificate_hash": "b12e1251199a1733d2bf3ef8c5f7a23d9bbfa396"
+          }
+        },
+        {
+          "client_id": "652599682808-vuokao71mqdjru4qncs0o1ljte7v9u57.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.snycup",
+            "certificate_hash": "a58c4fcd1f9d378a1a15ea6d26e042ef21cf288a"
           }
         },
         {
@@ -56,6 +65,14 @@
           "android_info": {
             "package_name": "com.example.syncup",
             "certificate_hash": "b12e1251199a1733d2bf3ef8c5f7a23d9bbfa396"
+          }
+        },
+        {
+          "client_id": "652599682808-aam0q8786bjc82snfg1nbjv81quf12ur.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.syncup",
+            "certificate_hash": "a58c4fcd1f9d378a1a15ea6d26e042ef21cf288a"
           }
         },
         {

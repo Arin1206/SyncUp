@@ -114,6 +114,8 @@ class ProfileDoctorFragmentTest {
     @Test
     fun testInvalidGenderDisplayed() {
         ActivityScenario.launch(MainDoctorActivity::class.java).use { scenario ->
+
+            Thread.sleep(1000)
             onView(withId(R.id.profile)).perform(click())
             Thread.sleep(800)
 

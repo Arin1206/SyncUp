@@ -6,22 +6,11 @@
     tools:context=".DoctorLoginFragment"
     android:background="@drawable/fragment_background"
     android:fillViewport="false">
-
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:paddingBottom="20dp"
         android:paddingTop="20dp">
-
-        <!-- Phone Number Label -->
-
-        <!-- Phone Number Input Field -->
-
-        <!-- Phone Number Input Field -->
-
-
-
-        <!-- Phone Label -->
         <TextView
             android:id="@+id/phonenumbertextview"
             android:layout_width="wrap_content"
@@ -34,12 +23,6 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             tools:ignore="MissingConstraints" />
-
-        <!-- STR Label -->
-
-        <!-- Phone Input -->
-
-
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/phoneEditTextLayout"
             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
@@ -57,7 +40,6 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/phonenumbertextview"
             tools:ignore="MissingConstraints">
-
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/ed_regis_phone"
                 android:layout_width="match_parent"
@@ -70,9 +52,6 @@
                 android:paddingVertical="8dp"
                 tools:ignore="SpeakableTextPresentCheck" />
         </com.google.android.material.textfield.TextInputLayout>
-
-        <!-- STR Input -->
-
         <TextView
             android:id="@+id/customTextView2"
             android:layout_width="158dp"
@@ -94,7 +73,6 @@
             app:layout_constraintHorizontal_bias="0.502"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/phoneEditTextLayout" />
-
         <TextView
             android:id="@+id/textView"
             android:layout_width="wrap_content"
@@ -107,7 +85,6 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/customTextView2" />
-
         <View
             android:layout_width="47dp"
             android:layout_height="1dp"
@@ -117,7 +94,6 @@
             app:layout_constraintStart_toEndOf="@+id/textView"
             app:layout_constraintTop_toBottomOf="@+id/customTextView2"
             tools:ignore="MissingConstraints" />
-
         <View
             android:layout_width="47dp"
             android:layout_height="1dp"
@@ -127,7 +103,6 @@
             app:layout_constraintEnd_toStartOf="@+id/textView"
             app:layout_constraintTop_toBottomOf="@+id/customTextView2"
             tools:ignore="MissingConstraints" />
-
         <TextView
             android:id="@+id/customgoogle"
             android:layout_width="147dp"
@@ -150,7 +125,6 @@
             app:layout_constraintHorizontal_bias="0.497"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/textView" />
-
         <TextView
             android:id="@+id/textView3"
             android:layout_width="wrap_content"
@@ -164,7 +138,6 @@
             app:layout_constraintHorizontal_bias="0.363"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/customgoogle" />
-
         <TextView
             android:id="@+id/textView4"
             android:layout_width="wrap_content"
@@ -180,7 +153,5 @@
             app:layout_constraintHorizontal_bias="0.069"
             app:layout_constraintStart_toEndOf="@+id/textView3"
             app:layout_constraintTop_toBottomOf="@+id/customgoogle" />
-
-
     </androidx.constraintlayout.widget.ConstraintLayout>
 </ScrollView>

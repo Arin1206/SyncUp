@@ -65,6 +65,8 @@ class ChatFragmentTest {
     @Test
     fun testSearchInput_CommonKeyword() {
         ActivityScenario.launch(MainPatientActivity::class.java).use {
+
+            Thread.sleep(2000)
             onView(withId(R.id.chat)).perform(click())
             Thread.sleep(1000)
 

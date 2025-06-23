@@ -11,8 +11,6 @@
     android:paddingTop="25dp"
     android:clipToPadding="false"
     tools:context="main.MainPatientActivity">
-
-    <!-- Frame Layout untuk Menampilkan Fragment -->
     <FrameLayout
         android:id="@+id/frame"
         android:layout_width="match_parent"
@@ -22,8 +20,6 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"/>
-
-    <!-- Bottom Navigation dengan Tombol Tengah Floating -->
     <RelativeLayout
         android:id="@+id/bottom_navigation"
         android:layout_width="match_parent"
@@ -34,10 +30,7 @@
         android:elevation="10dp"
         android:clipChildren="false"
         android:clipToPadding="false"
-
         app:layout_constraintBottom_toBottomOf="parent">
-
-        <!-- FrameLayout untuk Menggabungkan Tombol Scan dan Teks -->
         <FrameLayout
             android:id="@+id/scanButtonContainer"
             android:layout_width="wrap_content"
@@ -46,8 +39,6 @@
             android:layout_centerHorizontal="true"
             android:translationY="-15dp"
             android:translationZ="30dp">
-
-            <!-- Tombol Tengah Floating -->
             <ImageView
                 android:id="@+id/scanButton"
                 android:layout_width="81dp"
@@ -58,8 +49,6 @@
                 android:src="@drawable/contactless"
                 android:layout_marginBottom="2dp"
                 android:elevation="30dp"/>
-
-            <!-- Teks Scan di dalam Tombol -->
             <TextView
                 android:id="@+id/scanText"
                 android:layout_width="wrap_content"
@@ -74,8 +63,6 @@
                 android:textSize="12sp"
                 android:textStyle="bold" />
         </FrameLayout>
-
-        <!-- Bottom Navigation View -->
         <com.google.android.material.bottomnavigation.BottomNavigationView
             android:id="@+id/bottomNav"
             android:layout_width="match_parent"
@@ -84,7 +71,6 @@
             android:background="@drawable/bottom_nav_rounded_background"
             android:elevation="12dp"
             android:paddingTop="0dp"
-
             app:itemIconTint="@color/black"
             android:layout_marginHorizontal="10dp"
             app:itemTextColor="@color/black"
@@ -96,11 +82,5 @@
             app:itemTextAppearanceInactive="@color/black"
             app:labelVisibilityMode="labeled"
             android:fitsSystemWindows="false"/>
-
-
     </RelativeLayout>
-
-
-
-
 </androidx.constraintlayout.widget.ConstraintLayout>
