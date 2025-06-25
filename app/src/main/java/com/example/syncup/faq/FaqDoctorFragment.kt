@@ -132,28 +132,23 @@ class FaqDoctorFragment : Fragment() {
     private fun sendMessage() {
         val email = emailEditText.text.toString().trim()
         val message = messageEditText.text.toString().trim()
-
         val userId = currentUser?.uid ?: ""
         if (email.isEmpty() || message.isEmpty()) {
             Toast.makeText(requireContext(), "Email and message cannot be empty.", Toast.LENGTH_SHORT).show()
             return
         }
-
         val messageRequest = MessageRequest(email, message, userId)
-
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val response = apiService.sendMessage(messageRequest)
-                if (!isAdded) return@launch // Tambahkan ini untuk keamanan
-
+                if (!isAdded) return@launch
                 requireActivity().runOnUiThread {
-                    if (!isAdded) return@runOnUiThread // Tambahkan ini juga
+                    if (!isAdded) return@runOnUiThread
                     if (response.isSuccessful) {
                         Toast.makeText(requireContext(), "Message sent successfully!", Toast.LENGTH_SHORT).show()
                         emailEditText.text.clear()
                         messageEditText.text.clear()
                         showNotification()
-
                         parentFragmentManager.beginTransaction()
                             .replace(R.id.frame, InboxDoctorFragment())
                             .addToBackStack(null)
@@ -163,13 +158,11 @@ class FaqDoctorFragment : Fragment() {
                     }
                 }
             } catch (e: Exception) {
-                if (!isAdded) return@launch // Cegah crash
-
+                if (!isAdded) return@launch
                 requireActivity().runOnUiThread {
                     Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         }
-
     }
 }

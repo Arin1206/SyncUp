@@ -212,9 +212,6 @@ class DateDoctorFragment : Fragment() {
                 Toast.makeText(requireContext(), "Dokter tidak ditemukan", Toast.LENGTH_SHORT).show()
                 return@getActualDoctorUID
             }
-
-
-            // Bersihkan listener sebelumnya supaya gak dobel
             assignedPatientsListener?.remove()
             patientDetailsListeners.values.forEach { it.remove() }
             patientDetailsListeners.clear()
@@ -222,7 +219,6 @@ class DateDoctorFragment : Fragment() {
             patientPhotoListeners.clear()
             patientHeartRateListeners.values.forEach { it.remove() }
             patientHeartRateListeners.clear()
-
             assignedPatientsListener = firestore.collection("assigned_patient")
                 .whereEqualTo("doctorUid", doctorId)
                 .addSnapshotListener { assignedSnapshot, error ->
@@ -235,21 +231,15 @@ class DateDoctorFragment : Fragment() {
                         patientAdapter.updateList(emptyList())
                         return@addSnapshotListener
                     }
-
                     val patientIds = assignedSnapshot.documents.mapNotNull { it.getString("patientId") }
                     val patientDataList = mutableListOf<PatientData>()
-
-                    // Untuk kalkulasi rerata keseluruhan
                     val allHeartRates = mutableListOf<Int>()
                     val allSystolics = mutableListOf<Int>()
                     val allDiastolics = mutableListOf<Int>()
                     val allBatteryLevels = mutableListOf<Int>()
-
                     var completedCount = 0
                     val totalPatients = patientIds.size
-
                     fun updateUI() {
-                        // Hitung rerata keseluruhan berdasarkan patientDataList terbaru
                         if (patientDataList.isEmpty()) {
                             patientAdapter.updateList(emptyList())
                             avgHeartRateTextView.text = "-"
@@ -261,7 +251,6 @@ class DateDoctorFragment : Fragment() {
                             updateRecyclerViewHeight()
                             return
                         }
-
                         val avgHeartRates = patientDataList.mapNotNull { it.heartRate.toIntOrNull() }
                         val avgSystolics = patientDataList.mapNotNull { it.systolicBP.toIntOrNull() }
                         val avgDiastolics = patientDataList.mapNotNull { it.diastolicBP.toIntOrNull() }
@@ -269,47 +258,30 @@ class DateDoctorFragment : Fragment() {
                         emptyImage.visibility = View.GONE
                         emptyText.visibility = View.GONE
                         recyclerView.visibility = View.VISIBLE
-                        // Kalau kamu punya data battery per pasien, bisa tambahkan
-
-
-
-                        // Update adapter
                         patientAdapter.updateList(patientDataList)
-
-
                         if (avgHeartRates.isNotEmpty()) {
                             avgHeartRateTextView.text = avgHeartRates.average().toInt().toString()
                         } else {
                             avgHeartRateTextView.text = "-"
                         }
-
                         if (avgSystolics.isNotEmpty() && avgDiastolics.isNotEmpty()) {
                             avgBloodPressureTextView.text = "${avgSystolics.average().toInt()}/${avgDiastolics.average().toInt()}"
                         } else {
                             avgBloodPressureTextView.text = "-"
                         }
-
                         if (avgBatteries.isNotEmpty()) {
                             avgBatteryTextView.text = "${avgBatteries.average().toInt()}%"
                         } else {
                             avgBatteryTextView.text = "-"
                         }
-
-
-
                         heartRateChart.setData(patientDataList)
                         allPatients.clear()
                         allPatients.addAll(patientDataList)
-
-
                     }
                     for (patientId in patientIds) {
-                        // Hapus listener lama kalau ada
                         patientDetailsListeners[patientId]?.remove()
                         patientPhotoListeners[patientId]?.remove()
                         patientHeartRateListeners[patientId]?.remove()
-
-                        // Listen data detail pasien
                         patientDetailsListeners[patientId] = firestore.collection("users_patient_email")
                             .document(patientId)
                             .addSnapshotListener { userDoc, errorUser ->
@@ -319,14 +291,11 @@ class DateDoctorFragment : Fragment() {
                                     if (completedCount == totalPatients) updateUI()
                                     return@addSnapshotListener
                                 }
-
                                 val name = userDoc.getString("fullName") ?: "N/A"
                                 val age = userDoc.getString("age") ?: "-"
                                 val gender = userDoc.getString("gender") ?: "-"
                                 val email = userDoc.getString("email") ?: "-"
                                 val phoneNumber = userDoc.getString("phoneNumber") ?: "-"
-
-                                // Listen photo profile
                                 patientPhotoListeners[patientId] = firestore.collection("patient_photoprofile")
                                     .document(patientId)
                                     .addSnapshotListener { photoDoc, errorPhoto ->
@@ -336,8 +305,6 @@ class DateDoctorFragment : Fragment() {
                                         } else {
                                             photoDoc.getString("photoUrl") ?: ""
                                         }
-
-                                        // Listen heart rate data
                                         patientHeartRateListeners[patientId] = firestore.collection("patient_heart_rate")
                                             .whereEqualTo("userId", patientId)
                                             .addSnapshotListener { hrDocs, errorHr ->
@@ -347,17 +314,14 @@ class DateDoctorFragment : Fragment() {
                                                     if (completedCount == totalPatients) updateUI()
                                                     return@addSnapshotListener
                                                 }
-
                                                 val dataList = hrDocs.documents.mapNotNull { doc ->
                                                     val heartRate = doc.getLong("heartRate")?.toInt() ?: return@mapNotNull null
                                                     if (heartRate == 0) return@mapNotNull null
                                                     val systolicBP = doc.getDouble("systolicBP")?.toInt() ?: 0
                                                     val diastolicBP = doc.getDouble("diastolicBP")?.toInt() ?: 0
                                                     val batteryLevel = doc.getLong("batteryLevel")?.toInt() ?: 0
-                                                    val fullTimestamp = doc.getString("timestamp") ?: "" // Ambil timestamp dari Firestore
-
+                                                    val fullTimestamp = doc.getString("timestamp") ?: ""
                                                     Log.d("DEBUG_FILTER", "Full timestamp: $fullTimestamp | Filter: $selectedDateFilter")
-
                                                     if (selectedDateFilter != null) {
                                                         val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
                                                         val targetFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -372,8 +336,6 @@ class DateDoctorFragment : Fragment() {
                                                             return@mapNotNull null
                                                         }
                                                     }
-
-
                                                     HealthData(
                                                         heartRate = heartRate,
                                                         bloodPressure = "$systolicBP/$diastolicBP",
@@ -383,19 +345,11 @@ class DateDoctorFragment : Fragment() {
                                                         userAge = null
                                                     )
                                                 }
-
                                                 if (dataList.isNotEmpty()) {
                                                     val avgHeartRate = dataList.map { it.heartRate }.average().toInt()
                                                     val avgSystolic = dataList.map { it.bloodPressure.split("/")[0].toInt() }.average().toInt()
                                                     val avgDiastolic = dataList.map { it.bloodPressure.split("/")[1].toInt() }.average().toInt()
                                                     val avgBattery = dataList.map { it.batteryLevel }.average().toInt()
-
-                                                    // Tambah ke list global
-                                                    // Pastikan data lama pasien ini dihapus dulu jika sudah ada, untuk menghindari data duplikat
-                                                    // Simpannya dulu sementara, nanti akan kita proses di updateUI()
-
-                                                    // Update atau tambah data pasien di patientDataList
-                                                    // Cari index pasien ini di list
                                                     val existingIndex = patientDataList.indexOfFirst { it.id == patientId }
                                                     val patientData = PatientData(
                                                         id = patientId,
@@ -417,27 +371,20 @@ class DateDoctorFragment : Fragment() {
                                                     } else {
                                                         patientDataList.add(patientData)
                                                     }
-
-                                                    // Jangan langsung update UI di sini, tunggu semua pasien selesai
                                                     completedCount++
                                                     if (completedCount == totalPatients) {
                                                         updateUI()
                                                     }
-
                                                 } else {
-                                                    // Kalau pasien tidak ada data heart rate
                                                     completedCount++
                                                     if (completedCount == totalPatients) {
                                                         updateUI()
                                                     }
-
                                                 }
                                             }
                                     }
                             }
                     }
-
-
                 }
         }
     }

@@ -12,6 +12,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.RelativeLayout
 import android.widget.TextView
@@ -25,6 +26,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.syncup.R
+import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -112,8 +114,11 @@ class RoomChatDoctorFragment : Fragment() {
         fetchDoctorsData()
         sendMessageLayout = view.findViewById(R.id.sendMessageLayout)
 
-        val bottomNavLayout = activity?.findViewById<RelativeLayout>(R.id.bottom_navigation)
-        bottomNavLayout?.visibility = View.GONE
+        val bottomNavView = activity?.findViewById<BottomNavigationView>(R.id.bottomNav)
+        bottomNavView?.visibility = View.GONE
+
+        val scan = activity?.findViewById<FrameLayout>(R.id.scanButtonContainer)
+        scan?.visibility = View.GONE
 
         return view
     }
@@ -231,17 +236,12 @@ class RoomChatDoctorFragment : Fragment() {
             Log.d("Chatfragment", "Doctor UID: $doctorUid, Receiver UID: $receiverUid")
             return
         }
-
-
         val doctorName = this.doctorName
         val patientName = this.patientName
         val timestamp = System.currentTimeMillis()
-
         val dateFormat =
             java.text.SimpleDateFormat("dd MMM yyyy, HH:mm:ss", java.util.Locale.getDefault())
         val formattedDate = dateFormat.format(java.util.Date(timestamp))
-
-
         val messageData = mapOf(
             "senderName" to doctorName,
             "receiverName" to patientName,
@@ -250,7 +250,6 @@ class RoomChatDoctorFragment : Fragment() {
             "senderUid" to doctorUid,
             "receiverUid" to receiverUid
         )
-
         doctorUid?.let {
             FirebaseFirestore.getInstance().collection("chats")
                 .document(it)

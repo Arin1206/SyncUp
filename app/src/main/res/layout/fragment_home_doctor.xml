@@ -14,7 +14,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@color/white"
-            android:paddingBottom="10dp"
+            android:paddingBottom="50dp"
             android:paddingHorizontal="10dp">
             <ImageView
                 android:id="@+id/imageView5"
@@ -58,7 +58,7 @@
                 android:fontFamily="@font/bold_font"
                 android:text="Loading..."
                 android:textColor="@color/black"
-                android:textSize="12sp"
+                android:textSize="22sp"
                 app:layout_constraintEnd_toStartOf="@+id/imageView5"
                 app:layout_constraintHorizontal_bias="0.01"
                 app:layout_constraintStart_toEndOf="@+id/profile"

@@ -275,7 +275,6 @@ class ProfilePatientFragment :Fragment() {
 
         Toast.makeText(requireContext(), "Logged out successfully", Toast.LENGTH_SHORT).show()
 
-        // Arahkan pengguna ke halaman login
         val intent = Intent(requireContext(), WelcomeActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)

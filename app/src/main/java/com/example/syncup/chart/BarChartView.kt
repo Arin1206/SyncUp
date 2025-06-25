@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.util.AttributeSet
 import android.view.View
+import com.example.syncup.R
 
 class BarChartView @JvmOverloads constructor(
     context: Context,
@@ -29,7 +30,16 @@ class BarChartView @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
-        if (values.isEmpty()) return
+        if (values.isEmpty()) {
+            val emptyDrawable = context.getDrawable(R.drawable.empty_image)
+            val sizePx = (100 * resources.displayMetrics.density).toInt()
+            val left = (width - sizePx) / 2
+            val top = (height - sizePx) / 2
+            emptyDrawable?.setBounds(left, top, left + sizePx, top + sizePx)
+            emptyDrawable?.draw(canvas)
+            return
+        }
+
 
         val leftMargin = 50f
         val paintAxis = Paint().apply {

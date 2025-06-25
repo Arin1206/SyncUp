@@ -171,15 +171,12 @@ class PatientAdapter(patientList: List<PatientData>,  private val context: Conte
         }
 
         holder.itemView.setOnClickListener {
-            // Show the confirmation dialog
             val dialog = AlertDialog.Builder(context)
                 .setTitle("Konfirmasi Penambahan")
                 .setMessage("Apakah Anda ingin menambahkan ${patient.name} sebagai pasien Anda?")
                 .setPositiveButton("Ya") { _, _ ->
-                    // Fetch the doctor UID before adding the patient
                     getActualDoctorUID { doctorUid, doctorName ->
                         if (doctorUid != null) {
-                            // Proceed to add the patient only if doctorUid is not null
                             val assignedPatient = hashMapOf(
                                 "patientId" to patient.id,
                                 "doctorUid" to doctorUid,
@@ -193,13 +190,10 @@ class PatientAdapter(patientList: List<PatientData>,  private val context: Conte
                                 "email" to patient.email,
                                 "phoneNumber" to patient.phoneNumber
                             )
-
-                            // Add patient to the Firestore "assigned_patient" collection
                             FirebaseFirestore.getInstance()
                                 .collection("assigned_patient")
                                 .add(assignedPatient)
                                 .addOnSuccessListener {
-                                    // After successfully adding, update the button state to "Assigned"
                                     val bgDrawable = ContextCompat.getDrawable(context, R.drawable.button_background)?.mutate()
                                     val wrappedDrawable = bgDrawable?.let { DrawableCompat.wrap(it) }
                                     wrappedDrawable?.let {
@@ -209,19 +203,13 @@ class PatientAdapter(patientList: List<PatientData>,  private val context: Conte
                                     holder.addbutton.text = "Assigned"
                                     holder.addbutton.isEnabled = false
                                     holder.addbutton.setTextColor(ContextCompat.getColor(context, android.R.color.white))
-
-                                    // Show a success message
                                     Toast.makeText(context, "${patient.name} telah ditambahkan sebagai pasien Anda.", Toast.LENGTH_SHORT).show()
-
-                                    // Notify the adapter about the updated state
                                     notifyItemChanged(position)
                                 }
                                 .addOnFailureListener { e ->
-                                    // Show an error message in case of failure
                                     Toast.makeText(context, "Gagal menambahkan pasien: ${e.message}", Toast.LENGTH_SHORT).show()
                                 }
                         } else {
-                            // If doctorUid is null, show an error
                             Toast.makeText(context, "Doctor UID is unavailable. Please try again.", Toast.LENGTH_SHORT).show()
                         }
                     }
@@ -243,25 +231,29 @@ class PatientAdapter(patientList: List<PatientData>,  private val context: Conte
 
         // Chat Icon click listener to navigate to RoomChat
         holder.itemView.findViewById<ImageView>(R.id.chat_icon).setOnClickListener {
-            val bundle = Bundle().apply {
-                putString("patientName", patient.name)
-                Log.d("Patientname", "name:${patient.name}")
-                putString("doctor_phone_number", patient.phoneNumber)  // Pass doctor phone number
-                putString("receiverUid", patient.id)  // Pass patient ID as receiverUid
-                putString("doctorUid", doctorUid)  // Pass doctorUid (this is the actual doctor's UID)
-                putString("profileImage", patient.photoUrl)  // Pass profile image URL
-            }
+            getActualDoctorUID { doctorUid, doctorName ->
+                if (doctorUid != null) {
+                    val bundle = Bundle().apply {
+                        putString("patientName", patient.name)
+                        putString("doctor_phone_number", patient.phoneNumber)
+                        putString("receiverUid", patient.id)
+                        putString("doctorUid", doctorUid)
+                        putString("profileImage", patient.photoUrl)
+                        putString("doctorName", doctorName ?: "")
+                    }
 
-            // Navigate to RoomChatDoctorFragment
-            val roomChatFragment = RoomChatDoctorFragment().apply {
-                arguments = bundle
-            }
+                    val roomChatFragment = RoomChatDoctorFragment().apply {
+                        arguments = bundle
+                    }
 
-            (context as? AppCompatActivity)?.supportFragmentManager?.beginTransaction()
-                ?.replace(R.id.frame, roomChatFragment)
-                ?.addToBackStack(null)
-                ?.commit()
+                    (context as? AppCompatActivity)?.supportFragmentManager?.beginTransaction()
+                        ?.replace(R.id.frame, roomChatFragment)
+                        ?.addToBackStack(null)
+                        ?.commit()
+                }
+            }
         }
+
 
         val systolic = patient.systolicBP
         val diastolic = patient.diastolicBP

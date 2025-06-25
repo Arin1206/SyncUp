@@ -13,12 +13,14 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.ImageView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.syncup.R
 import com.google.android.gms.tasks.Tasks
+import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.QuerySnapshot
@@ -62,6 +64,12 @@ class SearchDoctorFragment : Fragment() {
 
         // Tambahkan listener untuk menyembunyikan keyboard saat klik di luar search input
         setupHideKeyboardListener(view)
+
+        val bottomNavView = activity?.findViewById<BottomNavigationView>(R.id.bottomNav)
+        bottomNavView?.visibility = View.VISIBLE
+
+        val scan = activity?.findViewById<FrameLayout>(R.id.scanButtonContainer)
+        scan?.visibility = View.VISIBLE
 
         return view
     }

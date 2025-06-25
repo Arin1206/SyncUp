@@ -7,6 +7,7 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.View
+import com.example.syncup.R
 import java.util.Calendar
 import java.util.Locale
 
@@ -102,7 +103,16 @@ class MonthChartViewHome @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
-        if (monthData.isEmpty()) return
+        if (monthData.isEmpty()) {
+            val emptyDrawable = context.getDrawable(R.drawable.empty_chart)
+            val sizePx = (70 * resources.displayMetrics.density).toInt() // lebih kecil
+            val left = (width - sizePx) / 2
+            val top = (height - sizePx) / 3  // masih di atas tengah
+            emptyDrawable?.setBounds(left, top, left + sizePx, top + sizePx)
+            emptyDrawable?.draw(canvas)
+            return
+        }
+
 
         val maxHeartRate =
             (monthData.values.filterNotNull().maxOrNull()?.toFloat() ?: 120f).coerceAtLeast(100f)

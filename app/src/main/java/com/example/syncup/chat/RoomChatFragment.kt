@@ -174,12 +174,10 @@ class RoomChatFragment : Fragment() {
             showToast("Data belum lengkap. Coba lagi.")
             return
         }
-
         val timestamp = System.currentTimeMillis()
         val dateFormat =
             java.text.SimpleDateFormat("dd MMM yyyy, HH:mm:ss", java.util.Locale.getDefault())
         val formattedDate = dateFormat.format(java.util.Date(timestamp))
-
         val messageData = mapOf(
             "senderName" to userName,
             "receiverName" to doctorName,
@@ -188,7 +186,6 @@ class RoomChatFragment : Fragment() {
             "senderUid" to patientid!!,
             "receiverUid" to doctoruid!!
         )
-
         FirebaseFirestore.getInstance()
             .collection("chats")
             .document(doctoruid!!)
@@ -203,11 +200,8 @@ class RoomChatFragment : Fragment() {
                 showToast("Failed to send message.")
             }
     }
-
-
     private fun listenForMessages() {
         val db = FirebaseFirestore.getInstance()
-
         doctoruid?.let { doctorUid ->
             receiverUid?.let { patientId ->
                 db.collection("chats")
@@ -221,16 +215,12 @@ class RoomChatFragment : Fragment() {
                             Log.w("RoomChatFragment", "Listen failed.", e)
                             return@addSnapshotListener
                         }
-
                         if (snapshots != null && !snapshots.isEmpty) {
                             val newMessages = mutableListOf<Message>()
-
                             for (dc in snapshots.documentChanges) {
                                 val message = dc.document.toObject(Message::class.java)
-
                                 if (dc.type == com.google.firebase.firestore.DocumentChange.Type.ADDED) {
                                     newMessages.add(message)
-
                                     if (message.message.contains("Latitude") && message.message.contains(
                                             "Longitude"
                                         )
@@ -239,7 +229,6 @@ class RoomChatFragment : Fragment() {
                                     }
                                 }
                             }
-
                             if (newMessages.isNotEmpty()) {
                                 messageList.addAll(newMessages)
                                 chatAdapter.updateMessages(messageList)

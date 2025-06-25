@@ -188,7 +188,6 @@ class SignUpDoctorActivity : AppCompatActivity() {
         gender: String
     ) {
         val userId = UUID.randomUUID().toString()
-
         val userData = hashMapOf(
             "userId" to userId,
             "fullName" to fullName,
@@ -196,7 +195,6 @@ class SignUpDoctorActivity : AppCompatActivity() {
             "age" to if (age.isNotEmpty()) age else "N/A",
             "gender" to if (gender != "Select Gender") gender else "N/A",
         )
-
         db.collection("users_doctor_phonenumber").document(userId)
             .set(userData)
             .addOnSuccessListener {

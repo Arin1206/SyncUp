@@ -6,12 +6,14 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.ImageView
 import androidx.activity.addCallback
 import androidx.viewpager2.widget.ViewPager2
 import com.example.syncup.R
 import com.example.syncup.home.HomeDoctorFragment
 import com.example.syncup.home.HomeFragment
+import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 
@@ -87,6 +89,11 @@ class AlertDoctorFragment : Fragment() {
             }
         }
 
+        val bottomNavView = activity?.findViewById<BottomNavigationView>(R.id.bottomNav)
+        bottomNavView?.visibility = View.VISIBLE
+
+        val scan = activity?.findViewById<FrameLayout>(R.id.scanButtonContainer)
+        scan?.visibility = View.VISIBLE
         return view
     }
 

@@ -213,14 +213,11 @@ class BluetoothLeService : Service() {
                     characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 1) ?: -1
                 lastHeartRate = heartRate
                 Log.i(TAG, "Heart rate characteristic changed: $heartRate")
-
                 heartRateBuffer.add(heartRate)
-
                 getActualPatientUID { patientUid ->
                     if (patientUid != null) {
                         val userHeartRateDatabase =
                             realtimeDatabase.child(patientUid).child("latest")
-
                         userHeartRateDatabase.setValue(heartRate)
                             .addOnSuccessListener {
                                 Log.i(
@@ -238,18 +235,14 @@ class BluetoothLeService : Service() {
                         Log.e(TAG, "Patient UID not found. Skipping heart rate update.")
                     }
                 }
-
                 broadcastUpdate(ACTION_HEART_RATE_MEASUREMENT, heartRate)
-
             }
-
             if (characteristic != null && characteristic.uuid == UUID.fromString(
                     BATTERY_CHARACTERISTIC_UUID
                 )
             ) {
                 val rawData = characteristic.value
                 Log.i(TAG, "Raw Battery Level Data (via NOTIFY): ${rawData?.joinToString(" ")}")
-
                 var tempBatteryLevel =
                     characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 0) ?: -1
                 if (tempBatteryLevel == -1 && rawData != null && rawData.isNotEmpty()) {
@@ -259,11 +252,9 @@ class BluetoothLeService : Service() {
                         "Using manual value extraction for Battery Level: $tempBatteryLevel%"
                     )
                 }
-
                 batteryLevel = tempBatteryLevel
                 Log.i(TAG, "Battery level updated via NOTIFY: $batteryLevel%")
                 broadcastBatteryUpdate(batteryLevel)
-
                 if (batteryLevel in 0..100) {
                     saveToFirestore(
                         lastHeartRate,
@@ -277,7 +268,6 @@ class BluetoothLeService : Service() {
                 }
             }
         }
-
     }
 
     inner class LocalBinder : Binder() {

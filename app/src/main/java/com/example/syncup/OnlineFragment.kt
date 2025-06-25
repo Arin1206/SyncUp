@@ -80,6 +80,16 @@ class OnlineFragment : Fragment() {
 
                 assignedPatientsLoaded = true
                 patientAdapter.setAssignedPatients(assignedPatientIds)
+
+                if (assignedPatientIds.isEmpty()) {
+                    // Tampilkan UI kosong langsung jika tidak ada pasien
+                    binding.emptyImage.visibility = View.VISIBLE
+                    binding.emptyText3.visibility = View.VISIBLE
+                } else {
+                    binding.emptyImage.visibility = View.GONE
+                    binding.emptyText3.visibility = View.GONE
+                }
+
                 onComplete() // ✅ Panggil saat selesai
             }
     }

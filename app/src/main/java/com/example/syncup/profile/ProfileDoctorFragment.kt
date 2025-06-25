@@ -129,40 +129,69 @@ class ProfileDoctorFragment : Fragment() {
     }
 
     private fun getActualDoctorUID(onResult: (String?) -> Unit) {
-        val auth = FirebaseAuth.getInstance()
-        val currentUser = auth.currentUser ?: return onResult(null)
+        val currentUser = FirebaseAuth.getInstance().currentUser ?: return onResult(null)
 
         val email = currentUser.email
-        val phoneNumber = currentUser.phoneNumber
-
+        val phoneNumber = currentUser.phoneNumber?.let { formatNomorTelepon(it) }
         val firestore = FirebaseFirestore.getInstance()
 
-        if (email != null) {
+        Log.d("ProfileDoctor", "Current User Email: $email")
+        Log.d("ProfileDoctor", "Formatted Phone: $phoneNumber")
+
+        if (!email.isNullOrEmpty()) {
             firestore.collection("users_doctor_email")
                 .whereEqualTo("email", email)
                 .get()
                 .addOnSuccessListener { documents ->
-                    val uid = documents.firstOrNull()?.getString("userId")
-                    onResult(uid)
+                    Log.d("ProfileDoctor", "Email query result size: ${documents.size()}")
+                    if (documents.isEmpty) {
+                        Log.e("ProfileDoctor", "No user document found for email")
+                        onResult(null)
+                    } else {
+                        val uid = documents.firstOrNull()?.getString("userId")
+                        if (uid.isNullOrEmpty()) {
+                            Log.e("ProfileDoctor", "userId field is missing in document")
+                            onResult(null)
+                        } else {
+                            Log.d("ProfileDoctor", "Found userId for email: $uid")
+                            onResult(uid)
+                        }
+                    }
                 }
-                .addOnFailureListener {
+                .addOnFailureListener { e ->
+                    Log.e("ProfileDoctor", "Error querying email", e)
                     onResult(null)
                 }
-        } else if (phoneNumber != null) {
+        } else if (!phoneNumber.isNullOrEmpty()) {
             firestore.collection("users_doctor_phonenumber")
                 .whereEqualTo("phoneNumber", phoneNumber)
                 .get()
                 .addOnSuccessListener { documents ->
-                    val uid = documents.firstOrNull()?.getString("userId")
-                    onResult(uid)
+                    Log.d("ProfileDoctor", "Phone query result size: ${documents.size()}")
+                    if (documents.isEmpty) {
+                        Log.e("ProfileDoctor", "No user document found for phone")
+                        onResult(null)
+                    } else {
+                        val uid = documents.firstOrNull()?.getString("userId")
+                        if (uid.isNullOrEmpty()) {
+                            Log.e("ProfileDoctor", "userId field is missing in document")
+                            onResult(null)
+                        } else {
+                            Log.d("ProfileDoctor", "Found userId for phone: $uid")
+                            onResult(uid)
+                        }
+                    }
                 }
-                .addOnFailureListener {
+                .addOnFailureListener { e ->
+                    Log.e("ProfileDoctor", "Error querying phone number", e)
                     onResult(null)
                 }
         } else {
+            Log.e("ProfileDoctor", "No email or phone available from FirebaseAuth")
             onResult(null)
         }
     }
+
 
 
     private fun fetchUserData() {
@@ -253,10 +282,7 @@ class ProfileDoctorFragment : Fragment() {
 
     private fun performLogout() {
         FirebaseAuth.getInstance().signOut()
-
         Toast.makeText(requireContext(), "Logged out successfully", Toast.LENGTH_SHORT).show()
-
-        // Arahkan pengguna ke halaman login
         val intent = Intent(requireContext(), WelcomeActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)
@@ -397,6 +423,7 @@ class ProfileDoctorFragment : Fragment() {
                 .addOnSuccessListener {
                     Toast.makeText(requireContext(), "Profile picture updated", Toast.LENGTH_SHORT).show()
                     Glide.with(this).load(photoUrl).circleCrop().into(binding.photoprofile) // Tampilkan langsung
+                    loadActualDoctorProfilePicture()
                 }
                 .addOnFailureListener { e ->
                     Toast.makeText(requireContext(), "Failed to update profile picture", Toast.LENGTH_SHORT).show()

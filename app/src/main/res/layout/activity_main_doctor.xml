@@ -6,78 +6,87 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/white"
+    android:background="@android:color/transparent"
     android:clipChildren="false"
+    android:paddingTop="35dp"
     android:clipToPadding="false"
-    android:paddingTop="25dp"
     tools:context="main.MainDoctorActivity">
+
+    <!-- Main Content -->
     <FrameLayout
         android:id="@+id/frame"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:elevation="1dp"
-        android:background="@android:color/transparent"
-        app:layout_constraintBottom_toTopOf="@+id/bottom_navigation"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/bottomNav"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"/>
-    <RelativeLayout
-        android:id="@+id/bottom_navigation"
-        android:layout_width="match_parent"
-        android:layout_height="80dp"
+        app:layout_constraintEnd_toEndOf="parent"
+
         android:background="@android:color/transparent"
-        android:paddingBottom="8dp"
+        android:elevation="1dp" />
+
+    <!-- Bottom Navigation -->
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottomNav"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:layout_marginBottom="10dp"
+        android:layout_marginHorizontal="10dp"
+        android:background="@drawable/bottom_nav_rounded_background"
+        android:elevation="12dp"
         android:paddingTop="0dp"
-        android:elevation="10dp"
-        android:clipChildren="false"
-        android:clipToPadding="false"
-        app:layout_constraintBottom_toBottomOf="parent">
-        <FrameLayout
-            android:id="@+id/scanButtonContainer"
+        android:paddingBottom="0dp"
+        android:maxHeight="70dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:layout_marginTop="30dp"
+        app:itemIconSize="15dp"
+        app:itemIconTint="@color/black"
+        app:itemTextColor="@color/black"
+        app:itemBackground="@android:color/transparent"
+        app:itemActiveIndicatorStyle="@color/purple_dark"
+        app:labelVisibilityMode="labeled"
+        app:menu="@menu/bottom_nav_doctor"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Floating Scan Button -->
+    <FrameLayout
+        android:id="@+id/scanButtonContainer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:translationY="0dp"
+    android:translationZ="30dp"
+        android:layout_marginBottom="-45dp"
+    app:layout_constraintBottom_toTopOf="@id/bottomNav"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintEnd_toEndOf="parent">
+
+
+    <ImageView
+            android:id="@+id/scanButton"
+            android:layout_width="75dp"
+            android:layout_height="62dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="20dp"
+            android:background="@drawable/scan_button_background"
+            android:src="@drawable/e911_emergency"
+            android:elevation="30dp" />
+
+        <TextView
+            android:id="@+id/scanText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_centerHorizontal="true"
-            android:translationY="-14dp"
-            android:translationZ="30dp">
-            <ImageView
-                android:id="@+id/scanButton"
-                android:layout_width="75dp"
-                android:layout_height="62dp"
-                android:paddingTop="10dp"
-                android:paddingBottom="20dp"
-                android:background="@drawable/scan_button_background"
-                android:src="@drawable/e911_emergency"
-                android:elevation="30dp"/>
-            <TextView
-                android:id="@+id/scanText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal|bottom"
-                android:elevation="30dp"
-                android:paddingBottom="0dp"
-                android:fontFamily="@font/bold_font"
-                android:text="Alert"
-                android:paddingTop="2dp"
-                android:textColor="@color/white"
-                android:textSize="12sp"
-                android:textStyle="bold" />
-        </FrameLayout>
-        <com.google.android.material.bottomnavigation.BottomNavigationView
-            android:id="@+id/bottomNav"
-            android:layout_width="match_parent"
-            android:layout_height="57dp"
-            android:layout_alignParentBottom="true"
-            android:background="@drawable/bottom_nav_rounded_background"
-            android:elevation="12dp"
-            android:paddingTop="0dp"
-            app:itemIconTint="@color/black"
-            android:layout_marginHorizontal="10dp"
-            app:itemTextColor="@color/black"
-            app:menu="@menu/bottom_nav_doctor"
-            app:itemIconSize="18dp"
-            app:itemBackground="@android:color/transparent"
-            app:itemActiveIndicatorStyle="@color/purple_dark"
-            app:labelVisibilityMode="labeled"
-            android:fitsSystemWindows="false"/>
-    </RelativeLayout>
+            android:layout_gravity="center_horizontal|bottom"
+            android:paddingTop="2dp"
+            android:paddingBottom="0dp"
+            android:text="Alert"
+            android:textColor="@color/white"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:elevation="30dp"
+            android:fontFamily="@font/bold_font" />
+    </FrameLayout>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

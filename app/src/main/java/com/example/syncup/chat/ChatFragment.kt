@@ -157,15 +157,12 @@ open class ChatFragment : Fragment() {
     private fun fetchDoctorsData() {
         val db = FirebaseFirestore.getInstance()
         chatList.clear()
-
         getActualPatientUID { patientId ->
             if (patientId == null) {
                 Log.d("fetchDoctorsData", "Patient UID is null")
                 return@getActualPatientUID
             }
-
             Log.d("fetchDoctorsData", "Fetching doctorUid for patientId: $patientId")
-
             db.collection("assigned_patient")
                 .whereEqualTo("patientId", patientId)
                 .get()
@@ -174,19 +171,13 @@ open class ChatFragment : Fragment() {
                         Log.d("fetchDoctorsData", "No doctors assigned to patientId: $patientId")
                         return@addOnSuccessListener
                     }
-
                     var processedCount = 0
                     val totalDoctors = result.size()
-
                     result.forEach { document ->
                         val doctorUid = document.getString("doctorUid") ?: return@forEach
                         Log.d("fetchDoctorsData", "Found doctorUid: $doctorUid for patientId: $patientId")
-
-                        // Initialize doctor name and phone number variables
                         var doctorName: String? = null
                         var doctorPhone: String? = null
-
-                        // Fetch doctor details from users_doctor_email first
                         db.collection("users_doctor_email")
                             .document(doctorUid)
                             .get()
@@ -194,11 +185,7 @@ open class ChatFragment : Fragment() {
                                 doctorName = doctorDoc.getString("fullName")
                                 doctorPhone = doctorDoc.getString("phoneNumber")
                                 val doctorEmail = doctorDoc.getString("email")
-
-                                // If doctorName is found, add "Dr." prefix
                                 doctorName = doctorName?.let { "Dr. $it" } ?: "Dr. Unknown"
-
-                                // If no name found in email, try users_doctor_phonenumber
                                 if (doctorName == "Dr. Unknown") {
                                     db.collection("users_doctor_phonenumber")
                                         .document(doctorUid)
@@ -206,15 +193,11 @@ open class ChatFragment : Fragment() {
                                         .addOnSuccessListener { phoneDoc ->
                                             doctorName = phoneDoc.getString("fullName")?.let { "Dr. $it" } ?: "Dr. Unknown"
                                             doctorPhone = phoneDoc.getString("phoneNumber")
-
-                                            // Fetch profile image from doctor_photoprofile collection
                                             db.collection("doctor_photoprofile")
                                                 .document(doctorUid)
                                                 .get()
                                                 .addOnSuccessListener { photoDoc ->
                                                     val profileImageUrl = photoDoc.getString("photoUrl") ?: ""
-
-                                                    // Fetch the latest message from chats collection
                                                     db.collection("chats").document(doctorUid)
                                                         .collection("patients")
                                                         .document(patientId)
@@ -224,7 +207,6 @@ open class ChatFragment : Fragment() {
                                                         .get()
                                                         .addOnSuccessListener { messageSnapshot ->
                                                             Log.d("fetchDoctorsData", "Fetched message snapshot: ${messageSnapshot.documents.size}")
-
                                                             if (messageSnapshot.isEmpty) {
                                                                 Log.d("fetchDoctorsData", "No messages found for patientId: $patientId, displaying default message")
                                                                 val newChat = Chat(
@@ -283,14 +265,11 @@ open class ChatFragment : Fragment() {
                                             Log.e("fetchDoctorsData", "Error fetching doctor details from users_doctor_phonenumber", e)
                                         }
                                 } else {
-                                    // Fetch profile image if found in users_doctor_email
                                     db.collection("doctor_photoprofile")
                                         .document(doctorUid)
                                         .get()
                                         .addOnSuccessListener { photoDoc ->
                                             val profileImageUrl = photoDoc.getString("photoUrl") ?: ""
-
-                                            // Fetch the latest message from chats collection
                                             db.collection("chats").document(doctorUid)
                                                 .collection("patients")
                                                 .document(patientId)
@@ -300,8 +279,7 @@ open class ChatFragment : Fragment() {
                                                 .get()
                                                 .addOnSuccessListener { messageSnapshot ->
                                                     Log.d("fetchDoctorsData", "Fetched message snapshot: ${messageSnapshot.documents.size}")
-
-                                                    if (messageSnapshot.isEmpty) {
+                                                        if (messageSnapshot.isEmpty) {
                                                         Log.d("fetchDoctorsData", "No messages found for patientId: $patientId, displaying default message")
                                                         val newChat = Chat(
                                                             doctorName = doctorName ?: "Dr. Unknown",
@@ -338,7 +316,6 @@ open class ChatFragment : Fragment() {
                                                             chatList.add(chat)
                                                         }
                                                     }
-
                                                     processedCount++
                                                     if (processedCount == totalDoctors) {
                                                         activity?.runOnUiThread {

@@ -150,7 +150,6 @@ class FaqFragment : Fragment() {
     private fun sendMessage() {
         val email = emailEditText.text.toString().trim()
         val message = messageEditText.text.toString().trim()
-
         val userId = currentUser?.uid ?: ""
         if (email.isEmpty() || message.isEmpty()) {
             Toast.makeText(
@@ -160,9 +159,7 @@ class FaqFragment : Fragment() {
             ).show()
             return
         }
-
         val messageRequest = MessageRequest(email, message, userId)
-
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val response = apiService.sendMessage(messageRequest)
@@ -177,7 +174,6 @@ class FaqFragment : Fragment() {
                             emailEditText.text.clear()
                             messageEditText.text.clear()
                             showNotification()
-
                             parentFragmentManager.beginTransaction()
                                 .replace(R.id.frame, InboxPatientFragment())
                                 .addToBackStack(null)
@@ -199,6 +195,5 @@ class FaqFragment : Fragment() {
                 }
             }
         }
-
     }
 }

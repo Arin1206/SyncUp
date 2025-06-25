@@ -10,6 +10,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.ProgressBar
 import androidx.activity.addCallback
@@ -18,6 +19,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.syncup.R
 import com.example.syncup.home.HomeDoctorFragment
+import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -60,6 +62,12 @@ class ChatDoctorFragment : Fragment() {
             val query = it.toString()
             filterMessages(query)
         }
+
+        val bottomNavView = activity?.findViewById<BottomNavigationView>(R.id.bottomNav)
+        bottomNavView?.visibility = View.VISIBLE
+
+        val scan = activity?.findViewById<FrameLayout>(R.id.scanButtonContainer)
+        scan?.visibility = View.VISIBLE
 
         val arrow = view.findViewById<ImageView>(R.id.arrow)
         arrow.setOnClickListener {
@@ -160,17 +168,13 @@ class ChatDoctorFragment : Fragment() {
     @SuppressLint("NotifyDataSetChanged")
     private fun fetchDoctorsData() {
         val db = FirebaseFirestore.getInstance()
-
         chatList.clear()
-
         getActualDoctorUID { doctorUid ->
             if (doctorUid == null) {
                 Log.d("fetchDoctorsData", "Doctor UID is null")
                 return@getActualDoctorUID
             }
-
             Log.d("fetchDoctorsData", "Fetching assigned patients for doctorUid: $doctorUid")
-
             db.collection("assigned_patient")
                 .whereEqualTo("doctorUid", doctorUid)
                 .get()
@@ -179,17 +183,14 @@ class ChatDoctorFragment : Fragment() {
                         "fetchDoctorsData",
                         "Assigned patients fetched, result size: ${result.size()}"
                     )
-
                     result.forEach { document ->
                         val patientId = document.getString("patientId") ?: return@forEach
                         Log.d("fetchDoctorsData", "Processing patientId: $patientId")
-
                         val emailQuery =
                             db.collection("users_patient_email").whereEqualTo("userId", patientId)
                                 .get()
                         val phoneQuery = db.collection("users_patient_phonenumber")
                             .whereEqualTo("userId", patientId).get()
-
                         com.google.android.gms.tasks.Tasks.whenAllSuccess<com.google.firebase.firestore.QuerySnapshot>(
                             emailQuery,
                             phoneQuery
@@ -201,13 +202,11 @@ class ChatDoctorFragment : Fragment() {
                                     results[1] as com.google.firebase.firestore.QuerySnapshot
                                 val patientDoc =
                                     (emailDocs.documents + phoneDocs.documents).firstOrNull()
-
                                 if (patientDoc != null) {
                                     val patientName =
                                         patientDoc.getString("fullName") ?: "Unknown Patient"
                                     val patientPhone =
                                         patientDoc.getString("phoneNumber") ?: "No Phone"
-
                                     db.collection("patient_photoprofile")
                                         .document(patientId)
                                         .get()
@@ -218,7 +217,6 @@ class ChatDoctorFragment : Fragment() {
                                                 "fetchDoctorsData",
                                                 "Profile image URL fetched for patientId: $patientId"
                                             )
-
                                             db.collection("chats").document(doctorUid)
                                                 .collection("patients")
                                                 .document(patientId)
@@ -259,12 +257,10 @@ class ChatDoctorFragment : Fragment() {
                                                         val latestDate =
                                                             messageSnapshot.documents.firstOrNull()
                                                                 ?.getString("timestamp") ?: ""
-
                                                         Log.d(
                                                             "fetchDoctorsData",
                                                             "Latest message: $latestMessage, timestamp: $latestDate"
                                                         )
-
                                                         val chat = Chat(
                                                             doctorName = patientName,
                                                             message = latestMessage,

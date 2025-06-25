@@ -66,7 +66,6 @@ class InboxDoctorFragment : Fragment() {
         val db = FirebaseFirestore.getInstance()
         val currentUser = FirebaseAuth.getInstance().currentUser
         val userId = currentUser?.uid ?: return
-
         db.collection("notifications")
             .whereEqualTo("userId", userId)
             .orderBy("timestamp", Query.Direction.DESCENDING)
@@ -75,9 +74,7 @@ class InboxDoctorFragment : Fragment() {
                     Toast.makeText(requireContext(), "Listen failed: ${e.message}", Toast.LENGTH_SHORT).show()
                     return@addSnapshotListener
                 }
-
                 notifications.clear()
-
                 if (snapshots != null && !snapshots.isEmpty) {
                     for (doc in snapshots) {
                         notifications.add(
@@ -90,10 +87,7 @@ class InboxDoctorFragment : Fragment() {
                 } else {
 
                 }
-
                 adapter.updateData(notifications)
             }
     }
-
-
 }

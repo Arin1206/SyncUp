@@ -265,16 +265,13 @@ class MainPatientActivity : AppCompatActivity() {
             return
         }
 
-        // Check if Bluetooth is enabled
         if (!bluetoothAdapter.isEnabled) {
             val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
             btActivityResultLauncher.launch(enableBtIntent)
         } else {
-            // Check the Android version to determine which permissions to request
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                // For Android 12 (API 31) and above, request both Bluetooth connect and scan permissions
                 if (checkBluetoothPermissions()) {
-                    scanBT() // Proceed with scanning if permissions are granted
+                    scanBT()
                 } else {
                     blueToothPermissionLauncher.launch(
                         arrayOf(
@@ -284,9 +281,9 @@ class MainPatientActivity : AppCompatActivity() {
                     )
                 }
             } else {
-                // For Android 11 (API 30) and below, only request the Bluetooth scan permission
+
                 if (checkLocationPermission()) {
-                    scanBT() // Proceed with scanning if permission is granted
+                    scanBT()
                 } else {
                     locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
                 }
@@ -339,27 +336,19 @@ class MainPatientActivity : AppCompatActivity() {
         val inflater = layoutInflater
         val dialogView: View = inflater.inflate(R.layout.scan_bt, null)
         builder.setView(dialogView)
-
-
-
         val deviceListView = dialogView.findViewById<ListView>(R.id.bt_list)
         val dialog = builder.create()
-
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-
         val from = arrayOf("A")
         val to = intArrayOf(R.id.item_name)
         listAdapter = SimpleAdapter(this, scanResults, R.layout.item_list2, from, to)
         deviceListView.adapter = listAdapter
-
         deviceListView.onItemClickListener = AdapterView.OnItemClickListener { _, _, position, _ ->
             val deviceInfo = scanResults[position]
             val deviceName = deviceInfo["A"] ?: "Unknown Device"
             val deviceAddress = deviceInfo["B"] ?: "No Address"
-
             if (deviceAddress.isNotEmpty() && deviceAddress != "No Address") {
-                saveToFirebase(deviceName, deviceAddress) // Save to Firebase
-
+                saveToFirebase(deviceName, deviceAddress)
                 try {
                     val homeFragment = HomeFragment().apply {
                         arguments = Bundle().apply {
@@ -368,7 +357,6 @@ class MainPatientActivity : AppCompatActivity() {
                         }
                     }
                     replaceFragment(homeFragment)
-
                     Toast.makeText(this@MainPatientActivity, "Connected to $deviceName", Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
                     Log.e("Bluetooth", "Error replacing fragment: ${e.message}")
@@ -377,10 +365,8 @@ class MainPatientActivity : AppCompatActivity() {
             } else {
                 Toast.makeText(this@MainPatientActivity, "Invalid device selected", Toast.LENGTH_SHORT).show()
             }
-
             dialog.dismiss()
         }
-
         dialog.show()
     }
 

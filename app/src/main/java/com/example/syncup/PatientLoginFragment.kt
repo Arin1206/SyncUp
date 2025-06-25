@@ -112,21 +112,17 @@ class PatientLoginFragment : Fragment() {
                 if (task.isSuccessful) {
                     val user = auth.currentUser
                     val email = user?.email ?: ""
-
-                    // **Cek apakah email sudah ada di Firestore**
                     db.collection("users_patient_email")
                         .whereEqualTo("email", email)
                         .get()
                         .addOnSuccessListener { documents ->
                             if (!documents.isEmpty) {
-                                // **Jika email ditemukan, masuk ke MainPatientActivity**
                                 Toast.makeText(requireContext(), "Welcome back!", Toast.LENGTH_SHORT).show()
                                 startActivity(Intent(requireContext(), MainPatientActivity::class.java))
                                 requireActivity().finish()
                             } else {
-                                // **Jika email tidak ada, tampilkan pesan**
                                 auth.signOut()
-                                googleSignInClient.signOut() // Logout dari Google
+                                googleSignInClient.signOut()
                                 Toast.makeText(requireContext(), "Email not registered. Please sign up first.", Toast.LENGTH_LONG).show()
                             }
                         }
@@ -162,45 +158,29 @@ class PatientLoginFragment : Fragment() {
 
     private fun sendOTP(phoneNumber: String, activity: Activity) {
         var formattedPhoneNumber = phoneNumber.trim()
-
-        // Format nomor telepon dengan kode negara Indonesia
         if (formattedPhoneNumber.startsWith("0")) {
             formattedPhoneNumber = "+62" + formattedPhoneNumber.substring(1)
         }
-
         val options = PhoneAuthOptions.newBuilder(auth)
-            .setPhoneNumber(formattedPhoneNumber)  // Nomor telepon yang ingin diverifikasi
-            .setTimeout(60L, TimeUnit.SECONDS)     // Timeout untuk verifikasi
-            .setActivity(activity)                 // Konteks activity untuk menerima callback
+            .setPhoneNumber(formattedPhoneNumber)
+            .setTimeout(60L, TimeUnit.SECONDS)
+            .setActivity(activity)
             .setCallbacks(object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
-                // Verifikasi selesai otomatis
                 override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-                    // Jangan langsung verifikasi otomatis
                 }
-
-                // Jika verifikasi gagal
                 override fun onVerificationFailed(e: FirebaseException) {
                     Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
-
-                // Ketika OTP berhasil dikirim
                 override fun onCodeSent(verificationId: String, token: PhoneAuthProvider.ForceResendingToken) {
-                    // Menyimpan verificationId yang akan digunakan nanti
-                    this@PatientLoginFragment.verificationId = verificationId
-
-                    // Beralih ke Activity untuk memasukkan OTP
+                 this@PatientLoginFragment.verificationId = verificationId
                     val intent = Intent(requireContext(), OtpPatientActivity::class.java)
                     intent.putExtra("phoneNumber", formattedPhoneNumber) // Pass nomor telepon
                     intent.putExtra("verificationId", verificationId) // Pass verificationId
                     startActivity(intent)
-
-                    // Menampilkan pesan sukses
                     Toast.makeText(requireContext(), "OTP sent to $formattedPhoneNumber", Toast.LENGTH_SHORT).show()
                 }
             })
             .build()
-
-        // Mulai verifikasi nomor telepon
         PhoneAuthProvider.verifyPhoneNumber(options)
     }
 

@@ -70,12 +70,10 @@ class SplashActivity : AppCompatActivity() {
             var userPhoneNumber = currentUser.phoneNumber
 
             Log.d(
-                "UserCheck",
-                "Checking authentication for: email=$userEmail, phone=$userPhoneNumber"
+                "UserCheck", "Checking authentication for: email=$userEmail, phone=$userPhoneNumber"
             )
 
             if (!userPhoneNumber.isNullOrEmpty()) {
-                // **Format phoneNumber: Ubah "+62" ke "0" agar sesuai Firestore**
                 if (userPhoneNumber.startsWith("+62")) {
                     userPhoneNumber = "0" + userPhoneNumber.substring(3)
                 }
@@ -86,7 +84,6 @@ class SplashActivity : AppCompatActivity() {
                 logoutAndRedirect()
             }
         } else {
-            // **Jika belum login, masuk ke WelcomeActivity**
             logoutAndRedirect()
         }
     }
@@ -101,25 +98,20 @@ class SplashActivity : AppCompatActivity() {
         val doctorQuery =
             db.collection("users_doctor_phonenumber").whereEqualTo("phoneNumber", userPhoneNumber)
                 .get()
-
-        // **Jalankan kedua query Firestore secara paralel**
         patientQuery.addOnSuccessListener { patientDocs ->
             doctorQuery.addOnSuccessListener { doctorDocs ->
                 when {
                     !doctorDocs.isEmpty -> {
-                        // **Jika nomor ditemukan di koleksi dokter, arahkan ke halaman dokter**
                         Log.d("UserCheck", "User found in users_doctor_phonenumber")
                         navigateToMainDoctor()
                     }
 
                     !patientDocs.isEmpty -> {
-                        // **Jika nomor ditemukan di koleksi pasien, arahkan ke halaman pasien**
                         Log.d("UserCheck", "User found in users_patient_phonenumber")
                         navigateToMain()
                     }
 
                     else -> {
-                        // **Jika nomor tidak ditemukan di kedua koleksi, logout dan redirect**
                         Log.d("UserCheck", "Phone number not found in both collections")
                         logoutAndRedirect()
                     }

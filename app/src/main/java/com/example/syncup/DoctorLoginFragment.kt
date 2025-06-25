@@ -112,22 +112,18 @@ class DoctorLoginFragment : Fragment() {
 
     private fun sendOTP(phoneNumber: String, activity: Activity) {
         var formattedPhoneNumber = phoneNumber.trim()
-
         if (formattedPhoneNumber.startsWith("0")) {
             formattedPhoneNumber = "+62" + formattedPhoneNumber.substring(1)
         }
-
         val options = PhoneAuthOptions.newBuilder(auth)
             .setPhoneNumber(formattedPhoneNumber)
             .setTimeout(60L, TimeUnit.SECONDS)
-            .setActivity(activity) // gunakan dari parameter, bukan requireActivity()
+            .setActivity(activity)
             .setCallbacks(object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
                 override fun onVerificationCompleted(credential: PhoneAuthCredential) {}
-
                 override fun onVerificationFailed(e: FirebaseException) {
                     Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
-
                 override fun onCodeSent(verificationId: String, token: PhoneAuthProvider.ForceResendingToken) {
                     this@DoctorLoginFragment.verificationId = verificationId
                     val intent = Intent(requireContext(), OtpDoctorActivity::class.java)
@@ -139,7 +135,6 @@ class DoctorLoginFragment : Fragment() {
                 }
             })
             .build()
-
         PhoneAuthProvider.verifyPhoneNumber(options)
     }
 
@@ -189,19 +184,15 @@ class DoctorLoginFragment : Fragment() {
                 if (task.isSuccessful) {
                     val user = auth.currentUser
                     val email = user?.email ?: ""
-
-                    // **Cek apakah email sudah ada di Firestore**
                     db.collection("users_doctor_email")
                         .whereEqualTo("email", email)
                         .get()
                         .addOnSuccessListener { documents ->
                             if (!documents.isEmpty) {
-                                // **Jika email ditemukan, masuk ke MainDoctorActivity**
                                 Toast.makeText(requireContext(), "Welcome back, Doctor!", Toast.LENGTH_SHORT).show()
                                 startActivity(Intent(requireContext(), MainDoctorActivity::class.java))
                                 requireActivity().finish()
                             } else {
-                                // **Jika email tidak ada, hapus akun Firebase sebelum logout**
                                 user?.delete()?.addOnCompleteListener {
                                     auth.signOut()
                                     googleSignInClient.signOut()

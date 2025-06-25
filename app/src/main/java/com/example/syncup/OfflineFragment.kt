@@ -79,6 +79,8 @@ class OfflineFragment : Fragment() {
 
                 assignedPatientsLoaded = true // ✅ Tandai bahwa data siap
                 patientAdapter.setAssignedPatients(assignedPatientIds)
+
+
             }
     }
 
@@ -158,40 +160,28 @@ class OfflineFragment : Fragment() {
 
 
     private fun observePatientHeartRates(uidList: List<String>) {
-        // Bersihkan listener sebelumnya
         heartRateListeners.forEach { (uid, listener) ->
             realtimeDB.child("heart_rate").child(uid).child("latest").removeEventListener(listener)
         }
         heartRateListeners.clear()
-
         for (uid in uidList) {
             val heartRateRef = realtimeDB.child("heart_rate").child(uid).child("latest")
-
             val listener = object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     val heartRate = snapshot.getValue(Int::class.java) ?: 0
-
                     if (heartRate == 0) {
-                        fetchPatientDataForOffline(uid) // ⬅️ Tambahkan ini untuk memanggil data lengkap dari Firestore
+                        fetchPatientDataForOffline(uid)
                     } else {
-                        // Kalau pasien sekarang online, hapus dari list offline kalau ada
                         patientListOffline.removeAll { it.id == uid }
                     }
-
-
-
                     patientAdapter.updateList(patientListOffline)
                     patientAdapter.setAssignedPatients(assignedPatientIds)
-
                     Log.d("OfflineFragment", "UID: $uid, heartRate: $heartRate")
-
                 }
-
                 override fun onCancelled(error: DatabaseError) {
                     Log.e("OfflineFragment", "Error at $uid: ${error.message}")
                 }
             }
-
             heartRateRef.addValueEventListener(listener)
             heartRateListeners[uid] = listener
         }
@@ -199,8 +189,6 @@ class OfflineFragment : Fragment() {
 
     private fun fetchPatientDataForOffline(patientId: String) {
         val firestore = FirebaseFirestore.getInstance()
-
-
         fun fetchUserInfoAndBP(userDoc: Map<String, Any>?) {
             if (userDoc != null) {
                 val age = userDoc["age"] as? String ?: "-"

@@ -170,7 +170,6 @@ class SignUpPatientActivity : AppCompatActivity() {
 
 
     fun registerNewUser(fullName: String, phoneNumber: String, age: String, gender: String) {
-        // **Generate user ID acak**
         val userId = UUID.randomUUID().toString()
 
         val userData = hashMapOf(

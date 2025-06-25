@@ -18,8 +18,10 @@ import android.view.ViewTreeObserver
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.DrawableCompat
@@ -38,6 +40,7 @@ import com.example.syncup.welcome.WelcomeActivity
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.tasks.Tasks
+import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.firebase.auth.FirebaseAuth
 import com.google.android.material.tabs.TabLayoutMediator
 import com.google.firebase.firestore.DocumentSnapshot
@@ -64,6 +67,8 @@ class HomeDoctorFragment : Fragment() {
     private val firestore = FirebaseFirestore.getInstance()
     private lateinit var searchDoctor: EditText
     private lateinit var parentLayout: ConstraintLayout
+    private val auth = FirebaseAuth.getInstance()
+    private var documentId: String? = null
 
 
     private fun setupUI(view: View) {
@@ -115,68 +120,76 @@ class HomeDoctorFragment : Fragment() {
             false
         }
 
+        val bottomNavView = activity?.findViewById<BottomNavigationView>(R.id.bottomNav)
+        bottomNavView?.visibility = View.VISIBLE
+
+        val scan = activity?.findViewById<FrameLayout>(R.id.scanButtonContainer)
+        scan?.visibility = View.VISIBLE
+
+        fetchUserData()
+
         return view
 
 
 
     }
 
-    private fun startLiveLocationUpdates() {
-        val mapsTextView = view?.findViewById<TextView>(R.id.maps)
-
-        val locationRequest = com.google.android.gms.location.LocationRequest.create().apply {
-            interval = 5000
-            fastestInterval = 3000
-            priority = com.google.android.gms.location.LocationRequest.PRIORITY_HIGH_ACCURACY
-        }
-
-        locationCallback = object : com.google.android.gms.location.LocationCallback() {
-            override fun onLocationResult(locationResult: com.google.android.gms.location.LocationResult) {
-                if (!isAdded) return
-                val location = locationResult.lastLocation
-                if (location != null) {
-                    currentLat = location.latitude
-                    currentLon = location.longitude
-
-                    // Reverse geocode untuk mendapatkan alamat lengkap
-                    val geocoder = Geocoder(requireContext(), Locale.getDefault())
-                    try {
-                        val addresses = geocoder.getFromLocation(currentLat!!, currentLon!!, 1)
-                        if (!addresses.isNullOrEmpty()) {
-                            val address = addresses[0]
-                            val fullAddress = buildString {
-                                append(address.thoroughfare ?: "")              // Nama jalan
-                                if (!address.subThoroughfare.isNullOrEmpty()) {
-                                    append(" ${address.subThoroughfare}")       // Nomor rumah
-                                }
-                                if (!address.locality.isNullOrEmpty()) {
-                                    append(", ${address.locality}")             // Kota
-                                }
-                                // Jangan tambahkan postalCode dan countryName
-                            }
-
-                            mapsTextView?.text = fullAddress
-                        } else {
-                            mapsTextView?.text = "Address not found"
-                        }
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                        mapsTextView?.text = "Failed to get address"
-                    }
-                } else {
-                    mapsTextView?.text = "Location not available"
-                }
-            }
-        }
-
-        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
-            == PackageManager.PERMISSION_GRANTED
-        ) {
-            fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback!!, requireActivity().mainLooper)
-        } else {
-            requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), LOCATION_PERMISSION_REQUEST_CODE)
-        }
-    }
+//    private fun startLiveLocationUpdates() {
+//        val mapsTextView = view?.findViewById<TextView>(R.id.maps)
+//
+//        val locationRequest = com.google.android.gms.location.LocationRequest.create().apply {
+//            interval = 5000
+//            fastestInterval = 3000
+//            priority = com.google.android.gms.location.LocationRequest.PRIORITY_HIGH_ACCURACY
+//        }
+//
+//        locationCallback = object : com.google.android.gms.location.LocationCallback() {
+//            override fun onLocationResult(locationResult: com.google.android.gms.location.LocationResult) {
+//                if (!isAdded) return
+//                val location = locationResult.lastLocation
+//                if (location != null) {
+//                    currentLat = location.latitude
+//                    currentLon = location.longitude
+//
+//                    // Reverse geocode untuk mendapatkan alamat lengkap
+//                    val geocoder = Geocoder(requireContext(), Locale.getDefault())
+//                    try {
+//                        val addresses = geocoder.getFromLocation(currentLat!!, currentLon!!, 1)
+//                        if (!addresses.isNullOrEmpty()) {
+//                            val address = addresses[0]
+//                            val fullAddress = buildString {
+//                                append(address.thoroughfare ?: "")              // Nama jalan
+//                                if (!address.subThoroughfare.isNullOrEmpty()) {
+//                                    append(" ${address.subThoroughfare}")       // Nomor rumah
+//                                }
+//                                if (!address.locality.isNullOrEmpty()) {
+//                                    append(", ${address.locality}")             // Kota
+//                                }
+//                                // Jangan tambahkan postalCode dan countryName
+//                            }
+//
+//                            mapsTextView?.text = fullAddress
+//                        } else {
+//                            mapsTextView?.text = "Address not found"
+//                        }
+//                    } catch (e: Exception) {
+//                        e.printStackTrace()
+//                        mapsTextView?.text = "Failed to get address"
+//                    }
+//                } else {
+//                    mapsTextView?.text = "Location not available"
+//                }
+//            }
+//        }
+//
+//        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
+//            == PackageManager.PERMISSION_GRANTED
+//        ) {
+//            fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback!!, requireActivity().mainLooper)
+//        } else {
+//            requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), LOCATION_PERMISSION_REQUEST_CODE)
+//        }
+//    }
 
     private fun fetchAveragePatientData() {
         getActualDoctorUID { doctorUID ->
@@ -326,29 +339,29 @@ class HomeDoctorFragment : Fragment() {
             _binding?.indicatorValue?.text = "Unknown"
         }
     }
-    private fun checkLocationPermissionAndUpdateMaps() {
-        val mapsTextView = view?.findViewById<TextView>(R.id.maps)
-
-        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
-            requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), LOCATION_PERMISSION_REQUEST_CODE)
-        } else {
-            // Cek apakah layanan lokasi aktif (GPS atau Network)
-            val locationManager = requireContext().getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
-            val isGpsEnabled = locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)
-            val isNetworkEnabled = locationManager.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER)
-
-            if (!isGpsEnabled && !isNetworkEnabled) {
-                // Jika lokasi tidak aktif, tampilkan pesan dan arahkan ke setting
-                mapsTextView?.text = "Location not available, enable location services"
-                openLocationSettings()
-            } else {
-                // Jika layanan lokasi aktif, mulai live updates
-                startLiveLocationUpdates()
-            }
-        }
-    }
+//    private fun checkLocationPermissionAndUpdateMaps() {
+//        val mapsTextView = view?.findViewById<TextView>(R.id.maps)
+//
+//        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
+//            != PackageManager.PERMISSION_GRANTED
+//        ) {
+//            requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), LOCATION_PERMISSION_REQUEST_CODE)
+//        } else {
+//            // Cek apakah layanan lokasi aktif (GPS atau Network)
+//            val locationManager = requireContext().getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
+//            val isGpsEnabled = locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)
+//            val isNetworkEnabled = locationManager.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER)
+//
+//            if (!isGpsEnabled && !isNetworkEnabled) {
+//                // Jika lokasi tidak aktif, tampilkan pesan dan arahkan ke setting
+//                mapsTextView?.text = "Location not available, enable location services"
+//                openLocationSettings()
+//            } else {
+//                // Jika layanan lokasi aktif, mulai live updates
+//                startLiveLocationUpdates()
+//            }
+//        }
+//    }
     private fun openLocationSettings() {
         val intent = Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS)
         startActivity(intent)
@@ -453,8 +466,8 @@ class HomeDoctorFragment : Fragment() {
             }
         })
 
-
-        checkLocationPermissionAndUpdateMaps()
+//
+//        checkLocationPermissionAndUpdateMaps()
 
         // Trigger resize untuk halaman pertama
         binding.tabLayout.post {
@@ -551,6 +564,55 @@ class HomeDoctorFragment : Fragment() {
             Log.e("ProfileDoctor", "No email or phone number found for the current user")
             onResult(null)  // If neither email nor phone is available
         }
+    }
+
+    private fun fetchUserData() {
+        val currentUser = auth.currentUser
+        if (currentUser == null) {
+            Toast.makeText(requireContext(), "User not logged in", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val userEmail = currentUser.email
+        var userPhone = currentUser.phoneNumber?.let { formatPhoneNumber(it) } // Format nomor sebelum query
+
+        Log.d("ProfilePatient", "User Email: $userEmail | User Phone (Formatted): $userPhone")
+
+        val query: Pair<String, String>? = when {
+            !userEmail.isNullOrEmpty() -> Pair("users_doctor_email", userEmail)
+            !userPhone.isNullOrEmpty() -> Pair("users_doctor_phonenumber", userPhone)
+            else -> null
+        }
+
+        if (query == null) {
+            Toast.makeText(requireContext(), "No email or phone found", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val (collection, identifier) = query
+        firestore.collection(collection).whereEqualTo(if (collection == "users_doctor_email") "email" else "phoneNumber", identifier)
+            .get()
+            .addOnSuccessListener { documents ->
+                if (!documents.isEmpty) {
+                    val document = documents.documents[0]
+                    documentId = document.id
+                    val fullName = document.getString("fullName") ?: "Unknown Name"
+                    val age = document.getString("age") ?: "Unknown Age"
+                    val gender = document.getString("gender") ?: "Unknown Gender"
+
+                    binding.maps.text = "Dr. $fullName"
+
+                    Log.d("ProfilePatient", "User Data Loaded: $fullName, $age, $gender, Identifier: $identifier")
+
+                    // **Ambil foto profil dari Firestore jika ada**
+                    loadActualDoctorProfilePicture()
+                } else {
+                    Toast.makeText(requireContext(), "No user data found", Toast.LENGTH_SHORT).show()
+                }
+            }.addOnFailureListener { e ->
+                Log.e("ProfilePatient", "Error fetching user data", e)
+                Toast.makeText(requireContext(), "Failed to load user data", Toast.LENGTH_SHORT).show()
+            }
     }
 
     // Helper function to format phone number
@@ -847,13 +909,13 @@ class HomeDoctorFragment : Fragment() {
         Log.d(HomeFragment.TAG, "Updating UI with -> HeartRate: $heartRate, BP: ${systolic.roundToInt()} / ${diastolic.roundToInt()}, Battery: $battery%")
 
         view?.findViewById<TextView>(R.id.avg_week_heartrate)?.text =
-            if (heartRate > 0) "$heartRate" else " "
+            if (heartRate > 0) "$heartRate" else "null"
 
         view?.findViewById<TextView>(R.id.avg_week_bloodpressure)?.text =
-            if (systolic > 0 && diastolic > 0) "${systolic.roundToInt()} / ${diastolic.roundToInt()}" else " "
+            if (systolic > 0 && diastolic > 0) "${systolic.roundToInt()} / ${diastolic.roundToInt()}" else "null"
 
         view?.findViewById<TextView>(R.id.avg_week_battery)?.text =
-            if (battery > 0) "$battery %" else " "
+            if (battery > 0) "$battery %" else "null"
     }
     private fun extractMonthYearFromTimestamp(timestamp: String): String {
         return try {

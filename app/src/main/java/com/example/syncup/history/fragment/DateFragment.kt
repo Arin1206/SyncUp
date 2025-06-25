@@ -236,9 +236,7 @@ class DateFragment : Fragment() {
                 Toast.makeText(requireContext(), "User ID tidak ditemukan", Toast.LENGTH_SHORT).show()
                 return@getActualPatientUID
             }
-
             Log.d("FirestoreDebug", "Fetching data for userId (Firestore): $userId")
-
             getUserAge { age ->
                 if (age == null) {
                     Toast.makeText(
@@ -256,25 +254,19 @@ class DateFragment : Fragment() {
                             return@addSnapshotListener
                         }
                         if (documents == null) return@addSnapshotListener
-
                         val groupedItems = mutableListOf<HealthItem>()
                         val groupedMap = LinkedHashMap<String, MutableList<HealthItem.DataItem>>()
                         val dataList = mutableListOf<HealthData>()
-
                         for (doc in documents) {
                             val heartRate = doc.getLong("heartRate")?.toInt() ?: 0
                             if (heartRate == 0) continue
-
                             val systolicBP = doc.getDouble("systolicBP")?.toInt() ?: 0
                             val diastolicBP = doc.getDouble("diastolicBP")?.toInt() ?: 0
                             val batteryLevel = doc.getLong("batteryLevel")?.toInt() ?: 0
                             val timestamp = doc.getString("timestamp") ?: continue
-
                             val formattedTime = extractTime(timestamp)
                             if (dataList.any { extractTime(it.fullTimestamp) == formattedTime }) continue
-
                             val formattedDate = extractDate(timestamp)
-
                             val healthData = HealthData(
                                 heartRate = heartRate,
                                 bloodPressure = "$systolicBP/$diastolicBP",
@@ -283,57 +275,45 @@ class DateFragment : Fragment() {
                                 fullTimestamp = timestamp,
                                 userAge = age
                             )
-
                             dataList.add(healthData)
-
                             if (!groupedMap.containsKey(formattedDate)) {
                                 groupedMap[formattedDate] = mutableListOf()
                             }
                             groupedMap[formattedDate]?.add(HealthItem.DataItem(healthData))
                         }
-
                         if (dataList.isEmpty()) {
                             view?.findViewById<View>(R.id.emptyStateView)?.visibility = View.VISIBLE
                             return@addSnapshotListener
                         }
-
                         val sortedData = dataList.sortedByDescending { it.fullTimestamp }
                         val latestDate = sortedData.firstOrNull()?.let { extractDate(it.fullTimestamp) }
-
                         if (latestDate != null) {
                             val latestData = groupedMap[latestDate] ?: emptyList()
-
                             if (latestData.isNotEmpty()) {
                                 val avgHeartRate = latestData.map { it.healthData.heartRate }.average().toInt()
                                 val avgSystolicBP = latestData.map { it.healthData.bloodPressure.split("/")[0].toInt() }.average().toInt()
                                 val avgDiastolicBP = latestData.map { it.healthData.bloodPressure.split("/")[1].toInt() }.average().toInt()
                                 val avgBatteryLevel = latestData.map { it.healthData.batteryLevel }.average().toInt()
-
                                 if (avgHeartRate != 0 && isAdded) {
                                     activity?.runOnUiThread {
                                         avgHeartRateTextView.text = "$avgHeartRate"
                                         avgBloodPressureTextView.text = "$avgSystolicBP/$avgDiastolicBP"
                                         avgBatteryTextView.text = "$avgBatteryLevel%"
-
                                         heartRateChart.setData(latestData.map { it.healthData })
                                     }
                                 }
                             }
                         }
-
                         val sortedGroupedMap = groupedMap.toSortedMap(compareByDescending { parseDateToSortableFormat(it) })
-
                         for ((date, items) in sortedGroupedMap) {
                             groupedItems.add(HealthItem.DateHeader(date))
                             groupedItems.addAll(items.sortedByDescending { it.healthData.fullTimestamp })
                         }
-
                         healthDataAdapter.updateData(groupedItems)
                         updateRecyclerViewHeight()
                         updateViewPagerHeight()
                     }
             }
-
         }
     }
     private fun parseDateToSortableFormat(date: String): String {

@@ -634,33 +634,24 @@ class HomeFragment : Fragment() {
     fun updateIndicator(heartRate: Int, userAge: Int?) {
         val indicatorTextView = view?.findViewById<TextView>(R.id.indicator_value)
         val indicatorBox = view?.findViewById<View>(R.id.indicator_box)
-
         if (heartRate == -1 || userAge == null) {
-            // Default condition when heart rate or age is invalid
             indicatorTextView?.text = "null"
             indicatorBox?.setBackgroundResource(R.drawable.bg_purple_box)
             return
         }
-
         val maxWarning = 220 - userAge
         val minWarning = (maxWarning * 0.8).toInt()
-
         when {
             heartRate >= maxWarning -> {
-                // Danger
                 indicatorTextView?.text = "Danger"
                 indicatorBox?.setBackgroundResource(R.drawable.bg_red_box)
-
-                // Send the location to the chat if in danger zone
                 sendLocationToChat()
             }
             heartRate < minWarning -> {
-                // Healthy
                 indicatorTextView?.text = "Healthy"
                 indicatorBox?.setBackgroundResource(R.drawable.bg_green_box)
             }
             else -> {
-                // Warning
                 indicatorTextView?.text = "Warning"
                 indicatorBox?.setBackgroundResource(R.drawable.bg_yellow_box)  // Yellow box for warning
             }
@@ -1447,13 +1438,10 @@ class HomeFragment : Fragment() {
                 val heartRate = intent.getIntExtra(BluetoothLeService.EXTRA_HEART_RATE, -1)
                 Log.d(TAG, "Heart rate received: $heartRate")
                 heartRateTextView?.text = "$heartRate bpm"
-
                 heartRateChartView?.addHeartRate(heartRate)
                 getUserAge { age ->
-                    // Jalankan updateIndicator saat userAge sudah didapat
                     updateIndicator(heartRate, age)
                 }
-
                 getActualPatientUid { patientUid ->
                     if (patientUid != null) {
                         FirebaseDatabase.getInstance()
@@ -1472,7 +1460,6 @@ class HomeFragment : Fragment() {
                         Log.e(TAG, "Patient UID not found, cannot save heart rate.")
                     }
                 }
-
             }
         }
     }
