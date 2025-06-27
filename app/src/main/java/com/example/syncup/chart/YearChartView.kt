@@ -70,7 +70,7 @@ class YearChartView @JvmOverloads constructor(
 
         if (yearData.isEmpty()) return
 
-        val maxHeartRate = yearData.values.filterNotNull().maxOrNull()?.toFloat() ?: 150f
+        val maxHeartRate = 150f // ✅ Skala tetap
         val minHeartRate = 0f
         val chartWidth = width.toFloat() - 50f
         val chartHeight = height.toFloat() - 20f
@@ -94,7 +94,7 @@ class YearChartView @JvmOverloads constructor(
         var xPosition = startX
 
         yearData.forEach { (year, avgHeartRate) ->
-            val barHeight = if (avgHeartRate != null) {
+            val barHeight = if (avgHeartRate != null && avgHeartRate in minHeartRate.toInt()..maxHeartRate.toInt()) {
                 ((avgHeartRate - minHeartRate) / (maxHeartRate - minHeartRate)) * (axisY - 50)
             } else {
                 0f
@@ -107,7 +107,6 @@ class YearChartView @JvmOverloads constructor(
             canvas.drawText(year, xPosition + barWidth / 2, axisY + 15, textPaint)
 
             if (avgHeartRate != null) {
-
                 canvas.drawText(
                     "$avgHeartRate bpm",
                     xPosition + barWidth / 2,
@@ -115,13 +114,13 @@ class YearChartView @JvmOverloads constructor(
                     labelPaint
                 )
             } else {
-
                 canvas.drawText("null", xPosition + barWidth / 2, axisY - 10, textPaint)
             }
 
             xPosition += (barWidth + barSpacing)
         }
     }
+
 
     private fun getCurrentYear(): String {
         return Calendar.getInstance().get(Calendar.YEAR).toString()

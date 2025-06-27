@@ -59,6 +59,7 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -1022,7 +1023,18 @@ class HomeFragment : Fragment() {
                         Log.e(TAG, "No user document found for email.")
                         onResult(null)  // No user document found for email
                     } else {
-                        val age = documents.firstOrNull()?.getString("age")?.toInt()
+                        val ageString = documents.firstOrNull()?.getString("age")
+                        val age = try {
+                            // Cek apakah usia adalah "N/A", jika ya kembalikan null atau nilai default
+                            if (ageString == "N/A") {
+                                null
+                            } else {
+                                ageString?.toInt() // Coba mengkonversi ke angka
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error converting age to number: ${e.message}")
+                            null
+                        }
                         Log.d(TAG, "Found age for email: $age")
                         onResult(age)
                     }
@@ -1041,7 +1053,17 @@ class HomeFragment : Fragment() {
                         Log.e(TAG, "No user document found for phone number.")
                         onResult(null)  // No user document found for phone number
                     } else {
-                        val age = documents.firstOrNull()?.getString("age")?.toInt()
+                        val ageString = documents.firstOrNull()?.getString("age")
+                        val age = try {
+                            if (ageString == "N/A") {
+                                null
+                            } else {
+                                ageString?.toInt() // Coba mengkonversi ke angka
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error converting age to number: ${e.message}")
+                            null
+                        }
                         Log.d(TAG, "Found age for phone number: $age")
                         onResult(age)
                     }
@@ -1055,6 +1077,7 @@ class HomeFragment : Fragment() {
             onResult(null)  // If neither email nor phone is available
         }
     }
+
 
 
     // Helper function to format phone number
@@ -1236,7 +1259,10 @@ class HomeFragment : Fragment() {
         val dateFormat = SimpleDateFormat("dd-MMM-yyyy", Locale.getDefault())
         val formattedDate = dateFormat.format(currentDate)
 
-        dayTextView.text = "This Day, $formattedDate"
+        val currentDate2 = Date()  // Get current date
+        val dayFormat = SimpleDateFormat("EEEE", Locale.ENGLISH)  // Format to get the day name
+        val dayName = dayFormat.format(currentDate)  // Get the name of the day (e.g., "Monday")
+        dayTextView.text = "$dayName, $formattedDate"
 
         checkLocationPermissionAndUpdateMaps()
     }

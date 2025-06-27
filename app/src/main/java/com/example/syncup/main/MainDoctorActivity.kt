@@ -17,6 +17,7 @@ import com.example.syncup.history.AlertDoctorFragment
 import com.example.syncup.home.HomeDoctorFragment
 import com.example.syncup.home.HomeFragment
 import com.example.syncup.inbox.InboxDoctorFragment
+import com.example.syncup.search.SearchDoctorFragment
 import com.google.firebase.auth.FirebaseAuth
 
 class MainDoctorActivity : AppCompatActivity() {
@@ -63,7 +64,7 @@ class MainDoctorActivity : AppCompatActivity() {
         binding.bottomNav.setOnItemSelectedListener {
             when (it.itemId) {
                 R.id.homepage -> replaceFragment(HomeDoctorFragment())
-                R.id.inbox -> replaceFragment(InboxDoctorFragment())
+                R.id.inbox -> replaceFragment(SearchDoctorFragment())
                 R.id.faq -> replaceFragment(FaqDoctorFragment())
                 R.id.chat -> replaceFragment(ChatDoctorFragment())
                 else -> {}

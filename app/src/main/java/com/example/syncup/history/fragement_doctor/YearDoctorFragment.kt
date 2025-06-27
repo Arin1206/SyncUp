@@ -6,6 +6,9 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
+import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -16,6 +19,7 @@ import com.example.syncup.adapter.YearHealthDoctorAdapter
 import com.example.syncup.chart.YearChartView
 import com.example.syncup.model.YearHealthItem
 import com.example.syncup.model.YearHealthItemDoctor
+import com.example.syncup.search.PatientData
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
@@ -35,6 +39,9 @@ class YearDoctorFragment : Fragment() {
     private val firestore = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
 
+    private val patientList = mutableListOf<PatientData>()
+    private lateinit var patientSpinner: Spinner
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -51,10 +58,128 @@ class YearDoctorFragment : Fragment() {
         avgBloodPressureTextView = view.findViewById(R.id.avg_bloodpressure)
         avgBatteryTextView = view.findViewById(R.id.textView13)
         yearChartView = view.findViewById(R.id.heartRateChart)
-
+        patientSpinner = view.findViewById(R.id.patientSpinner)
         fetchHealthData()
-
+        fetchPatientsForSpinner()
         return view
+    }
+
+    private fun fetchPatientsForSpinner() {
+        getActualDoctorUID { doctorId ->
+            if (doctorId == null) {
+                Toast.makeText(requireContext(), "Dokter tidak ditemukan", Toast.LENGTH_SHORT).show()
+                return@getActualDoctorUID
+            }
+
+            firestore.collection("assigned_patient")
+                .whereEqualTo("doctorUid", doctorId)
+                .get()
+                .addOnSuccessListener { assignedSnapshot ->
+                    Log.d("AssignedPatientsQuery", "Assigned Patients: ${assignedSnapshot.documents.size}")
+
+                    if (assignedSnapshot.isEmpty) {
+                        Toast.makeText(requireContext(), "Tidak ada pasien yang ditugaskan", Toast.LENGTH_SHORT).show()
+                        return@addOnSuccessListener
+                    }
+
+                    val patientIds = assignedSnapshot.documents.mapNotNull { it.getString("patientId") }
+                    Log.d("AssignedPatientIds", "Patient IDs: $patientIds")
+
+                    patientList.clear()
+
+                    // Add "All" option to the patient list first
+                    patientList.add(PatientData(name = "All", id = "All", age = "", gender = "", heartRate = "", systolicBP = "", diastolicBP = "", email = "", phoneNumber = "", photoUrl = ""))
+
+                    // Fetch patient details for the spinner
+                    for (patientId in patientIds) {
+                        firestore.collection("users_patient_email").document(patientId).get()
+                            .addOnSuccessListener { userDoc ->
+                                Log.d("UserDoc", "Fetched user data for patient: $patientId")
+
+                                val name = userDoc.getString("fullName") ?: "N/A"
+                                Log.d("PatientData", "Patient name: $name")
+
+                                if (name != "N/A") {
+                                    val age = userDoc.getString("age") ?: "N/A"
+                                    val gender = userDoc.getString("gender") ?: "N/A"
+                                    val heartRate = userDoc.getString("heartRate") ?: "N/A"
+                                    val systolicBP = userDoc.getString("systolicBP") ?: "N/A"
+                                    val diastolicBP = userDoc.getString("diastolicBP") ?: "N/A"
+                                    val email = userDoc.getString("email") ?: "N/A"
+                                    val phoneNumber = userDoc.getString("phoneNumber") ?: "N/A"
+                                    val photoUrl = userDoc.getString("photoUrl") ?: "N/A"
+
+                                    val patient = PatientData(
+                                        id = patientId,
+                                        name = name,
+                                        age = age,
+                                        gender = gender,
+                                        heartRate = heartRate,
+                                        systolicBP = systolicBP,
+                                        diastolicBP = diastolicBP,
+                                        email = email,
+                                        phoneNumber = phoneNumber,
+                                        photoUrl = photoUrl
+                                    )
+                                    patientList.add(patient)
+
+                                    Log.d("PatientFetch", "Added patient: $name")
+                                } else {
+                                    Log.d("PatientFetch", "Skipped patient due to invalid name: $patientId")
+                                }
+
+                                // After fetching all patients, set the spinner listener
+                                if (patientList.isNotEmpty()) {
+                                    val patientNames = patientList.map { it.name }
+                                    val adapter = ArrayAdapter(requireContext(), R.layout.spinner_item, patientNames)  // Use custom layout here
+                                    patientSpinner.adapter = adapter
+                                    Log.d("SpinnerAdapter", "Adapter set with names: $patientNames")
+
+                                    // Apply the custom background to the spinner
+                                    patientSpinner.setBackgroundResource(R.drawable.spinner_background)  // Set the background drawable
+
+                                    // Set the "All" option as the default selected item
+                                    patientSpinner.setSelection(0)
+
+                                    // Set the spinner listener here after populating the data
+                                    setSpinnerListener()
+                                } else {
+                                    Toast.makeText(requireContext(), "No patients available", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                            .addOnFailureListener { exception ->
+                                Log.e("PatientFetchError", "Failed to fetch data for patient: $patientId", exception)
+                            }
+                    }
+                }
+                .addOnFailureListener {
+                    Toast.makeText(requireContext(), "Gagal mengambil data pasien", Toast.LENGTH_SHORT).show()
+                }
+        }
+    }
+
+    private fun setSpinnerListener() {
+        patientSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
+                val selectedPatient = patientList[position]
+
+                Log.d("SelectedPatient", "Selected Patient: ${selectedPatient.name}")
+
+                // If "All" is selected, fetch all data without filters
+                if (selectedPatient.name == "All") {
+                    fetchHealthData() // Fetch all data without filters
+                } else {
+                    fetchHealthData(
+                        selectedPatientName = selectedPatient.name,
+                    )
+                }
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>) {
+                // Handle when nothing is selected
+                Toast.makeText(requireContext(), "No patient selected", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun getActualDoctorUID(onResult: (String?) -> Unit) {
@@ -127,7 +252,7 @@ class YearDoctorFragment : Fragment() {
         }
     }
 
-    private fun fetchHealthData() {
+    private fun fetchHealthData(selectedPatientName: String? = null) {
         getActualDoctorUID { doctorUID ->
             if (doctorUID == null) {
                 Toast.makeText(requireContext(), "Gagal mendapatkan UID dokter", Toast.LENGTH_SHORT).show()
@@ -209,16 +334,29 @@ class YearDoctorFragment : Fragment() {
                                         val groupedItems = mutableListOf<YearHealthItemDoctor>()
                                         val chartMap = mutableMapOf<String, Int>()
 
-                                        val sorted = yearMap.toSortedMap()
+                                        val filteredMap = if (selectedPatientName != null) {
+                                            yearMap.mapValues { entry ->
+                                                entry.value.filter {
+                                                    it.name.equals(selectedPatientName, ignoreCase = true)
+                                                }.toMutableList()
+                                            }.filterValues { it.isNotEmpty() }
+                                        } else {
+                                            yearMap
+                                        }
+
+                                        val sorted = filteredMap.toSortedMap()
                                         for ((year, list) in sorted) {
                                             groupedItems.add(YearHealthItemDoctor.YearHeader(year))
                                             list.forEach { groupedItems.add(YearHealthItemDoctor.YearData(it)) }
+                                            chartMap[year] = list.mapNotNull { it.heartRate.toIntOrNull() }
+                                                .ifEmpty { listOf(0) }
+                                                .average()
+                                                .toInt()
 
-                                            chartMap[year] = yearChartMap[year]?.average()?.toInt() ?: 0
                                         }
 
                                         val currentYear = getCurrentYear()
-                                        val latest = yearMap[currentYear]?.firstOrNull()
+                                        val latest = filteredMap[currentYear]?.firstOrNull()
                                         if (latest != null) {
                                             val avgHR = latest.heartRate.toIntOrNull()
                                             val avgBP = "${latest.systolicBP}/${latest.diastolicBP}"
@@ -231,6 +369,7 @@ class YearDoctorFragment : Fragment() {
                                         healthDataAdapter.updateData(groupedItems)
                                         updateChartData(chartMap)
                                     }
+
                                 }
                         }
 

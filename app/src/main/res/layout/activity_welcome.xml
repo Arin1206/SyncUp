@@ -13,13 +13,13 @@
         android:id="@+id/main"
         android:background="@drawable/bg_welcome"
         app:layout_constraintGuide_percent="0.6"
-        android:paddingTop="0dp">
+        android:paddingTop="20dp">
 
         <ImageView
             android:id="@+id/imageView3"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
+            android:layout_marginTop="30dp"
             android:contentDescription="App Logo"
             android:src="@drawable/logo"
             app:layout_constraintEnd_toEndOf="parent"

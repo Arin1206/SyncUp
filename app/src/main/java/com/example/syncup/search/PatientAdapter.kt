@@ -20,6 +20,7 @@ import com.bumptech.glide.Glide
 import com.example.syncup.R
 import com.example.syncup.chat.RoomChatDoctorFragment
 import com.example.syncup.chat.RoomChatFragment
+import com.example.syncup.history.HistoryPatientFragment
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
@@ -171,61 +172,89 @@ class PatientAdapter(patientList: List<PatientData>,  private val context: Conte
         }
 
         holder.itemView.setOnClickListener {
-            val dialog = AlertDialog.Builder(context)
-                .setTitle("Konfirmasi Penambahan")
-                .setMessage("Apakah Anda ingin menambahkan ${patient.name} sebagai pasien Anda?")
-                .setPositiveButton("Ya") { _, _ ->
-                    getActualDoctorUID { doctorUid, doctorName ->
-                        if (doctorUid != null) {
-                            val assignedPatient = hashMapOf(
-                                "patientId" to patient.id,
-                                "doctorUid" to doctorUid,
-                                "name" to patient.name,
-                                "age" to patient.age,
-                                "gender" to patient.gender,
-                                "heartRate" to patient.heartRate,
-                                "systolicBP" to patient.systolicBP,
-                                "diastolicBP" to patient.diastolicBP,
-                                "photoUrl" to patient.photoUrl,
-                                "email" to patient.email,
-                                "phoneNumber" to patient.phoneNumber
-                            )
-                            FirebaseFirestore.getInstance()
-                                .collection("assigned_patient")
-                                .add(assignedPatient)
-                                .addOnSuccessListener {
-                                    val bgDrawable = ContextCompat.getDrawable(context, R.drawable.button_background)?.mutate()
-                                    val wrappedDrawable = bgDrawable?.let { DrawableCompat.wrap(it) }
-                                    wrappedDrawable?.let {
-                                        DrawableCompat.setTint(it, ContextCompat.getColor(context, R.color.light_gray))
-                                        holder.addbutton.background = it
+            val context = holder.itemView.context  // Mendapatkan konteks dari item view
+
+            // Cek apakah pasien sudah ter-assign
+            val patientAssignedRef = FirebaseFirestore.getInstance()
+                .collection("assigned_patient")
+                .whereEqualTo("patientId", patient.id)
+
+            patientAssignedRef.get()
+                .addOnSuccessListener { documents ->
+                    if (documents.isEmpty) {
+                        // Pasien belum ter-assign, tampilkan dialog konfirmasi
+                        val dialog = AlertDialog.Builder(context)
+                            .setTitle("Konfirmasi Penambahan")
+                            .setMessage("Apakah Anda ingin menambahkan ${patient.name} sebagai pasien Anda?")
+                            .setPositiveButton("Ya") { _, _ ->
+                                getActualDoctorUID { doctorUid, doctorName ->
+                                    if (doctorUid != null) {
+                                        val assignedPatient = hashMapOf(
+                                            "patientId" to patient.id,
+                                            "doctorUid" to doctorUid,
+                                            "name" to patient.name,
+                                            "age" to patient.age,
+                                            "gender" to patient.gender,
+                                            "heartRate" to patient.heartRate,
+                                            "systolicBP" to patient.systolicBP,
+                                            "diastolicBP" to patient.diastolicBP,
+                                            "photoUrl" to patient.photoUrl,
+                                            "email" to patient.email,
+                                            "phoneNumber" to patient.phoneNumber
+                                        )
+                                        FirebaseFirestore.getInstance()
+                                            .collection("assigned_patient")
+                                            .add(assignedPatient)
+                                            .addOnSuccessListener {
+                                                // Update button appearance
+                                                val bgDrawable = ContextCompat.getDrawable(context, R.drawable.button_background)?.mutate()
+                                                val wrappedDrawable = bgDrawable?.let { DrawableCompat.wrap(it) }
+                                                wrappedDrawable?.let {
+                                                    DrawableCompat.setTint(it, ContextCompat.getColor(context, R.color.light_gray))
+                                                    holder.addbutton.background = it
+                                                }
+                                                holder.addbutton.text = "Assigned"
+                                                holder.addbutton.isEnabled = false
+                                                holder.addbutton.setTextColor(ContextCompat.getColor(context, android.R.color.white))
+
+                                                // Show success message
+                                                Toast.makeText(context, "${patient.name} telah ditambahkan sebagai pasien Anda.", Toast.LENGTH_SHORT).show()
+                                                notifyItemChanged(position)
+
+                                                // Navigate to HistoryPatientFragment and pass patientId
+                                                navigateToHistoryPatientFragment(context, patient.id, isFromDoctorFragment = true)
+                                            }
+                                            .addOnFailureListener { e ->
+                                                Toast.makeText(context, "Gagal menambahkan pasien: ${e.message}", Toast.LENGTH_SHORT).show()
+                                            }
+                                    } else {
+                                        Toast.makeText(context, "Doctor UID is unavailable. Please try again.", Toast.LENGTH_SHORT).show()
                                     }
-                                    holder.addbutton.text = "Assigned"
-                                    holder.addbutton.isEnabled = false
-                                    holder.addbutton.setTextColor(ContextCompat.getColor(context, android.R.color.white))
-                                    Toast.makeText(context, "${patient.name} telah ditambahkan sebagai pasien Anda.", Toast.LENGTH_SHORT).show()
-                                    notifyItemChanged(position)
                                 }
-                                .addOnFailureListener { e ->
-                                    Toast.makeText(context, "Gagal menambahkan pasien: ${e.message}", Toast.LENGTH_SHORT).show()
-                                }
-                        } else {
-                            Toast.makeText(context, "Doctor UID is unavailable. Please try again.", Toast.LENGTH_SHORT).show()
+                            }
+                            .setNegativeButton("Batal", null)
+                            .create()
+
+                        // Set colors for the dialog buttons
+                        dialog.setOnShowListener {
+                            dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(ContextCompat.getColor(context, R.color.purple_dark))
+                            dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(ContextCompat.getColor(context, R.color.purple_dark))
                         }
+
+                        // Show the dialog
+                        dialog.show()
+                    } else {
+                        // Pasien sudah ter-assign, arahkan langsung ke HistoryPatientFragment
+                        navigateToHistoryPatientFragment(context, patient.id, isFromDoctorFragment = true)
                     }
                 }
-                .setNegativeButton("Batal", null)
-                .create()
-
-            // Set colors for the dialog buttons
-            dialog.setOnShowListener {
-                dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(ContextCompat.getColor(context, R.color.purple_dark))
-                dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(ContextCompat.getColor(context, R.color.purple_dark))
-            }
-
-            // Show the dialog
-            dialog.show()
+                .addOnFailureListener { e ->
+                    Toast.makeText(context, "Gagal memeriksa status penugasan pasien: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
         }
+
+
+
 
 
 
@@ -293,8 +322,23 @@ class PatientAdapter(patientList: List<PatientData>,  private val context: Conte
         }
     }
 
+    private fun navigateToHistoryPatientFragment(context: Context?, patientId: String, isFromDoctorFragment: Boolean) {
+        val historyPatientFragment = HistoryPatientFragment()
 
+        // Membuat Bundle dan mengirim data patientId dan isFromDoctorFragment
+        val bundle = Bundle().apply {
+            putString("patientId", patientId)  // Mengirimkan patientId
+            putBoolean("isFromDoctorFragment", isFromDoctorFragment)  // Mengirimkan status apakah dari DoctorFragment
+        }
 
+        historyPatientFragment.arguments = bundle
+
+        val fragmentManager = (context as AppCompatActivity).supportFragmentManager
+        val transaction = fragmentManager.beginTransaction()
+        transaction.replace(R.id.frame, historyPatientFragment)  // Assuming 'frame' is your container
+        transaction.addToBackStack(null)  // Optional: Add to backstack for navigation
+        transaction.commit()
+    }
 
 
     private fun getActualDoctorUID(onResult: (String?, String?) -> Unit) {

@@ -1,5 +1,6 @@
 package com.example.syncup.adapter
 
+import android.content.Context
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -8,6 +9,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.DrawableCompat
@@ -15,6 +18,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.syncup.R
 import com.example.syncup.chat.RoomChatDoctorFragment
+import com.example.syncup.history.HistoryPatientFragment
 import com.example.syncup.model.YearHealthItemDoctor
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -38,7 +42,6 @@ class YearHealthDoctorAdapter(private var yearData: List<YearHealthItemDoctor>) 
                     .inflate(R.layout.item_year_header, parent, false)
                 YearHeaderViewHolder(view)
             }
-
             else -> {
                 val view = LayoutInflater.from(parent.context)
                     .inflate(R.layout.item_patient, parent, false)
@@ -48,10 +51,9 @@ class YearHealthDoctorAdapter(private var yearData: List<YearHealthItemDoctor>) 
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        val data = yearData[position]
-        when (holder) {
-            is YearHeaderViewHolder -> holder.bind(data as YearHealthItemDoctor.YearHeader)
-            is YearViewHolder -> holder.bind(data as YearHealthItemDoctor.YearData)
+        when (val item = yearData[position]) {
+            is YearHealthItemDoctor.YearHeader -> (holder as YearHeaderViewHolder).bind(item)
+            is YearHealthItemDoctor.YearData -> (holder as YearViewHolder).bind(item)
         }
     }
 
@@ -79,8 +81,7 @@ class YearHealthDoctorAdapter(private var yearData: List<YearHealthItemDoctor>) 
         private val statusIndicator: TextView = view.findViewById(R.id.status_indicator)
         private val profileImage: ImageView = view.findViewById(R.id.profile_image)
         private val addButton: TextView = view.findViewById(R.id.request_button)
-        private val chatIcon: ImageView =
-            view.findViewById(R.id.chat_icon)  // Add chat icon reference
+        private val chatIcon: ImageView = view.findViewById(R.id.chat_icon)
 
         private val handler = Handler(Looper.getMainLooper())
         private val updateTimeRunnable = object : Runnable {
@@ -143,36 +144,80 @@ class YearHealthDoctorAdapter(private var yearData: List<YearHealthItemDoctor>) 
             handler.removeCallbacks(updateTimeRunnable)
             handler.post(updateTimeRunnable)
 
-            // Fetch doctor data (doctorUid and doctorName)
-            getActualDoctorUID { doctorUid, doctorName ->
-                if (doctorUid == null || doctorName == null) {
-                    return@getActualDoctorUID
-                }
+            // Check if the patient is assigned or not
+            itemView.setOnClickListener {
+                val context = it.context
+                val patientAssignedRef = FirebaseFirestore.getInstance()
+                    .collection("assigned_patient")
+                    .whereEqualTo("patientId", patient.id)
 
-                // Set up a click listener to navigate to RoomChatDoctorFragment when chatIcon is clicked
-                chatIcon.setOnClickListener {
-                    val bundle = Bundle().apply {
-                        putString("patientName", patient.name)  // Pass doctorName
-                        putString(
-                            "doctor_phone_number",
-                            patient.phoneNumber
-                        )  // Assuming phoneNumber is available
-                        putString("receiverUid", patient.id)  // Pass patientId as receiverUid
-                        putString("doctorUid", doctorUid)  // Pass doctorUid
-                        putString("profileImage", patient.photoUrl)  // Pass profile image URL
+                patientAssignedRef.get()
+                    .addOnSuccessListener { documents ->
+                        if (documents.isEmpty) {
+                            // Patient is not assigned, show a dialog to add
+                            val dialog = AlertDialog.Builder(context)
+                                .setTitle("Konfirmasi Penambahan")
+                                .setMessage("Apakah Anda ingin menambahkan ${patient.name} sebagai pasien Anda?")
+                                .setPositiveButton("Ya") { _, _ ->
+                                    getActualDoctorUID { doctorUid, doctorName ->
+                                        if (doctorUid != null) {
+                                            val assignedPatient = hashMapOf(
+                                                "patientId" to patient.id,
+                                                "doctorUid" to doctorUid,
+                                                "name" to patient.name,
+                                                "age" to patient.age,
+                                                "gender" to patient.gender,
+                                                "heartRate" to patient.heartRate,
+                                                "systolicBP" to patient.systolicBP,
+                                                "diastolicBP" to patient.diastolicBP,
+                                                "photoUrl" to patient.photoUrl,
+                                                "email" to patient.email,
+                                                "phoneNumber" to patient.phoneNumber
+                                            )
+                                            FirebaseFirestore.getInstance()
+                                                .collection("assigned_patient")
+                                                .add(assignedPatient)
+                                                .addOnSuccessListener {
+                                                    // Update button appearance
+                                                    val bgDrawable =
+                                                        ContextCompat.getDrawable(context, R.drawable.button_background)?.mutate()
+                                                    val wrappedDrawable = bgDrawable?.let { DrawableCompat.wrap(it) }
+
+                                                    wrappedDrawable?.let {
+                                                        DrawableCompat.setTint(it, ContextCompat.getColor(context, R.color.light_gray))
+                                                        addButton.background = it
+                                                    }
+                                                    addButton.text = "Assigned"
+                                                    addButton.isEnabled = false
+                                                    addButton.setTextColor(ContextCompat.getColor(context, android.R.color.white))
+
+                                                    // Show success message
+                                                    Toast.makeText(context, "${patient.name} telah ditambahkan sebagai pasien Anda.", Toast.LENGTH_SHORT).show()
+
+                                                    // Navigate to HistoryPatientFragment
+                                                    navigateToHistoryPatientFragment(context, patient.id, isFromDoctorFragment = true)
+                                                }
+                                                .addOnFailureListener { e ->
+                                                    Toast.makeText(context, "Gagal menambahkan pasien: ${e.message}", Toast.LENGTH_SHORT).show()
+                                                }
+                                        } else {
+                                            Toast.makeText(context, "Doctor UID is unavailable. Please try again.", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                }
+                                .setNegativeButton("Batal", null)
+                                .create()
+
+                            // Show the dialog
+                            dialog.show()
+                        } else {
+                            // Patient already assigned, navigate to HistoryPatientFragment
+                            navigateToHistoryPatientFragment(context, patient.id, isFromDoctorFragment = true)
+                        }
                     }
-
-                    // Navigate to RoomChatDoctorFragment
-                    val roomChatFragment = RoomChatDoctorFragment().apply {
-                        arguments = bundle
+                    .addOnFailureListener { e ->
+                        Toast.makeText(context, "Gagal memeriksa status penugasan pasien: ${e.message}", Toast.LENGTH_SHORT).show()
                     }
-
-                    // Use the context (activity) to navigate to the RoomChatDoctorFragment
-                    (context as? AppCompatActivity)?.supportFragmentManager?.beginTransaction()
-                        ?.replace(R.id.frame, roomChatFragment)
-                        ?.addToBackStack(null)
-                        ?.commit()
-                }
             }
         }
 
@@ -191,8 +236,7 @@ class YearHealthDoctorAdapter(private var yearData: List<YearHealthItemDoctor>) 
                     .get()
                     .addOnSuccessListener { documents ->
                         val doctorUid = documents.firstOrNull()?.getString("userId")
-                        val doctorName = documents.firstOrNull()
-                            ?.getString("fullName") // Assuming doctor name is stored as 'fullName'
+                        val doctorName = documents.firstOrNull()?.getString("fullName")
                         onResult(doctorUid, doctorName)
                     }
                     .addOnFailureListener {
@@ -204,8 +248,7 @@ class YearHealthDoctorAdapter(private var yearData: List<YearHealthItemDoctor>) 
                     .get()
                     .addOnSuccessListener { documents ->
                         val doctorUid = documents.firstOrNull()?.getString("userId")
-                        val doctorName = documents.firstOrNull()
-                            ?.getString("fullName") // Assuming doctor name is stored as 'fullName'
+                        val doctorName = documents.firstOrNull()?.getString("fullName")
                         onResult(doctorUid, doctorName)
                     }
                     .addOnFailureListener {
@@ -215,7 +258,23 @@ class YearHealthDoctorAdapter(private var yearData: List<YearHealthItemDoctor>) 
                 onResult(null, null)
             }
         }
+
+        private fun navigateToHistoryPatientFragment(context: Context?, patientId: String, isFromDoctorFragment: Boolean) {
+            val historyPatientFragment = HistoryPatientFragment()
+
+            val bundle = Bundle().apply {
+                putString("patientId", patientId)
+                putBoolean("isFromDoctorFragment", isFromDoctorFragment)
+            }
+
+            historyPatientFragment.arguments = bundle
+
+            val fragmentManager = (context as AppCompatActivity).supportFragmentManager
+            val transaction = fragmentManager.beginTransaction()
+            transaction.replace(R.id.frame, historyPatientFragment)
+            transaction.addToBackStack(null)
+            transaction.commit()
+        }
     }
-
-
 }
+

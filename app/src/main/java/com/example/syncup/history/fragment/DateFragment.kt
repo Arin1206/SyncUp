@@ -63,6 +63,15 @@ class DateFragment : Fragment() {
         // **Tambahkan Scroll Listener**
         setupScrollListener()
 
+        val patientId = arguments?.getString("patientId")
+        if (patientId != null) {
+            // Jika patientId ada, lanjutkan untuk fetch data kesehatan
+            fetchHealthDataUsingPatientId(patientId)
+            Log.d("Date", "$patientId")
+        } else {
+            Toast.makeText(requireContext(), "Patient ID tidak ditemukan", Toast.LENGTH_SHORT).show()
+            Log.d("Date", "tidak ditemukan patientid")
+        }
         fetchHealthData()
 
         return view
@@ -233,7 +242,14 @@ class DateFragment : Fragment() {
     private fun fetchHealthData() {
         getActualPatientUID { userId ->
             if (userId == null) {
-                Toast.makeText(requireContext(), "User ID tidak ditemukan", Toast.LENGTH_SHORT).show()
+                val patientId = arguments?.getString("patientId")
+                if (patientId != null) {
+                    Log.d("FirestoreDebug", "Using patientId as fallback: $patientId")
+                    // Gunakan patientId untuk fetch data
+                    fetchHealthDataUsingPatientId(patientId)
+                } else {
+                    Toast.makeText(requireContext(), "User ID atau Patient ID tidak ditemukan", Toast.LENGTH_SHORT).show()
+                }
                 return@getActualPatientUID
             }
             Log.d("FirestoreDebug", "Fetching data for userId (Firestore): $userId")
@@ -311,10 +327,136 @@ class DateFragment : Fragment() {
                         }
                         healthDataAdapter.updateData(groupedItems)
                         updateRecyclerViewHeight()
-                        updateViewPagerHeight()
+//                        updateViewPagerHeight()
                     }
             }
         }
+    }
+
+    private fun fetchHealthDataUsingPatientId(patientId: String) {
+        Log.d("FirestoreDebug", "Fetching data for userId (Firestore): $patientId")
+
+        // Cek apakah patientId ada di user_patient_email atau user_patient_phonenumber untuk mendapatkan age
+        getAgeFromPatientId(patientId) { age ->
+            if (age == null) {
+                Toast.makeText(requireContext(), "Age not found", Toast.LENGTH_SHORT).show()
+                return@getAgeFromPatientId
+            }
+
+            // Lanjutkan mengambil data dari Firestore jika age ditemukan
+            firestore.collection("patient_heart_rate")
+                .whereEqualTo("userId", patientId)  // Menggunakan patientId untuk query
+                .addSnapshotListener { documents, exception ->
+                    if (exception != null) {
+                        Log.e("FirestoreError", "Failed to fetch data: ${exception.message}")
+                        return@addSnapshotListener
+                    }
+
+                    if (documents == null) return@addSnapshotListener
+
+                    val groupedItems = mutableListOf<HealthItem>()
+                    val groupedMap = LinkedHashMap<String, MutableList<HealthItem.DataItem>>()
+                    val dataList = mutableListOf<HealthData>()
+
+                    // Proses setiap dokumen untuk mengambil data kesehatan
+                    for (doc in documents) {
+                        val heartRate = doc.getLong("heartRate")?.toInt() ?: 0
+                        if (heartRate == 0) continue
+                        val systolicBP = doc.getDouble("systolicBP")?.toInt() ?: 0
+                        val diastolicBP = doc.getDouble("diastolicBP")?.toInt() ?: 0
+                        val batteryLevel = doc.getLong("batteryLevel")?.toInt() ?: 0
+                        val timestamp = doc.getString("timestamp") ?: continue
+                        val formattedTime = extractTime(timestamp)
+
+                        if (dataList.any { extractTime(it.fullTimestamp) == formattedTime }) continue
+
+                        val formattedDate = extractDate(timestamp)
+                        val healthData = HealthData(
+                            heartRate = heartRate,
+                            bloodPressure = "$systolicBP/$diastolicBP",
+                            batteryLevel = batteryLevel,
+                            timestamp = formattedTime,
+                            fullTimestamp = timestamp,
+                            userAge = age  // Sertakan age di sini
+                        )
+                        dataList.add(healthData)
+
+                        if (!groupedMap.containsKey(formattedDate)) {
+                            groupedMap[formattedDate] = mutableListOf()
+                        }
+                        groupedMap[formattedDate]?.add(HealthItem.DataItem(healthData))
+                    }
+
+                    if (dataList.isEmpty()) {
+                        view?.findViewById<View>(R.id.emptyStateView)?.visibility = View.VISIBLE
+                        return@addSnapshotListener
+                    }
+
+                    val sortedData = dataList.sortedByDescending { it.fullTimestamp }
+                    val latestDate = sortedData.firstOrNull()?.let { extractDate(it.fullTimestamp) }
+
+                    if (latestDate != null) {
+                        val latestData = groupedMap[latestDate] ?: emptyList()
+                        if (latestData.isNotEmpty()) {
+                            val avgHeartRate = latestData.map { it.healthData.heartRate }.average().toInt()
+                            val avgSystolicBP = latestData.map { it.healthData.bloodPressure.split("/")[0].toInt() }.average().toInt()
+                            val avgDiastolicBP = latestData.map { it.healthData.bloodPressure.split("/")[1].toInt() }.average().toInt()
+                            val avgBatteryLevel = latestData.map { it.healthData.batteryLevel }.average().toInt()
+                            if (avgHeartRate != 0 && isAdded) {
+                                activity?.runOnUiThread {
+                                    avgHeartRateTextView.text = "$avgHeartRate"
+                                    avgBloodPressureTextView.text = "$avgSystolicBP/$avgDiastolicBP"
+                                    avgBatteryTextView.text = "$avgBatteryLevel%"
+                                    heartRateChart.setData(latestData.map { it.healthData })
+                                }
+                            }
+                        }
+                    }
+
+                    val sortedGroupedMap = groupedMap.toSortedMap(compareByDescending { parseDateToSortableFormat(it) })
+                    for ((date, items) in sortedGroupedMap) {
+                        groupedItems.add(HealthItem.DateHeader(date))
+                        groupedItems.addAll(items.sortedByDescending { it.healthData.fullTimestamp })
+                    }
+                    healthDataAdapter.updateData(groupedItems)
+                    updateRecyclerViewHeight()
+//                    updateViewPagerHeight()
+                }
+        }
+    }
+
+    // Fungsi untuk mengambil age berdasarkan patientId
+    private fun getAgeFromPatientId(patientId: String, onResult: (Int?) -> Unit) {
+        firestore.collection("users_patient_email")
+            .whereEqualTo("userId", patientId)
+            .get()
+            .addOnSuccessListener { documents ->
+                if (documents.isEmpty) {
+                    // Jika tidak ditemukan di email, coba di phone number
+                    firestore.collection("users_patient_phonenumber")
+                        .whereEqualTo("userId", patientId)
+                        .get()
+                        .addOnSuccessListener { docs ->
+                            if (docs.isEmpty) {
+                                onResult(null)  // Tidak ditemukan di kedua tempat
+                            } else {
+                                val age = docs.firstOrNull()?.getString("age")?.toInt()
+                                onResult(age)
+                            }
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("FirestoreError", "Failed to fetch age from phone number: ${e.message}")
+                            onResult(null)
+                        }
+                } else {
+                    val age = documents.firstOrNull()?.getString("age")?.toInt()
+                    onResult(age)
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e("FirestoreError", "Failed to fetch age from email: ${e.message}")
+                onResult(null)
+            }
     }
     private fun parseDateToSortableFormat(date: String): String {
         return try {
@@ -341,23 +483,23 @@ class DateFragment : Fragment() {
         }
     }
 
-    private fun updateViewPagerHeight() {
-        view?.post {
-            val parentViewPager = requireActivity().findViewById<ViewPager2>(R.id.viewPager)
-            val bottomNav = requireActivity().findViewById<View>(R.id.bottom_navigation)
-            val scanButtonContainer = requireActivity().findViewById<FrameLayout>(R.id.scanButtonContainer)
-
-            parentViewPager?.let {
-                val layoutParams = it.layoutParams
-                val bottomNavHeight = bottomNav?.height ?: 0
-                val fabScanHeight = scanButtonContainer?.height ?: 0
-
-                // **Hanya sesuaikan tinggi tanpa menambah container utama**
-                layoutParams.height = recyclerView.measuredHeight + bottomNavHeight + (fabScanHeight / 4)
-                it.layoutParams = layoutParams
-            }
-        }
-    }
+//    private fun updateViewPagerHeight() {
+//        view?.post {
+//            val parentViewPager = requireActivity().findViewById<ViewPager2>(R.id.viewPager)
+//            val bottomNav = requireActivity().findViewById<View>(R.id.bottom_navigation)
+//            val scanButtonContainer = requireActivity().findViewById<FrameLayout>(R.id.scanButtonContainer)
+//
+//            parentViewPager?.let {
+//                val layoutParams = it.layoutParams
+//                val bottomNavHeight = bottomNav?.height ?: 0
+//                val fabScanHeight = scanButtonContainer?.height ?: 0
+//
+//                // **Hanya sesuaikan tinggi tanpa menambah container utama**
+//                layoutParams.height = recyclerView.measuredHeight + bottomNavHeight + (fabScanHeight / 4)
+//                it.layoutParams = layoutParams
+//            }
+//        }
+//    }
 
 
 

@@ -53,6 +53,16 @@ class WeekFragment : Fragment() {
 
         weekChartView = view.findViewById(R.id.heartRateChart)
 
+        val patientId = arguments?.getString("patientId")
+        if (patientId != null) {
+            // Jika patientId ada, lanjutkan untuk fetch data kesehatan
+            fetchHealthDataUsingPatientId(patientId)
+            Log.d("Date", "$patientId")
+        } else {
+            Toast.makeText(requireContext(), "Patient ID tidak ditemukan", Toast.LENGTH_SHORT).show()
+            Log.d("Date", "tidak ditemukan patientid")
+        }
+
         fetchHealthData()
 
         return view
@@ -353,6 +363,189 @@ class WeekFragment : Fragment() {
             }
 
         }
+    }
+
+    private fun fetchHealthDataUsingPatientId(patientId : String) {
+        getAgeFromPatientId(patientId) { age ->
+                if (age == null) {
+                    Toast.makeText(
+                        requireContext(),
+                        "Usia pengguna tidak ditemukan",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    return@getAgeFromPatientId
+                }
+                firestore.collection("patient_heart_rate")
+                    .whereEqualTo("userId", patientId)
+                    .addSnapshotListener { documents, error ->
+                        if (error != null) {
+                            Log.e("WeekFragment", "Error fetching health data", error)
+                            return@addSnapshotListener
+                        }
+
+                        if (documents == null || documents.isEmpty) {
+                            Log.w("WeekFragment", "No health data found in Firestore")
+                            if (isAdded && activity != null) {
+                                activity?.runOnUiThread {
+                                    avgHeartRateTextView.text = "-- BPM"
+                                    avgBloodPressureTextView.text = "--/-- mmHg"
+                                    avgBatteryTextView.text = "--%"
+                                    healthDataAdapter.updateData(emptyList())
+                                    weekChartView.setData(emptyMap())
+                                    weekChartView.invalidate()
+                                }
+                            }
+                            return@addSnapshotListener
+                        }
+
+                        Log.d("WeekFragment", "Total documents retrieved: ${documents.size()}")
+
+                        val weekMap = LinkedHashMap<String, MutableList<HealthData>>()
+                        val firstWeekRange = getFirstWeekOfCurrentMonth()
+                        val currentMonthYear = getCurrentMonthYear()
+
+                        for (doc in documents) {
+                            val heartRate = doc.getLong("heartRate")?.toInt() ?: 0
+                            if (heartRate == 0) continue
+
+                            val systolicBP = doc.getDouble("systolicBP")?.toInt() ?: 0
+                            val diastolicBP = doc.getDouble("diastolicBP")?.toInt() ?: 0
+                            val batteryLevel = doc.getLong("batteryLevel")?.toInt() ?: 0
+                            val timestamp = doc.getString("timestamp") ?: continue
+                            val dataMonthYear = extractMonthYearFromTimestamp(timestamp)
+
+                            if (dataMonthYear != currentMonthYear) {
+                                Log.d("WeekFragment", "📌 Data diabaikan (bukan bulan berjalan): $timestamp")
+                                continue
+                            }
+
+                            val weekNumber = getWeekOfMonth(timestamp, firstWeekRange)
+
+                            Log.d("WeekFragment", "✔ Data Masuk: HR=$heartRate, BP=$systolicBP/$diastolicBP, Battery=$batteryLevel, Week=$weekNumber")
+
+                            val healthData = HealthData(
+                                heartRate = heartRate,
+                                bloodPressure = "$systolicBP/$diastolicBP",
+                                batteryLevel = batteryLevel,
+                                timestamp = timestamp,
+                                fullTimestamp = timestamp,
+                                userAge = age
+                            )
+
+                            weekMap.getOrPut(weekNumber) { mutableListOf() }.add(healthData)
+                        }
+
+                        val filteredWeekMap = weekMap.toSortedMap(compareByDescending { it })
+                        val latestWeek = filteredWeekMap.keys.maxByOrNull { week ->
+                            extractStartEndDateFromWeek(week).first
+                        }
+                        val currentWeekData = latestWeek?.let { filteredWeekMap[it] }
+
+                        if (isAdded && activity != null) {
+                            activity?.runOnUiThread {
+                                if (!currentWeekData.isNullOrEmpty()) {
+                                    val avgHeartRate =
+                                        currentWeekData.map { it.heartRate }.average().toInt()
+                                    val avgSystolicBP =
+                                        currentWeekData.map { it.bloodPressure.split("/")[0].toInt() }
+                                            .average().toInt()
+                                    val avgDiastolicBP =
+                                        currentWeekData.map { it.bloodPressure.split("/")[1].toInt() }
+                                            .average().toInt()
+                                    val avgBatteryLevel =
+                                        currentWeekData.map { it.batteryLevel }.average().toInt()
+
+                                    avgHeartRateTextView.text = "$avgHeartRate"
+                                    avgBloodPressureTextView.text = "$avgSystolicBP/$avgDiastolicBP"
+                                    avgBatteryTextView.text = "$avgBatteryLevel%"
+
+                                    Log.d(
+                                        "WeekFragment",
+                                        "✅ Updated Avg: HR=$avgHeartRate, BP=$avgSystolicBP/$avgDiastolicBP, Battery=$avgBatteryLevel, Week=$latestWeek"
+                                    )
+                                } else {
+                                    avgHeartRateTextView.text = "-- BPM"
+                                    avgBloodPressureTextView.text = "--/-- mmHg"
+                                    avgBatteryTextView.text = "--%"
+                                    Log.w(
+                                        "WeekFragment",
+                                        "⚠ Tidak ada data minggu terbaru, avg di-reset."
+                                    )
+                                }
+
+                                val chartData = filteredWeekMap.mapValues { (_, dataList) ->
+                                    dataList.map { it.heartRate }.average().toInt()
+                                }
+
+                                weekChartView.setData(chartData)
+                                weekChartView.invalidate()
+                                Log.d("WeekFragment", "Chart data set: $chartData")
+
+                                val groupedItems = mutableListOf<WeekHealthItem>()
+
+                                for ((week, dataList) in filteredWeekMap) {
+                                    val avgHeartRate =
+                                        dataList.map { it.heartRate }.average().toInt()
+                                    val avgSystolicBP =
+                                        dataList.map { it.bloodPressure.split("/")[0].toInt() }
+                                            .average().toInt()
+                                    val avgDiastolicBP =
+                                        dataList.map { it.bloodPressure.split("/")[1].toInt() }
+                                            .average().toInt()
+                                    val avgBatteryLevel =
+                                        dataList.map { it.batteryLevel }.average().toInt()
+
+                                    val avgHealthData = HealthData(
+                                        heartRate = avgHeartRate,
+                                        bloodPressure = "$avgSystolicBP/$avgDiastolicBP",
+                                        batteryLevel = avgBatteryLevel,
+                                        timestamp = week,
+                                        fullTimestamp = week,
+                                        userAge = age
+                                    )
+
+                                    groupedItems.add(WeekHealthItem.WeekHeader(week))
+                                    groupedItems.add(WeekHealthItem.DataItem(avgHealthData))
+                                }
+
+                                healthDataAdapter.updateData(groupedItems)
+                            }
+                        }
+                    }
+            }
+    }
+
+    private fun getAgeFromPatientId(patientId: String, onResult: (Int?) -> Unit) {
+        firestore.collection("users_patient_email")
+            .whereEqualTo("userId", patientId)
+            .get()
+            .addOnSuccessListener { documents ->
+                if (documents.isEmpty) {
+                    // Jika tidak ditemukan di email, coba di phone number
+                    firestore.collection("users_patient_phonenumber")
+                        .whereEqualTo("userId", patientId)
+                        .get()
+                        .addOnSuccessListener { docs ->
+                            if (docs.isEmpty) {
+                                onResult(null)  // Tidak ditemukan di kedua tempat
+                            } else {
+                                val age = docs.firstOrNull()?.getString("age")?.toInt()
+                                onResult(age)
+                            }
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("FirestoreError", "Failed to fetch age from phone number: ${e.message}")
+                            onResult(null)
+                        }
+                } else {
+                    val age = documents.firstOrNull()?.getString("age")?.toInt()
+                    onResult(age)
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e("FirestoreError", "Failed to fetch age from email: ${e.message}")
+                onResult(null)
+            }
     }
 
     private fun extractMonthYearFromTimestamp(timestamp: String): String {

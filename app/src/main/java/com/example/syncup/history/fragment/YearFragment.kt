@@ -49,6 +49,15 @@ class YearFragment : Fragment() {
         avgBatteryTextView = view.findViewById(R.id.textView13)
         yearChartView = view.findViewById(R.id.heartRateChart)
 
+        val patientId = arguments?.getString("patientId")
+        if (patientId != null) {
+            // Jika patientId ada, lanjutkan untuk fetch data kesehatan
+            fetchHealthDataUsingPatientId(patientId)
+            Log.d("Date", "$patientId")
+        } else {
+            Toast.makeText(requireContext(), "Patient ID tidak ditemukan", Toast.LENGTH_SHORT).show()
+            Log.d("Date", "tidak ditemukan patientid")
+        }
         fetchHealthData()
 
         return view
@@ -282,6 +291,144 @@ class YearFragment : Fragment() {
                 }
         }
     }
+
+    private fun fetchHealthDataUsingPatientId(patientId:String) {
+                 // 🔽 Tambahkan ini: ambil umur user
+        getAgeFromPatientId(patientId) { age ->
+            if (age == null) {
+                Toast.makeText(
+                    requireContext(),
+                    "Usia pengguna tidak ditemukan",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@getAgeFromPatientId
+            }
+
+            // 🔽 Lanjutkan listener untuk data kesehatan
+            firestore.collection("patient_heart_rate")
+                .whereEqualTo("userId", patientId)
+                .addSnapshotListener { documents, error ->
+                    if (error != null) {
+                        Log.e("YearFragment", "❌ Error fetching health data", error)
+                        return@addSnapshotListener
+                    }
+
+                    if (documents == null || documents.isEmpty) {
+                        Log.w("YearFragment", "⚠ No health data found")
+                        healthDataAdapter.updateData(emptyList())
+                        updateAverageUI(null, null, null)
+                        updateChartData(emptyMap())
+                        return@addSnapshotListener
+                    }
+
+                    val yearMap = mutableMapOf<String, MutableList<Int>>()
+                    val bpMap = mutableMapOf<String, MutableList<String>>()
+                    val batteryMap = mutableMapOf<String, MutableList<Int>>()
+                    val yearAverages = mutableMapOf<String, Int>()
+
+                    for (doc in documents) {
+                        val heartRate = doc.getLong("heartRate")?.toInt() ?: continue
+                        if (heartRate == 0) continue
+
+                        val systolicBP = doc.getDouble("systolicBP")?.toInt() ?: 0
+                        val diastolicBP = doc.getDouble("diastolicBP")?.toInt() ?: 0
+                        val batteryLevel = doc.getLong("batteryLevel")?.toInt() ?: 0
+
+                        val timestampStr = doc.getString("timestamp")
+                        val timestamp = if (timestampStr != null) {
+                            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH).parse(
+                                timestampStr
+                            )
+                        } else {
+                            null
+                        }
+
+                        val year = if (timestamp != null) {
+                            SimpleDateFormat("yyyy", Locale.ENGLISH).format(timestamp)
+                        } else {
+                            getCurrentYear()
+                        }
+
+                        yearMap.getOrPut(year) { mutableListOf() }.add(heartRate)
+                        bpMap.getOrPut(year) { mutableListOf() }.add("$systolicBP/$diastolicBP")
+                        batteryMap.getOrPut(year) { mutableListOf() }.add(batteryLevel)
+                    }
+
+                    val yearItems = mutableListOf<YearHealthItem>()
+                    val sortedYears = yearMap.entries.sortedBy { it.key.toInt() }
+
+                    sortedYears.forEach { (year, heartRates) ->
+                        yearItems.add(YearHealthItem.YearHeader(year))
+                        val avgHeartRate = heartRates.average().toInt()
+                        val avgBloodPressure = bpMap[year]?.groupingBy { it }?.eachCount()
+                            ?.maxByOrNull { it.value }?.key ?: "N/A"
+                        val avgBattery =
+                            batteryMap[year]?.ifEmpty { listOf(0) }?.average()?.toInt() ?: 0
+
+                        yearItems.add(
+                            YearHealthItem.YearData(
+                                avgHeartRate,
+                                avgBloodPressure,
+                                avgBattery
+                            )
+                        )
+                        yearAverages[year] = avgHeartRate
+                    }
+
+                    val latestYear = sortedYears.lastOrNull()?.key
+                    latestYear?.let {
+                        val avgLatestHeartRate = yearAverages[it] ?: 0
+                        val avgLatestBloodPressure =
+                            bpMap[it]?.groupingBy { it }?.eachCount()?.maxByOrNull { it.value }?.key
+                                ?: "N/A"
+                        val avgLatestBattery =
+                            batteryMap[it]?.ifEmpty { listOf(0) }?.average()?.toInt() ?: 0
+
+                        updateAverageUI(
+                            avgLatestHeartRate,
+                            avgLatestBloodPressure,
+                            avgLatestBattery
+                        )
+                    }
+
+                    healthDataAdapter.updateData(yearItems)
+                    updateChartData(yearAverages)
+                }
+        }
+    }
+    private fun getAgeFromPatientId(patientId: String, onResult: (Int?) -> Unit) {
+        firestore.collection("users_patient_email")
+            .whereEqualTo("userId", patientId)
+            .get()
+            .addOnSuccessListener { documents ->
+                if (documents.isEmpty) {
+                    // Jika tidak ditemukan di email, coba di phone number
+                    firestore.collection("users_patient_phonenumber")
+                        .whereEqualTo("userId", patientId)
+                        .get()
+                        .addOnSuccessListener { docs ->
+                            if (docs.isEmpty) {
+                                onResult(null)  // Tidak ditemukan di kedua tempat
+                            } else {
+                                val age = docs.firstOrNull()?.getString("age")?.toInt()
+                                onResult(age)
+                            }
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("FirestoreError", "Failed to fetch age from phone number: ${e.message}")
+                            onResult(null)
+                        }
+                } else {
+                    val age = documents.firstOrNull()?.getString("age")?.toInt()
+                    onResult(age)
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e("FirestoreError", "Failed to fetch age from email: ${e.message}")
+                onResult(null)
+            }
+    }
+
 
     private fun updateAverageUI(heartRate: Int?, bloodPressure: String?, battery: Int?) {
         if (isAdded && activity != null) {

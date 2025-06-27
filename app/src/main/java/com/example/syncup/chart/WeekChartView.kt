@@ -50,12 +50,16 @@ class WeekChartView @JvmOverloads constructor(
 
     fun setData(data: Map<String, Int>) {
         val filteredData = data.mapKeys { extractWeekNumber(it.key) }
+            .mapValues { (_, value) ->
+                if (value in 0..150) value else null
+            }
 
         val allWeeks = (1..5).map { "Week $it" }
         weekData = allWeeks.associateWith { week -> filteredData[week] }.toMutableMap()
 
         invalidate()
     }
+
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
@@ -85,7 +89,7 @@ class WeekChartView @JvmOverloads constructor(
         var xPosition = startX
 
         weekData.forEach { (week, avgHeartRate) ->
-            val barHeight = if (avgHeartRate != null) {
+            val barHeight = if (avgHeartRate != null && avgHeartRate in minHeartRate.toInt()..maxHeartRate.toInt()) {
                 ((avgHeartRate - minHeartRate) / (maxHeartRate - minHeartRate)) * (axisY - 50)
             } else {
                 0f

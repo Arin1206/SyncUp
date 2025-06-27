@@ -9,8 +9,8 @@
 
     <item
         android:id="@+id/inbox"
-        android:title="@string/inbox"
-        android:icon="@drawable/checklist"
+        android:title="@string/search"
+        android:icon="@drawable/data_loss_prevention"
         app:showAsAction="ifRoom"/>
 
     <item

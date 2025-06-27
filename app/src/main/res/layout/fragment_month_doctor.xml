@@ -46,6 +46,7 @@
             app:layout_constraintHorizontal_bias="0.894"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
+
         <TextView
             android:id="@+id/avg_heartrate"
             android:layout_width="wrap_content"
@@ -59,13 +60,14 @@
             app:layout_constraintHorizontal_bias="0.261"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/textView9"
-            app:layout_constraintVertical_bias="0.611"
+            app:layout_constraintVertical_bias="0.21"
             tools:ignore="MissingConstraints" />
+
         <TextView
             android:id="@+id/avg_bloodpressure"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="16dp"
             android:fontFamily="@font/bold_font"
             android:text="null"
             android:textColor="@color/black"
@@ -74,6 +76,7 @@
             app:layout_constraintHorizontal_bias="0.498"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/textView8" />
+
         <TextView
             android:id="@+id/textView13"
             android:layout_width="wrap_content"
@@ -85,10 +88,11 @@
             android:textSize="28sp"
             app:layout_constraintBottom_toTopOf="@+id/recycler_view_health"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.889"
+            app:layout_constraintHorizontal_bias="0.894"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/textView10"
-            app:layout_constraintVertical_bias="0.4" />
+            app:layout_constraintVertical_bias="0.117" />
+
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recycler_view_health"
             android:layout_width="match_parent"
@@ -97,7 +101,7 @@
             android:layout_marginBottom="12dp"
             android:padding="0dp"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/avg_bloodpressure"
+            app:layout_constraintTop_toBottomOf="@+id/patientSpinner"
             app:layout_constraintVertical_bias="0.0"
             tools:ignore="MissingConstraints"
             tools:layout_editor_absoluteX="-16dp" />
@@ -128,6 +132,17 @@
             android:visibility="gone"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
+
+        <Spinner
+            android:id="@+id/patientSpinner"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:spinnerMode="dropdown"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.498"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/avg_bloodpressure" />
     </androidx.constraintlayout.widget.ConstraintLayout>
     <LinearLayout
         android:id="@+id/emptyStateView"

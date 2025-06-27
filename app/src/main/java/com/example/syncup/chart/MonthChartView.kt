@@ -51,6 +51,7 @@ class MonthChartView @JvmOverloads constructor(
 
     fun setData(data: Map<String, Int>) {
         val filteredData = data.mapKeys { convertMonthToEnglish(it.key) }
+            .mapValues { (_, value) -> if (value in 0..150) value else null }
 
         val allMonths = listOf(
             "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -61,12 +62,13 @@ class MonthChartView @JvmOverloads constructor(
         invalidate()
     }
 
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
         if (monthData.isEmpty()) return
 
-        val maxHeartRate = monthData.values.filterNotNull().maxOrNull()?.toFloat() ?: 150f
+        val maxHeartRate = 150f // ✅ Skala tetap
         val minHeartRate = 0f
         val chartWidth = width.toFloat() - 50f
         val chartHeight = height.toFloat() - 20f
@@ -90,7 +92,7 @@ class MonthChartView @JvmOverloads constructor(
         var xPosition = startX
 
         monthData.forEach { (month, avgHeartRate) ->
-            val barHeight = if (avgHeartRate != null) {
+            val barHeight = if (avgHeartRate != null && avgHeartRate in minHeartRate.toInt()..maxHeartRate.toInt()) {
                 ((avgHeartRate - minHeartRate) / (maxHeartRate - minHeartRate)) * (axisY - 50)
             } else {
                 0f
@@ -116,6 +118,7 @@ class MonthChartView @JvmOverloads constructor(
             xPosition += (barWidth + barSpacing)
         }
     }
+
 
     private fun convertMonthToEnglish(month: String): String {
         return when (month.lowercase(Locale.ENGLISH)) {

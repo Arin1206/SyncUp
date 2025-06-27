@@ -101,11 +101,12 @@
             app:layout_constraintHorizontal_bias="1.0"
             app:layout_constraintStart_toEndOf="@+id/textView13"
             app:layout_constraintTop_toTopOf="parent" />
+
         <TextView
             android:id="@+id/dateDisplay"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="20dp"
             android:fontFamily="@font/bold_font"
             android:text="Select the Date"
             android:textColor="@color/black"
@@ -113,39 +114,44 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/heartRateChart" />
+
         <LinearLayout
             android:id="@+id/statusFilter"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
             android:orientation="horizontal"
-            android:layout_marginTop="8dp"
-            app:layout_constraintTop_toBottomOf="@id/dateDisplay"
+            app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent">
+            app:layout_constraintTop_toBottomOf="@+id/patientSpinner">
+
             <TextView
                 android:id="@+id/statusDanger"
                 style="@style/StatusChip"
+                android:backgroundTint="@color/red"
                 android:text="Danger"
-                android:textColor="@color/black"
-                android:backgroundTint="@color/red" />
+                android:textColor="@color/black" />
+
             <TextView
                 android:id="@+id/statusWarning"
                 style="@style/StatusChip"
-                android:text="Warning"
-                android:textColor="@color/black"
+                android:layout_marginStart="8dp"
                 android:backgroundTint="@color/yellow"
-                android:layout_marginStart="8dp" />
+                android:text="Warning"
+                android:textColor="@color/black" />
+
             <TextView
                 android:id="@+id/statusHealth"
                 style="@style/StatusChip"
-                android:text="Health"
-                android:textColor="@color/black"
+                android:layout_marginStart="8dp"
                 android:backgroundTint="@color/green"
-                android:layout_marginStart="8dp" />
+                android:text="Health"
+                android:textColor="@color/black" />
+
             <TextView
                 android:id="@+id/statusReset"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
                 android:layout_marginStart="8dp"
                 android:background="@drawable/bg_chip_rounded"
                 android:paddingHorizontal="16dp"
@@ -154,6 +160,7 @@
                 android:textColor="@android:color/black"
                 android:textSize="14sp" />
         </LinearLayout>
+
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recycler_view_health"
             android:layout_width="match_parent"
@@ -165,6 +172,18 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
+
+        <Spinner
+            android:id="@+id/patientSpinner"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:spinnerMode="dropdown"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/dateDisplay"
+             />
+
     </androidx.constraintlayout.widget.ConstraintLayout>
     <LinearLayout
         android:id="@+id/emptyStateView"
