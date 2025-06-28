@@ -109,6 +109,8 @@ dependencies {
 
     androidTestImplementation("androidx.fragment:fragment-testing:1.6.1")
 
+    implementation("androidx.localbroadcastmanager:localbroadcastmanager:1.1.0")
+
 
     testImplementation("io.mockk:mockk-android:1.12.0")
     // Robolectric for Android unit tests

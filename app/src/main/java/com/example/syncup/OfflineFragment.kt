@@ -12,6 +12,7 @@ import androidx.core.view.isVisible
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.syncup.databinding.FragmentPatientListBinding
 import com.example.syncup.home.NonScrollableLinearLayoutManager
+import com.example.syncup.main.MainDoctorActivity
 import com.example.syncup.search.PatientAdapter
 import com.example.syncup.search.PatientData
 import com.google.firebase.auth.FirebaseAuth
@@ -51,13 +52,17 @@ class OfflineFragment : Fragment() {
         binding.recyclerView.layoutManager = NonScrollableLinearLayoutManager(requireContext())
         binding.recyclerView.adapter = patientAdapter
 
-        getActualDoctorUID { actualUid ->
-            actualUid?.let {
-                fetchAssignedPatients(it)
-            } ?: run {
-                Log.e("OfflineFragment", "Doctor UID tidak ditemukan dari email/phone")
+        showLoading()
+        getActualDoctorUID { uid ->
+            if (uid != null) {
+                fetchAssignedPatients(uid) {
+                    observeConnectedDevices() // ⬅️ dipanggil setelah data patient ready
+                    hideLoading()
+                }
             }
         }
+
+
 
 
         patientAdapter.setHideAddButton(true)
@@ -66,9 +71,11 @@ class OfflineFragment : Fragment() {
         handler.post(refreshRunnable)
     }
 
+
+
     private var assignedPatientsLoaded = false
 
-    fun fetchAssignedPatients(doctorUid: String) {
+    fun fetchAssignedPatients(doctorUid: String, onFinished: () -> Unit) {
         FirebaseFirestore.getInstance()
             .collection("assigned_patient")
             .whereEqualTo("doctorUid", doctorUid)
@@ -76,22 +83,41 @@ class OfflineFragment : Fragment() {
             .addOnSuccessListener { documents ->
                 assignedPatientIds.clear()
                 assignedPatientIds.addAll(documents.mapNotNull { it.getString("patientId") })
-
-                assignedPatientsLoaded = true // ✅ Tandai bahwa data siap
+                assignedPatientsLoaded = true
                 patientAdapter.setAssignedPatients(assignedPatientIds)
-
-
+                onFinished() // <-- Tambahkan ini!
             }
     }
 
-    private val refreshRunnable = object : Runnable {
-        override fun run() {
-            if (assignedPatientsLoaded) {
-                fetchOfflinePatients()
-            }
 
-            handler.postDelayed(this, 1000)
+    val refreshRunnable = object : Runnable {
+        override fun run() {
+            observeConnectedDevices() // ini cukup
+            handler.postDelayed(this, 3000) // refresh tiap 3 detik cukup
         }
+    }
+
+
+    // Di awal ambil data pasien
+    fun observeConnectedDevices() {
+        realtimeDB.child("connected_device")
+            .addValueEventListener(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val offlineUids = mutableListOf<String>()
+                    for (userSnapshot in snapshot.children) {
+                        val uid = userSnapshot.key ?: continue
+                        if ((userSnapshot.hasChild("deviceAddress") || userSnapshot.hasChild("deviceName"))
+                            && assignedPatientIds.contains(uid)
+                        ) {
+                            offlineUids.add(uid)
+                        }
+                    }
+
+                    observePatientHeartRates(offlineUids)
+                }
+
+                override fun onCancelled(error: DatabaseError) {}
+            })
     }
 
 
@@ -148,12 +174,14 @@ class OfflineFragment : Fragment() {
 
 
     private fun showLoading() {
-        binding.loadingOverlay.visibility = View.VISIBLE
+        (activity as? MainDoctorActivity)?.showGlobalLoading()
     }
+
+
 
     private fun hideLoading() {
         if (view != null && isAdded && _binding != null) {
-            binding.progressBar.isVisible = false
+            (activity as? MainDoctorActivity)?.hideGlobalLoading()
             binding.recyclerView.isVisible = true
         }
     }
@@ -172,9 +200,16 @@ class OfflineFragment : Fragment() {
                     if (heartRate == 0) {
                         fetchPatientDataForOffline(uid)
                     } else {
-                        patientListOffline.removeAll { it.id == uid }
+                        // Hapus hanya jika sebelumnya sudah ada di list
+                        val removed = patientListOffline.removeAll { it.id == uid }
+                        if (removed) {
+                            patientAdapter.updateList(patientListOffline)
+                            patientAdapter.notifyDataSetChanged()
+                        }
                     }
+
                     patientAdapter.updateList(patientListOffline)
+                    patientAdapter.notifyDataSetChanged()
                     patientAdapter.setAssignedPatients(assignedPatientIds)
                     Log.d("OfflineFragment", "UID: $uid, heartRate: $heartRate")
                 }
@@ -203,9 +238,13 @@ class OfflineFragment : Fragment() {
                     .whereEqualTo("userId", patientId)
                     .orderBy("timestamp", Query.Direction.DESCENDING)
                     .limit(1)
-                    .get()
-                    .addOnSuccessListener { querySnapshot ->
-                        val bpDoc = querySnapshot.documents.firstOrNull()
+                    .addSnapshotListener { querySnapshot, error ->
+
+                        if (error != null) {
+                            Log.e("OfflineFragment", "Gagal ambil tekanan darah terbaru: ${error.message}")
+                            return@addSnapshotListener
+                        }
+                        val bpDoc = querySnapshot?.documents?.firstOrNull()
                         val systolicBP = bpDoc?.getLong("systolicBP") ?: "-"
                         val diastolicBP = bpDoc?.getLong("diastolicBP") ?: "-"
 
@@ -249,9 +288,7 @@ class OfflineFragment : Fragment() {
                                 Log.e("OfflineFragment", "Gagal ambil photoUrl: ${it.message}")
                             }
                     }
-                    .addOnFailureListener {
-                        Log.e("OfflineFragment", "Gagal ambil tekanan darah terbaru: ${it.message}")
-                    }
+
             } else {
                 Log.e("OfflineFragment", "Data user tidak ditemukan untuk $patientId")
             }

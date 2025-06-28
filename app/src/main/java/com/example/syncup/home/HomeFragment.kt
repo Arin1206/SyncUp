@@ -28,6 +28,7 @@ import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -428,6 +429,8 @@ class HomeFragment : Fragment() {
                         deviceName = snapshot.child("deviceName").getValue(String::class.java)
                         deviceAddress = snapshot.child("deviceAddress").getValue(String::class.java)
 
+                        Log.d("Device", "Device name: $deviceName, Device Address: $deviceAddress")
+
                         activity?.runOnUiThread {
                             // Update device name: jika deviceName tersedia, tampilkan; jika tidak, tampilkan default
                             view?.findViewById<TextView>(R.id.device_name)?.text =
@@ -450,7 +453,7 @@ class HomeFragment : Fragment() {
                             if (!isReceiverRegistered) {
                                 safeRegisterReceiver(heartRateReceiver, makeGattUpdateIntentFilter())
                                 isReceiverRegistered = true
-                                Log.d(TAG, "Receiver registered")
+                                Log.d("Device", "Receiver registered")
                             }
                         }
                     } else {
@@ -465,7 +468,7 @@ class HomeFragment : Fragment() {
                 }
 
                 override fun onCancelled(error: DatabaseError) {
-                    Log.e(TAG, "Failed to read device data from Firebase: ${error.message}")
+                    Log.e("Device", "Failed to read device data from Firebase: ${error.message}")
                 }
             }
 
@@ -1311,27 +1314,28 @@ class HomeFragment : Fragment() {
 
     private val deviceReconnectReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
+            Log.d(TAG, "📥 Received broadcast: ${intent?.action}")
             if (intent?.action == BluetoothLeService.ACTION_GATT_CONNECTED) {
                 isDeviceDisconnected = false
                 hasHandledDisconnect = false
                 Log.i(TAG, "Device reconnected, waiting 5 minutes before showing BP...")
 
                 activity?.runOnUiThread {
-                    view?.findViewById<TextView>(R.id.device_name)?.apply {
-                        text = if (!deviceName.isNullOrEmpty()) deviceName else "Connected"
-                        visibility = View.VISIBLE
+                    Log.d(TAG, "🔁 Setting BP TextView to Waiting...")
+
+                    val bpText = view?.findViewById<TextView>(R.id.bp_value)
+
+                    if (bpText != null) {
+                        bpText.text = "Waiting..."
+                        bpText.visibility = View.VISIBLE
+                        Log.d(TAG, "✅ BP TextView found and updated to Waiting...")
+                    } else {
+                        Log.w(TAG, "❌ BP TextView is null, UI not yet ready!")
                     }
 
-                    view?.findViewById<TextView>(R.id.bp_value)?.apply {
-                        text = "Waiting..."
-                        visibility = View.VISIBLE
-                    }
-
-                    // **Gunakan delayedStartPolling() untuk menunda polling BP**
                     BloodPressureRepository.delayedStartPolling()
-
-                    Log.d(TAG, "Device reconnected. BP polling starts after delay.")
                 }
+
             }
         }
     }
@@ -1360,8 +1364,14 @@ class HomeFragment : Fragment() {
         super.onResume()
 
         val batteryFilter = IntentFilter(BluetoothLeService.ACTION_BATTERY_LEVEL_MEASUREMENT)
-        safeRegisterReceiver(batteryReceiver, batteryFilter)
+        LocalBroadcastManager.getInstance(requireContext())
+            .registerReceiver(batteryReceiver, batteryFilter)
         Log.d(TAG, "🔄 Battery receiver registered")
+
+        val heartRateFilter = IntentFilter(BluetoothLeService.ACTION_HEART_RATE_MEASUREMENT)
+        LocalBroadcastManager.getInstance(requireContext())
+            .registerReceiver(heartRateReceiver, heartRateFilter)
+        Log.d(TAG, "❤️ Heart Rate receiver registered")
 
         if (!hasHandledDisconnect) {
             progressBar?.visibility = View.VISIBLE
@@ -1402,29 +1412,40 @@ class HomeFragment : Fragment() {
             addAction(BluetoothLeService.ACTION_DEVICE_DISCONNECTED)
             addAction(BluetoothLeService.ACTION_GATT_CONNECTED)
         }
-        safeRegisterReceiver(deviceDisconnectReceiver, filter)
-        safeRegisterReceiver(deviceReconnectReceiver, filter)
+        LocalBroadcastManager.getInstance(requireContext())
+            .registerReceiver(deviceDisconnectReceiver, IntentFilter(BluetoothLeService.ACTION_DEVICE_DISCONNECTED))
+        LocalBroadcastManager.getInstance(requireContext())
+            .registerReceiver(deviceReconnectReceiver, IntentFilter(BluetoothLeService.ACTION_GATT_CONNECTED))
+
+
     }
 
     override fun onPause() {
         super.onPause()
 
         try {
-            requireContext().unregisterReceiver(batteryReceiver)
+            LocalBroadcastManager.getInstance(requireContext())
+                .unregisterReceiver(batteryReceiver)
             Log.d(TAG, "🔄 Battery receiver unregistered")
+            LocalBroadcastManager.getInstance(requireContext())
+                .unregisterReceiver(heartRateReceiver)
+            Log.d(TAG, "❤️ Heart Rate receiver unregistered")
         } catch (e: IllegalArgumentException) {
+            Log.w(TAG, "⚠ Heart Rate receiver was not registered, skipping...")
             Log.w(TAG, "⚠ Battery receiver was not registered, skipping...")
         }
 
         try {
-            requireContext().unregisterReceiver(deviceDisconnectReceiver)
+            LocalBroadcastManager.getInstance(requireContext())
+                .unregisterReceiver(deviceDisconnectReceiver)
             Log.d(TAG, "🔄 Device Disconnect receiver unregistered")
         } catch (e: IllegalArgumentException) {
             Log.w(TAG, "⚠ Device Disconnect receiver was not registered, skipping...")
         }
 
         try {
-            requireContext().unregisterReceiver(deviceReconnectReceiver)
+            LocalBroadcastManager.getInstance(requireContext())
+                .unregisterReceiver(deviceReconnectReceiver)
             Log.d(TAG, "🔄 Device Reconnect receiver unregistered")
         } catch (e: IllegalArgumentException) {
             Log.w(TAG, "⚠ Device Reconnect receiver was not registered, skipping...")

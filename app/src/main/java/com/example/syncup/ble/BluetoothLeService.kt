@@ -9,6 +9,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
@@ -68,7 +69,9 @@ class BluetoothLeService : Service() {
                 bluetoothGatt?.discoverServices()
 
                 val intent = Intent(ACTION_GATT_CONNECTED)
-                sendBroadcast(intent)
+                LocalBroadcastManager.getInstance(applicationContext).sendBroadcast(intent)
+
+
 
                 handler.postDelayed(saveToFirestoreRunnable, SAVE_INTERVAL_MS)
 
@@ -106,7 +109,9 @@ class BluetoothLeService : Service() {
 
 
                 val intent = Intent(ACTION_DEVICE_DISCONNECTED)
-                sendBroadcast(intent)
+                LocalBroadcastManager.getInstance(applicationContext).sendBroadcast(intent)
+
+
 
                 if (!isManualDisconnect) {
                     handleDisconnect(status)
@@ -122,7 +127,8 @@ class BluetoothLeService : Service() {
         private fun broadcastBatteryUpdate(battery: Int) {
             val intent = Intent(ACTION_BATTERY_LEVEL_MEASUREMENT)
             intent.putExtra(EXTRA_BATTERY_LEVEL, battery)
-            sendBroadcast(intent)
+            LocalBroadcastManager.getInstance(applicationContext).sendBroadcast(intent)
+
         }
 
 
@@ -326,7 +332,8 @@ class BluetoothLeService : Service() {
         if (heartRate != null) {
             intent.putExtra(EXTRA_HEART_RATE, heartRate)
         }
-        sendBroadcast(intent)
+        LocalBroadcastManager.getInstance(applicationContext).sendBroadcast(intent)
+        Log.d(TAG, "📢 Broadcast sent: $action with heartRate=$heartRate")
     }
 
     private fun calculateMode(values: List<Int>): Int {

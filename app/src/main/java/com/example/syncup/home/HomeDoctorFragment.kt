@@ -17,15 +17,19 @@ import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
+import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.DrawableCompat
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.viewpager2.widget.ViewPager2
 import com.bumptech.glide.Glide
 import com.example.syncup.R
@@ -34,8 +38,11 @@ import com.example.syncup.databinding.FragmentHomeBinding
 import com.example.syncup.databinding.FragmentHomeDoctorBinding
 import com.example.syncup.profile.ProfileDoctorFragment
 import com.example.syncup.profile.ProfilePatientFragment
+import com.example.syncup.search.PatientData
 import com.example.syncup.search.SearchDoctorFragment
 import com.example.syncup.search.SearchPatientFragment
+import com.example.syncup.viewmodel.SharedViewModel
+import com.example.syncup.viewmodel.observeOnce
 import com.example.syncup.welcome.WelcomeActivity
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
@@ -43,8 +50,14 @@ import com.google.android.gms.tasks.Tasks
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.firebase.auth.FirebaseAuth
 import com.google.android.material.tabs.TabLayoutMediator
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.QuerySnapshot
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -65,42 +78,53 @@ class HomeDoctorFragment : Fragment() {
     private var currentLat: Double? = null
     private var currentLon: Double? = null
     private val firestore = FirebaseFirestore.getInstance()
-    private lateinit var searchDoctor: EditText
+//    private lateinit var searchDoctor: EditText
+private val realtimeDB = FirebaseDatabase.getInstance().reference
     private lateinit var parentLayout: ConstraintLayout
     private val auth = FirebaseAuth.getInstance()
     private var documentId: String? = null
 
+    private var currentTab: Int = 0
+    private val sharedViewModel: SharedViewModel by activityViewModels()
 
-    private fun setupUI(view: View) {
-        // Set listener pada parent layout untuk menangkap klik di luar input
-        view.setOnTouchListener { _, event ->
-            if (event.action == MotionEvent.ACTION_DOWN) {
-                // Clear focus dari EditText
-                searchDoctor.clearFocus()
-                hideKeyboard()
-            }
-            false
-        }
+    private val patientList = mutableListOf<PatientData>()
+    private lateinit var patientSpinner: Spinner
+    private val heartRateListeners = mutableMapOf<String, ValueEventListener>()
+
+    private var patientAdapter: ArrayAdapter<String>? = null
 
 
-        // Tambahkan listener agar keyboard turun saat EditText kehilangan fokus
-        searchDoctor.setOnEditorActionListener { _, actionId, event ->
-            if (actionId == EditorInfo.IME_ACTION_SEARCH ||
-                (event?.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_ENTER)) {
 
-                val searchText = searchDoctor.text.toString().trim()
-                hideKeyboard()
-
-                // Jika input kosong, tampilkan semua dokter
-                navigateToSearchFragment(searchText)
-                true
-            } else {
-                false
-            }
-        }
-
-
-    }
+//    private fun setupUI(view: View) {
+//        // Set listener pada parent layout untuk menangkap klik di luar input
+//        view.setOnTouchListener { _, event ->
+//            if (event.action == MotionEvent.ACTION_DOWN) {
+//                // Clear focus dari EditText
+//                searchDoctor.clearFocus()
+//                hideKeyboard()
+//            }
+//            false
+//        }
+//
+//
+//        // Tambahkan listener agar keyboard turun saat EditText kehilangan fokus
+//        searchDoctor.setOnEditorActionListener { _, actionId, event ->
+//            if (actionId == EditorInfo.IME_ACTION_SEARCH ||
+//                (event?.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_ENTER)) {
+//
+//                val searchText = searchDoctor.text.toString().trim()
+//                hideKeyboard()
+//
+//                // Jika input kosong, tampilkan semua dokter
+//                navigateToSearchFragment(searchText)
+//                true
+//            } else {
+//                false
+//            }
+//        }
+//
+//
+//    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View?  {
@@ -108,9 +132,9 @@ class HomeDoctorFragment : Fragment() {
 
         val view = binding.root
 
-        searchDoctor = binding.searchDoctor
+//        searchDoctor = binding.searchDoctor
 
-        setupUI(view)
+//        setupUI(view)
 
         parentLayout = view.findViewById(R.id.main)
         parentLayout.setOnTouchListener { _, event ->
@@ -123,16 +147,517 @@ class HomeDoctorFragment : Fragment() {
         val bottomNavView = activity?.findViewById<BottomNavigationView>(R.id.bottomNav)
         bottomNavView?.visibility = View.VISIBLE
 
+
+        patientSpinner = binding.patientSpinner
         val scan = activity?.findViewById<FrameLayout>(R.id.scanButtonContainer)
         scan?.visibility = View.VISIBLE
 
         fetchUserData()
+        observeOnlineStatus()
 
+        fetchPatientsForSpinner()
         return view
 
 
 
     }
+
+
+    private val onlinePatientIds = mutableSetOf<String>()
+
+    private fun observeOnlineStatus() {
+        val heartRateRef = realtimeDB.child("heart_rate")
+
+        heartRateRef.addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                onlinePatientIds.clear()
+
+                for (patientSnapshot in snapshot.children) {
+                    val patientId = patientSnapshot.key ?: continue
+                    val latest = patientSnapshot.child("latest").getValue(Int::class.java) ?: 0
+
+                    if (latest > 0) {
+                        onlinePatientIds.add(patientId)
+                    }
+                }
+
+                Log.d("SpinnerRefresh", "Online status updated: $onlinePatientIds")
+
+                // Refresh Spinner agar warna update
+                patientAdapter?.notifyDataSetChanged()
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("OnlineStatus", "Failed to read online status", error.toException())
+            }
+        })
+    }
+
+
+    private fun fetchPatientsForSpinner() {
+        getActualDoctorUID { doctorId ->
+            if (doctorId == null) {
+                Toast.makeText(requireContext(), "Dokter tidak ditemukan", Toast.LENGTH_SHORT).show()
+                return@getActualDoctorUID
+            }
+
+            firestore.collection("assigned_patient")
+                .whereEqualTo("doctorUid", doctorId)
+                .get()
+                .addOnSuccessListener { assignedSnapshot ->
+                    Log.d("AssignedPatientsQuery", "Assigned Patients: ${assignedSnapshot.documents.size}")
+
+                    if (assignedSnapshot.isEmpty) {
+                        Toast.makeText(requireContext(), "Tidak ada pasien yang ditugaskan", Toast.LENGTH_SHORT).show()
+                        return@addOnSuccessListener
+                    }
+
+                    val patientIds = assignedSnapshot.documents.mapNotNull { it.getString("patientId") }
+                    Log.d("AssignedPatientIds", "Patient IDs: $patientIds")
+
+                    patientList.clear()
+
+                    // Add "All" option to the patient list first
+                    patientList.add(PatientData(name = "All", id = "All", age = "", gender = "", heartRate = "", systolicBP = "", diastolicBP = "", email = "", phoneNumber = "", photoUrl = ""))
+
+                    // Fetch patient details for the spinner
+                    for (patientId in patientIds) {
+                        firestore.collection("users_patient_email").document(patientId).get()
+                            .addOnSuccessListener { userDoc ->
+                                Log.d("UserDoc", "Fetched user data for patient: $patientId")
+
+                                val name = userDoc.getString("fullName") ?: "N/A"
+                                Log.d("PatientData", "Patient name: $name")
+
+                                if (name != "N/A") {
+                                    val age = userDoc.getString("age") ?: "N/A"
+                                    val gender = userDoc.getString("gender") ?: "N/A"
+                                    val heartRate = userDoc.getString("heartRate") ?: "N/A"
+                                    val systolicBP = userDoc.getString("systolicBP") ?: "N/A"
+                                    val diastolicBP = userDoc.getString("diastolicBP") ?: "N/A"
+                                    val email = userDoc.getString("email") ?: "N/A"
+                                    val phoneNumber = userDoc.getString("phoneNumber") ?: "N/A"
+                                    val photoUrl = userDoc.getString("photoUrl") ?: "N/A"
+
+                                    val patient = PatientData(
+                                        id = patientId,
+                                        name = name,
+                                        age = age,
+                                        gender = gender,
+                                        heartRate = heartRate,
+                                        systolicBP = systolicBP,
+                                        diastolicBP = diastolicBP,
+                                        email = email,
+                                        phoneNumber = phoneNumber,
+                                        photoUrl = photoUrl
+                                    )
+                                    patientList.add(patient)
+
+                                    Log.d("PatientFetch", "Added patient: $name")
+                                } else {
+                                    Log.d("PatientFetch", "Skipped patient due to invalid name: $patientId")
+                                }
+
+                                // After fetching all patients, set the spinner listener
+                                if (patientList.isNotEmpty()) {
+                                    val patientNames = patientList.map { it.name }
+                                    patientAdapter = object : ArrayAdapter<String>(requireContext(), android.R.layout.simple_spinner_item, patientNames) {
+                                        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                                            val view = super.getView(position, convertView, parent)
+                                            val textView = view.findViewById<TextView>(android.R.id.text1)
+
+                                            val patientId = patientList.getOrNull(position)?.id.orEmpty()
+                                            val isOnline = onlinePatientIds.contains(patientId)
+
+                                            if (isOnline) {
+                                                // Online: abu-abu background, teks hitam
+                                                view.setBackgroundColor(ContextCompat.getColor(context, android.R.color.darker_gray))
+                                                textView.setTextColor(ContextCompat.getColor(context, android.R.color.black))
+                                            } else {
+                                                // Offline: ungu background, teks putih
+                                                view.setBackgroundColor(ContextCompat.getColor(context, R.color.purple_dark))
+                                                textView.setTextColor(ContextCompat.getColor(context, android.R.color.white))
+                                            }
+
+                                            return view
+                                        }
+
+                                        override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
+                                            val view = super.getDropDownView(position, convertView, parent)
+                                            val textView = view.findViewById<TextView>(android.R.id.text1)
+
+                                            val patientId = patientList.getOrNull(position)?.id.orEmpty()
+                                            val isOnline = onlinePatientIds.contains(patientId)
+
+                                            if (isOnline) {
+                                                view.setBackgroundColor(ContextCompat.getColor(context, android.R.color.darker_gray))
+                                                textView.setTextColor(ContextCompat.getColor(context, android.R.color.black))
+                                            } else {
+                                                view.setBackgroundColor(ContextCompat.getColor(context, R.color.purple_dark))
+                                                textView.setTextColor(ContextCompat.getColor(context, android.R.color.white))
+                                            }
+
+                                            return view
+                                        }
+                                    }
+
+
+                                    patientSpinner.adapter = patientAdapter
+
+                                    Log.d("SpinnerAdapter", "Adapter set with names: $patientNames")
+
+                                    // Apply the custom background to the spinner
+                                    patientSpinner.setBackgroundResource(R.drawable.spinner_background)  // Set the background drawable
+
+                                    // Set the "All" option as the default selected item
+                                    patientSpinner.setSelection(0)
+
+                                    // Set the spinner listener here after populating the data
+                                    setSpinnerListener()
+                                } else {
+                                    patientSpinner.visibility = View.GONE
+                                    Toast.makeText(requireContext(), "No patients available", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                            .addOnFailureListener { exception ->
+                                Log.e("PatientFetchError", "Failed to fetch data for patient: $patientId", exception)
+                            }
+                    }
+                }
+                .addOnFailureListener {
+                    Toast.makeText(requireContext(), "Gagal mengambil data pasien", Toast.LENGTH_SHORT).show()
+                }
+        }
+    }
+
+
+    private fun setSpinnerListener() {
+        patientSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
+                val selectedPatient = patientList[position]
+
+                Log.d("SelectedPatient", "Selected Patient: ${selectedPatient.name}")
+
+                // Observe the heart rate of the selected patient
+                if (selectedPatient.id != "All") {
+                    if (onlinePatientIds.contains(selectedPatient.id)) {
+                        observePatientFromRealtime(selectedPatient.id)
+                    } else {
+                        observeSelectedPatientHeartRate(selectedPatient.id)
+                    }
+                } else {
+                    updatePatientChartForAll()
+                }
+
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>) {
+                Toast.makeText(requireContext(), "No patient selected", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+
+    // Function to observe the heart rate data for a single selected patient
+    private fun observeSelectedPatientHeartRate(patientId: String) {
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Calendar.getInstance().time)
+
+        getActualDoctorUID { doctorUID ->
+            if (doctorUID == null) {
+                Log.e("HeartRate", "Doctor UID is null")
+                return@getActualDoctorUID
+            }
+
+            fetchAveragePatientAge(doctorUID) { avgAge ->
+                if (avgAge == null) {
+                    Log.w("HeartRate", "Average age not available")
+                    return@fetchAveragePatientAge
+                }
+
+                val heartRateRef = firestore.collection("patient_heart_rate")
+                    .whereEqualTo("userId", patientId)
+                    .whereGreaterThanOrEqualTo("timestamp", "$today 00:00:00")
+                    .whereLessThanOrEqualTo("timestamp", "$today 23:59:59")
+                    .orderBy("timestamp", Query.Direction.DESCENDING)
+
+                heartRateRef.addSnapshotListener { snapshot, e ->
+                    if (e != null) {
+                        Log.w("HomeDoctorFragment", "Listen failed.", e)
+                        return@addSnapshotListener
+                    }
+
+                    if (snapshot != null && !snapshot.isEmpty) {
+                        var totalHeartRate = 0.0
+                        var totalSystolic = 0.0
+                        var totalDiastolic = 0.0
+                        var totalBattery = 0.0
+                        var count = 0
+
+                        val heartRates = mutableListOf<Float>()
+
+                        for (doc in snapshot.documents) {
+                            val heartRate = doc.getDouble("heartRate") ?: continue
+                            val systolic = doc.getDouble("systolicBP") ?: continue
+                            val diastolic = doc.getDouble("diastolicBP") ?: continue
+                            val battery = doc.getDouble("batteryLevel") ?: 0.0
+
+                            heartRates.add(heartRate.toFloat())
+
+                            totalHeartRate += heartRate
+                            totalSystolic += systolic
+                            totalDiastolic += diastolic
+                            totalBattery += battery
+                            count++
+                        }
+
+                        updateHeartRateChart(heartRates)
+
+                        if (count > 0) {
+                            val avgHeartRate = (totalHeartRate / count).roundToInt()
+                            val avgSystolic = (totalSystolic / count).roundToInt()
+                            val avgDiastolic = (totalDiastolic / count).roundToInt()
+                            val avgBattery = (totalBattery / count).roundToInt()
+
+                            binding.heartRateValue.text = "$avgHeartRate"
+                            binding.bpValue.text = "$avgSystolic/$avgDiastolic"
+                            binding.batteryValue.text = "$avgBattery%"
+
+                            updateIndicator(avgHeartRate, avgAge)
+                        }
+                    } else {
+                        Log.d("HeartRate", "No heart rate data found for patient $patientId.")
+                        showEmptyImage()
+                        binding.heartRateValue.text = "null"
+                        binding.bpValue.text = "null"
+                        binding.batteryValue.text = "null"
+                        updateIndicator(0, null)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun observePatientFromRealtime(patientId: String) {
+        val heartRateRef = realtimeDB.child("heart_rate").child(patientId).child("latest")
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val heartRate = snapshot.getValue(Int::class.java) ?: 0
+
+                if (!isAdded || view == null) return
+
+                binding?.let { binding ->
+                    binding.heartRateValue.text = "$heartRate"
+                    updateHeartRateChart(listOf(heartRate.toFloat()))
+                }
+
+                // Ambil data BP & Battery terakhir dari Firestore
+                firestore.collection("patient_heart_rate")
+                    .whereEqualTo("userId", patientId)
+                    .orderBy("timestamp", Query.Direction.DESCENDING)
+                    .limit(1)
+                    .get()
+                    .addOnSuccessListener { result ->
+                        if (!isAdded || view == null) return@addOnSuccessListener
+
+                        val doc = result.documents.firstOrNull()
+                        val systolic = doc?.getDouble("systolicBP")?.roundToInt() ?: 0
+                        val diastolic = doc?.getDouble("diastolicBP")?.roundToInt() ?: 0
+                        val battery = doc?.getDouble("batteryLevel")?.roundToInt() ?: 0
+
+                        binding?.let { binding ->
+                            binding.bpValue.text = "$systolic/$diastolic"
+                            binding.batteryValue.text = "$battery%"
+                        }
+
+                        fetchAveragePatientAge(patientId) { avgAge ->
+                            if (!isAdded || view == null) return@fetchAveragePatientAge
+                            updateIndicator(heartRate, avgAge)
+                        }
+                    }
+                    .addOnFailureListener { error ->
+                        Log.e("FirestoreFetch", "Failed to fetch BP/Battery", error)
+                    }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("RealtimeHeartRate", "Error fetching realtime heart rate: ${error.message}")
+            }
+        }
+
+        heartRateRef.addValueEventListener(listener)
+        heartRateListeners[patientId] = listener
+    }
+
+
+    private fun fetchAveragePatientAge(doctorUID: String, onResult: (Int?) -> Unit) {
+        val firestore = FirebaseFirestore.getInstance()
+
+        firestore.collection("assigned_patient")
+            .whereEqualTo("doctorUid", doctorUID)
+            .get()
+            .addOnSuccessListener { assignedSnapshot ->
+                val patientIds = assignedSnapshot.documents.mapNotNull { it.getString("patientId") }
+
+                if (patientIds.isEmpty()) {
+                    Log.d("DoctorData", "No assigned patients found")
+                    onResult(null)
+                    return@addOnSuccessListener
+                }
+
+                val emailQuery = firestore.collection("users_patient_email")
+                    .whereIn("userId", patientIds)
+                    .get()
+
+                val phoneQuery = firestore.collection("users_patient_phonenumber")
+                    .whereIn("userId", patientIds)
+                    .get()
+
+                Tasks.whenAllSuccess<QuerySnapshot>(emailQuery, phoneQuery)
+                    .addOnSuccessListener { results ->
+                        val emailSnapshot = results[0] as QuerySnapshot
+                        val phoneSnapshot = results[1] as QuerySnapshot
+
+                        val emailAges = emailSnapshot.documents.mapNotNull {
+                            it.getString("age")?.toIntOrNull()
+                        }
+                        val phoneAges = phoneSnapshot.documents.mapNotNull {
+                            it.getString("age")?.toIntOrNull()
+                        }
+
+                        val allAges = emailAges + phoneAges
+                        val avgAge = if (allAges.isNotEmpty()) allAges.sum() / allAges.size else null
+
+                        Log.d("DoctorData", "Average patient age: $avgAge")
+                        onResult(avgAge)
+                    }
+                    .addOnFailureListener {
+                        Log.e("DoctorData", "Failed to get age data", it)
+                        onResult(null)
+                    }
+            }
+            .addOnFailureListener {
+                Log.e("DoctorData", "Failed to get assigned patients", it)
+                onResult(null)
+            }
+    }
+
+    private var patientChartListener: ListenerRegistration? = null
+
+    // Function to update the chart for "All" patients (average heart rate for the day per patient)
+    private fun updatePatientChartForAll() {
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Calendar.getInstance().time)
+
+        getActualDoctorUID { doctorUID ->
+            if (doctorUID == null) {
+                Log.e("HomeDoctorFragment", "Doctor UID is null")
+                return@getActualDoctorUID
+            }
+
+            fetchAveragePatientAge(doctorUID) { avgAge ->
+                if (avgAge == null) {
+                    Log.w("HomeDoctorFragment", "Average age not available")
+                    return@fetchAveragePatientAge
+                }
+
+                val heartRateRef = firestore.collection("patient_heart_rate")
+                    .whereIn("userId", patientList.map { it.id })
+                    .orderBy("timestamp", Query.Direction.DESCENDING)
+
+                // ✅ Simpan listener agar bisa di-remove saat onDestroyView
+                patientChartListener = heartRateRef.addSnapshotListener { snapshot, e ->
+                    // ✅ Hindari update UI jika binding sudah null
+                    if (!isAdded || view == null || binding == null) return@addSnapshotListener
+
+                    if (e != null) {
+                        Log.w("HomeDoctorFragment", "Listen failed.", e)
+                        return@addSnapshotListener
+                    }
+
+                    if (snapshot != null && !snapshot.isEmpty) {
+                        var totalHeartRate = 0.0
+                        var totalSystolic = 0.0
+                        var totalDiastolic = 0.0
+                        var totalBattery = 0.0
+                        var count = 0
+
+                        val heartRates = mutableListOf<Float>()
+
+                        for (doc in snapshot.documents) {
+                            val timestamp = doc.getString("timestamp") ?: continue
+                            if (!timestamp.startsWith(today)) continue
+
+                            val heartRate = doc.getDouble("heartRate") ?: continue
+                            val systolic = doc.getDouble("systolicBP") ?: continue
+                            val diastolic = doc.getDouble("diastolicBP") ?: continue
+                            val battery = doc.getDouble("batteryLevel") ?: 0.0
+
+                            heartRates.add(heartRate.toFloat())
+
+                            totalHeartRate += heartRate
+                            totalSystolic += systolic
+                            totalDiastolic += diastolic
+                            totalBattery += battery
+                            count++
+                        }
+
+                        updateHeartRateChart(heartRates)
+
+                        if (count > 0) {
+                            val avgHeartRate = (totalHeartRate / count).roundToInt()
+                            val avgSystolic = (totalSystolic / count).roundToInt()
+                            val avgDiastolic = (totalDiastolic / count).roundToInt()
+                            val avgBattery = (totalBattery / count).roundToInt()
+
+                            binding?.heartRateValue?.text = "$avgHeartRate"
+                            binding?.bpValue?.text = "$avgSystolic/$avgDiastolic"
+                            binding?.batteryValue?.text = "$avgBattery%"
+
+                            updateIndicator(avgHeartRate, avgAge)
+                        }
+                    } else {
+                        Log.d("HeartRate", "No heart rate data found for any patient.")
+                        showEmptyImage()
+                        binding?.heartRateValue?.text = "null"
+                        binding?.bpValue?.text = "null"
+                        binding?.batteryValue?.text = "null"
+                        updateIndicator(0, null)
+                    }
+                }
+            }
+        }
+    }
+
+
+
+
+
+    // Function to update the chart with the data (heart rates) from the patients
+    private fun updateHeartRateChart(heartRates: List<Float>) {
+        if (!isAdded || view == null || binding == null) return  // <-- Tambahan aman
+
+        binding?.let { binding ->
+            val chart = binding.heartRateChart
+            chart.setData(heartRates)
+            chart.invalidate()
+        }
+    }
+
+
+
+    // Function to show the empty image if no data is available
+    // Function to show the empty image if no data is available
+    private fun showEmptyImage() {
+        val chartView = binding.heartRateChart
+        chartView.setData(emptyList()) // ← tambahkan ini agar barChartView masuk ke kondisi empty
+    }
+
+
+
+
+
+
+
+
 
 //    private fun startLiveLocationUpdates() {
 //        val mapsTextView = view?.findViewById<TextView>(R.id.maps)
@@ -191,123 +716,123 @@ class HomeDoctorFragment : Fragment() {
 //        }
 //    }
 
-    private fun fetchAveragePatientData() {
-        getActualDoctorUID { doctorUID ->
-            if (doctorUID == null) {
-                Log.e("DoctorData", "Doctor UID is null")
-                return@getActualDoctorUID
-            }
-
-            firestore.collection("assigned_patient")
-                .whereEqualTo("doctorUid", doctorUID)
-                .addSnapshotListener { assignedSnapshot, assignedError ->
-                    if (assignedError != null) {
-                        Log.e("DoctorData", "Error listening to assigned_patient", assignedError)
-                        return@addSnapshotListener
-                    }
-
-                    val patientIds = assignedSnapshot?.documents?.mapNotNull { it.getString("patientId") } ?: emptyList()
-                    if (patientIds.isEmpty()) {
-                        Log.d("DoctorData", "No assigned patients found")
-                        return@addSnapshotListener
-                    }
-
-                    // Ambil data usia dari koleksi users
-                    val emailQuery = firestore.collection("users_patient_email")
-                        .whereIn("userId", patientIds)
-                        .get()
-
-                    val phoneQuery = firestore.collection("users_patient_phonenumber")
-                        .whereIn("userId", patientIds)
-                        .get()
-
-                    Tasks.whenAllSuccess<QuerySnapshot>(emailQuery, phoneQuery)
-                        .addOnSuccessListener { results ->
-                            val emailSnapshot = results[0] as QuerySnapshot
-                            val phoneSnapshot = results[1] as QuerySnapshot
-
-                            val emailAges = emailSnapshot.documents.mapNotNull {
-                                it.getString("age")?.toIntOrNull()
-                            }
-                            val phoneAges = phoneSnapshot.documents.mapNotNull {
-                                it.getString("age")?.toIntOrNull()
-                            }
-
-
-                            val allAges = emailAges + phoneAges
-                            val avgAge = if (allAges.isNotEmpty()) allAges.sum() / allAges.size else null
-
-                            firestore.collection("patient_heart_rate")
-                                .whereIn("userId", patientIds)
-                                .addSnapshotListener { heartSnapshot, heartError ->
-                                    if (heartError != null) {
-                                        Log.e("DoctorData", "Error listening to patient_heart_rate", heartError)
-                                        return@addSnapshotListener
-                                    }
-
-                                    val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-                                    var totalHeartRate = 0.0
-                                    var totalSystolic = 0.0
-                                    var totalDiastolic = 0.0
-                                    var totalBattery = 0.0
-                                    var count = 0
-
-                                    for (doc in heartSnapshot?.documents ?: emptyList()) {
-                                        val timestampStr = doc.getString("timestamp") ?: continue
-                                        if (!timestampStr.startsWith(today)) continue
-
-                                        val heartRate = doc.getDouble("heartRate") ?: continue
-                                        if (heartRate == 0.0) continue
-                                        val systolic = doc.getDouble("systolicBP") ?: continue
-                                        val diastolic = doc.getDouble("diastolicBP") ?: continue
-                                        val battery = doc.getDouble("batteryLevel") ?: 0.0
-
-                                        totalHeartRate += heartRate
-                                        totalSystolic += systolic
-                                        totalDiastolic += diastolic
-                                        totalBattery += battery
-                                        count++
-                                    }
-
-                                    _binding?.let { binding ->
-                                        if (count > 0) {
-                                            val avgHeartRate = (totalHeartRate / count).roundToInt()
-                                            val avgSystolic = (totalSystolic / count).roundToInt()
-                                            val avgDiastolic = (totalDiastolic / count).roundToInt()
-                                            val avgBattery = (totalBattery / count).roundToInt()
-
-                                            binding.heartRateValue.text = "$avgHeartRate"
-                                            binding.bpValue.text = "$avgSystolic/$avgDiastolic"
-                                            binding.batteryValue.text = "$avgBattery%"
-
-                                            // Update indikator dan warna latar belakang
-                                            updateIndicator(avgHeartRate, avgAge)
-                                            val chartView = binding.heartRateChart
-                                            val heartRates = heartSnapshot?.documents
-                                                ?.filter {
-                                                    val t = it.getString("timestamp") ?: return@filter false
-                                                    t.startsWith(today)
-                                                }
-                                                ?.mapNotNull { it.getDouble("heartRate")?.toFloat() }
-                                                ?: emptyList()
-
-                                            chartView.setData(heartRates)
-
-
-
-                                        } else {
-                                            binding.heartRateValue.text = "null"
-                                            binding.bpValue.text = "null"
-                                            binding.batteryValue.text = "null"
-                                            binding.indicatorValue.text = "null"
-                                            Log.d("DoctorData", "No valid patient data for today")
-                                        }
-                                    }
-                                }
-                        }
-                }
-        }
-    }
+//    private fun fetchAveragePatientData() {
+//        getActualDoctorUID { doctorUID ->
+//            if (doctorUID == null) {
+//                Log.e("DoctorData", "Doctor UID is null")
+//                return@getActualDoctorUID
+//            }
+//
+//            firestore.collection("assigned_patient")
+//                .whereEqualTo("doctorUid", doctorUID)
+//                .addSnapshotListener { assignedSnapshot, assignedError ->
+//                    if (assignedError != null) {
+//                        Log.e("DoctorData", "Error listening to assigned_patient", assignedError)
+//                        return@addSnapshotListener
+//                    }
+//
+//                    val patientIds = assignedSnapshot?.documents?.mapNotNull { it.getString("patientId") } ?: emptyList()
+//                    if (patientIds.isEmpty()) {
+//                        Log.d("DoctorData", "No assigned patients found")
+//                        return@addSnapshotListener
+//                    }
+//
+//                    // Ambil data usia dari koleksi users
+//                    val emailQuery = firestore.collection("users_patient_email")
+//                        .whereIn("userId", patientIds)
+//                        .get()
+//
+//                    val phoneQuery = firestore.collection("users_patient_phonenumber")
+//                        .whereIn("userId", patientIds)
+//                        .get()
+//
+//                    Tasks.whenAllSuccess<QuerySnapshot>(emailQuery, phoneQuery)
+//                        .addOnSuccessListener { results ->
+//                            val emailSnapshot = results[0] as QuerySnapshot
+//                            val phoneSnapshot = results[1] as QuerySnapshot
+//
+//                            val emailAges = emailSnapshot.documents.mapNotNull {
+//                                it.getString("age")?.toIntOrNull()
+//                            }
+//                            val phoneAges = phoneSnapshot.documents.mapNotNull {
+//                                it.getString("age")?.toIntOrNull()
+//                            }
+//
+//
+//                            val allAges = emailAges + phoneAges
+//                            val avgAge = if (allAges.isNotEmpty()) allAges.sum() / allAges.size else null
+//
+//                            firestore.collection("patient_heart_rate")
+//                                .whereIn("userId", patientIds)
+//                                .addSnapshotListener { heartSnapshot, heartError ->
+//                                    if (heartError != null) {
+//                                        Log.e("DoctorData", "Error listening to patient_heart_rate", heartError)
+//                                        return@addSnapshotListener
+//                                    }
+//
+//                                    val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+//                                    var totalHeartRate = 0.0
+//                                    var totalSystolic = 0.0
+//                                    var totalDiastolic = 0.0
+//                                    var totalBattery = 0.0
+//                                    var count = 0
+//
+//                                    for (doc in heartSnapshot?.documents ?: emptyList()) {
+//                                        val timestampStr = doc.getString("timestamp") ?: continue
+//                                        if (!timestampStr.startsWith(today)) continue
+//
+//                                        val heartRate = doc.getDouble("heartRate") ?: continue
+//                                        if (heartRate == 0.0) continue
+//                                        val systolic = doc.getDouble("systolicBP") ?: continue
+//                                        val diastolic = doc.getDouble("diastolicBP") ?: continue
+//                                        val battery = doc.getDouble("batteryLevel") ?: 0.0
+//
+//                                        totalHeartRate += heartRate
+//                                        totalSystolic += systolic
+//                                        totalDiastolic += diastolic
+//                                        totalBattery += battery
+//                                        count++
+//                                    }
+//
+//                                    _binding?.let { binding ->
+//                                        if (count > 0) {
+//                                            val avgHeartRate = (totalHeartRate / count).roundToInt()
+//                                            val avgSystolic = (totalSystolic / count).roundToInt()
+//                                            val avgDiastolic = (totalDiastolic / count).roundToInt()
+//                                            val avgBattery = (totalBattery / count).roundToInt()
+//
+//                                            binding.heartRateValue.text = "$avgHeartRate"
+//                                            binding.bpValue.text = "$avgSystolic/$avgDiastolic"
+//                                            binding.batteryValue.text = "$avgBattery%"
+//
+//                                            // Update indikator dan warna latar belakang
+//                                            updateIndicator(avgHeartRate, avgAge)
+//                                            val chartView = binding.heartRateChart
+//                                            val heartRates = heartSnapshot?.documents
+//                                                ?.filter {
+//                                                    val t = it.getString("timestamp") ?: return@filter false
+//                                                    t.startsWith(today)
+//                                                }
+//                                                ?.mapNotNull { it.getDouble("heartRate")?.toFloat() }
+//                                                ?: emptyList()
+//
+//                                            chartView.setData(heartRates)
+//
+//
+//
+//                                        } else {
+//                                            binding.heartRateValue.text = "null"
+//                                            binding.bpValue.text = "null"
+//                                            binding.batteryValue.text = "null"
+//                                            binding.indicatorValue.text = "null"
+//                                            Log.d("DoctorData", "No valid patient data for today")
+//                                        }
+//                                    }
+//                                }
+//                        }
+//                }
+//        }
+//    }
     private fun stopLiveLocationUpdates() {
         locationCallback?.let { fusedLocationClient.removeLocationUpdates(it) }
     }
@@ -336,7 +861,7 @@ class HomeDoctorFragment : Fragment() {
                 }
             }
         } ?: run {
-            _binding?.indicatorValue?.text = "Unknown"
+            _binding?.indicatorValue?.text = "null"
         }
     }
 //    private fun checkLocationPermissionAndUpdateMaps() {
@@ -375,14 +900,30 @@ class HomeDoctorFragment : Fragment() {
         val adapter = PatientPagerAdapter(this)
         binding.viewPager.adapter = adapter
 
+        binding.viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                super.onPageSelected(position)
+                currentTab = position // Track the current selected tab
+                if (currentTab == 1) { // Offline tab
+                    updateViewPagerHeightForChild()
+                } else {
+                    updateViewPagerHeightForChild()
+                }
+            }
+        })
+
+        // Initially adjust the height for the first page (if needed)
+        updateViewPagerHeightForChild()
+
+
         val userId = FirebaseAuth.getInstance().currentUser?.uid
         if (!userId.isNullOrEmpty()) {
             loadActualDoctorProfilePicture()
         }
-        fetchAveragePatientData()
-        fetchWeeklyAverages()
+//        fetchAveragePatientData()
+//        fetchWeeklyAverages()
         monthChartView = view.findViewById(R.id.monthHeartRateChart)
-        fetchMonthlyAverages()
+//        fetchMonthlyAverages()
 
         TabLayoutMediator(binding.tabLayout, binding.viewPager) { tab, position ->
             tab.text = if (position == 0) "Online" else "Offline"
@@ -424,47 +965,11 @@ class HomeDoctorFragment : Fragment() {
         val currentDate = Calendar.getInstance().time
         val dateFormat = SimpleDateFormat("dd-MMM-yyyy", Locale.getDefault())
         val formattedDate = dateFormat.format(currentDate)
-
-        dayTextView.text = "This Day, $formattedDate"
-        binding.viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
-
-            private val globalLayoutListener = ViewTreeObserver.OnGlobalLayoutListener {
-                val currentView = getChildAtCurrentPosition() ?: return@OnGlobalLayoutListener
-                updateViewPagerHeightForChild(currentView)
-            }
-
-            override fun onPageSelected(position: Int) {
-                super.onPageSelected(position)
-                val currentView = getChildAtCurrentPosition()
-                currentView?.viewTreeObserver?.addOnGlobalLayoutListener(globalLayoutListener)
-            }
-
-            private fun getChildAtCurrentPosition(): View? {
-                val binding = _binding ?: return null  // Cegah null pointer
-                val recyclerView = binding.viewPager.getChildAt(0) as? ViewGroup ?: return null
-                val position = binding.viewPager.currentItem
-                if (position < recyclerView.childCount) {
-                    return recyclerView.getChildAt(position)
-                }
-                return null
-            }
+        val dayFormat = SimpleDateFormat("EEEE", Locale.ENGLISH)  // Format to get the day name
+        val dayName = dayFormat.format(currentDate)  // Get the name of the day (e.g., "Monday")
+        dayTextView.text = "$dayName, $formattedDate"
 
 
-            private fun updateViewPagerHeightForChild(view: View) {
-                view.post {
-                    val widthMeasureSpec = View.MeasureSpec.makeMeasureSpec(view.width, View.MeasureSpec.EXACTLY)
-                    val heightMeasureSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
-                    view.measure(widthMeasureSpec, heightMeasureSpec)
-
-                    val newHeight = view.measuredHeight
-                    val layoutParams = binding.viewPager.layoutParams
-                    if (layoutParams.height != newHeight) {
-                        layoutParams.height = newHeight
-                        binding.viewPager.layoutParams = layoutParams
-                    }
-                }
-            }
-        })
 
 //
 //        checkLocationPermissionAndUpdateMaps()
@@ -487,6 +992,28 @@ class HomeDoctorFragment : Fragment() {
 
 
 
+    }
+
+    private fun updateViewPagerHeightForChild() {
+        val currentView = getChildAtCurrentPosition() ?: return
+        val newHeight = currentView.height
+
+        // Set new height for ViewPager2
+        val params = binding.viewPager.layoutParams
+        if (params.height != newHeight) {
+            params.height = newHeight
+            binding.viewPager.layoutParams = params
+        }
+    }
+
+    // Helper function to get the currently visible child view in ViewPager2
+    private fun getChildAtCurrentPosition(): View? {
+        val recyclerView = binding.viewPager.getChildAt(0) as? ViewGroup ?: return null
+        val position = binding.viewPager.currentItem
+        if (position < recyclerView.childCount) {
+            return recyclerView.getChildAt(position)
+        }
+        return null
     }
 
 
@@ -695,6 +1222,7 @@ class HomeDoctorFragment : Fragment() {
             }
             .addOnFailureListener { onResult(null) }
     }
+
 
 
 
@@ -908,8 +1436,8 @@ class HomeDoctorFragment : Fragment() {
     private fun updateUI(heartRate: Int, systolic: Double, diastolic: Double, battery: Int) {
         Log.d(HomeFragment.TAG, "Updating UI with -> HeartRate: $heartRate, BP: ${systolic.roundToInt()} / ${diastolic.roundToInt()}, Battery: $battery%")
 
-        view?.findViewById<TextView>(R.id.avg_week_heartrate)?.text =
-            if (heartRate > 0) "$heartRate" else "null"
+//        view?.findViewById<TextView>(R.id.avg_week_heartrate)?.text =
+//            if (heartRate > 0) "$heartRate" else "null"
 
         view?.findViewById<TextView>(R.id.avg_week_bloodpressure)?.text =
             if (systolic > 0 && diastolic > 0) "${systolic.roundToInt()} / ${diastolic.roundToInt()}" else "null"
@@ -1042,6 +1570,10 @@ class HomeDoctorFragment : Fragment() {
             pageChangeCallback?.let { binding.viewPager.unregisterOnPageChangeCallback(it) }
         }
 
+        heartRateListeners.forEach { (patientId, listener) ->
+            realtimeDB.child("heart_rate").child(patientId).child("latest").removeEventListener(listener)
+        }
+        heartRateListeners.clear()
         globalLayoutListener = null
         pageChangeCallback = null
         _binding = null

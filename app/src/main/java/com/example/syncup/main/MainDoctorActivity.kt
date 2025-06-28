@@ -73,6 +73,14 @@ class MainDoctorActivity : AppCompatActivity() {
         }
     }
 
+    fun showGlobalLoading() {
+        findViewById<View>(R.id.progressBarContainer)?.visibility = View.VISIBLE
+    }
+
+    fun hideGlobalLoading() {
+        findViewById<View>(R.id.progressBarContainer)?.visibility = View.GONE
+    }
+
 
     fun replaceFragment(fragment: Fragment, hideBottomNavigation: Boolean = false) {
         val fragmentManager = supportFragmentManager
