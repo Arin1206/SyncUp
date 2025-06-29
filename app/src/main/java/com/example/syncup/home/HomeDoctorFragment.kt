@@ -438,55 +438,61 @@ private val realtimeDB = FirebaseDatabase.getInstance().reference
     }
 
     private fun observePatientFromRealtime(patientId: String) {
-        val heartRateRef = realtimeDB.child("heart_rate").child(patientId).child("latest")
-        val listener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val heartRate = snapshot.getValue(Int::class.java) ?: 0
+        fetchAveragePatientAge(patientId) { avgAge ->
+            if (avgAge == null || !isAdded || view == null) {
+                Log.w("RealtimeHeartRate", "Average age is null or fragment not attached")
+                return@fetchAveragePatientAge
+            }
 
-                if (!isAdded || view == null) return
+            val heartRateRef = realtimeDB.child("heart_rate").child(patientId).child("latest")
+            val listener = object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val heartRate = snapshot.getValue(Int::class.java) ?: 0
 
-                binding?.let { binding ->
-                    binding.heartRateValue.text = "$heartRate"
-                    updateHeartRateChart(listOf(heartRate.toFloat()))
-                }
+                    if (!isAdded || view == null) return
 
-                // Ambil data BP & Battery terakhir dari Firestore
-                firestore.collection("patient_heart_rate")
-                    .whereEqualTo("userId", patientId)
-                    .orderBy("timestamp", Query.Direction.DESCENDING)
-                    .limit(1)
-                    .get()
-                    .addOnSuccessListener { result ->
-                        if (!isAdded || view == null) return@addOnSuccessListener
+                    binding?.let { binding ->
+                        binding.heartRateValue.text = "$heartRate"
+                        updateHeartRateChart(listOf(heartRate.toFloat()))
+                    }
 
-                        val doc = result.documents.firstOrNull()
-                        val systolic = doc?.getDouble("systolicBP")?.roundToInt() ?: 0
-                        val diastolic = doc?.getDouble("diastolicBP")?.roundToInt() ?: 0
-                        val battery = doc?.getDouble("batteryLevel")?.roundToInt() ?: 0
+                    // Ambil data BP & Battery terakhir dari Firestore
+                    firestore.collection("patient_heart_rate")
+                        .whereEqualTo("userId", patientId)
+                        .orderBy("timestamp", Query.Direction.DESCENDING)
+                        .limit(1)
+                        .get()
+                        .addOnSuccessListener { result ->
+                            if (!isAdded || view == null) return@addOnSuccessListener
 
-                        binding?.let { binding ->
-                            binding.bpValue.text = "$systolic/$diastolic"
-                            binding.batteryValue.text = "$battery%"
-                        }
+                            val doc = result.documents.firstOrNull()
+                            val systolic = doc?.getDouble("systolicBP")?.roundToInt() ?: 0
+                            val diastolic = doc?.getDouble("diastolicBP")?.roundToInt() ?: 0
+                            val battery = doc?.getDouble("batteryLevel")?.roundToInt() ?: 0
 
-                        fetchAveragePatientAge(patientId) { avgAge ->
-                            if (!isAdded || view == null) return@fetchAveragePatientAge
+                            binding?.let { binding ->
+                                binding.bpValue.text = "$systolic/$diastolic"
+                                binding.batteryValue.text = "$battery%"
+                            }
+
+                            // ✅ Update indikator setelah semua data siap
                             updateIndicator(heartRate, avgAge)
                         }
-                    }
-                    .addOnFailureListener { error ->
-                        Log.e("FirestoreFetch", "Failed to fetch BP/Battery", error)
-                    }
+                        .addOnFailureListener { error ->
+                            Log.e("FirestoreFetch", "Failed to fetch BP/Battery", error)
+                        }
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    Log.e("RealtimeHeartRate", "Error fetching realtime heart rate: ${error.message}")
+                }
             }
 
-            override fun onCancelled(error: DatabaseError) {
-                Log.e("RealtimeHeartRate", "Error fetching realtime heart rate: ${error.message}")
-            }
+            heartRateRef.addValueEventListener(listener)
+            heartRateListeners[patientId] = listener
         }
-
-        heartRateRef.addValueEventListener(listener)
-        heartRateListeners[patientId] = listener
     }
+
 
 
     private fun fetchAveragePatientAge(doctorUID: String, onResult: (Int?) -> Unit) {

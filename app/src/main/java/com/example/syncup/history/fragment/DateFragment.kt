@@ -69,7 +69,7 @@ class DateFragment : Fragment() {
             fetchHealthDataUsingPatientId(patientId)
             Log.d("Date", "$patientId")
         } else {
-            Toast.makeText(requireContext(), "Patient ID tidak ditemukan", Toast.LENGTH_SHORT).show()
+
             Log.d("Date", "tidak ditemukan patientid")
         }
         fetchHealthData()
@@ -339,7 +339,6 @@ class DateFragment : Fragment() {
         // Cek apakah patientId ada di user_patient_email atau user_patient_phonenumber untuk mendapatkan age
         getAgeFromPatientId(patientId) { age ->
             if (age == null) {
-                Toast.makeText(requireContext(), "Age not found", Toast.LENGTH_SHORT).show()
                 return@getAgeFromPatientId
             }
 

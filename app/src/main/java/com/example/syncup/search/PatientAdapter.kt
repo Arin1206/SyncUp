@@ -171,87 +171,6 @@ class PatientAdapter(patientList: List<PatientData>,  private val context: Conte
                 }
         }
 
-        holder.itemView.setOnClickListener {
-            val context = holder.itemView.context  // Mendapatkan konteks dari item view
-
-            // Cek apakah pasien sudah ter-assign
-            val patientAssignedRef = FirebaseFirestore.getInstance()
-                .collection("assigned_patient")
-                .whereEqualTo("patientId", patient.id)
-
-            patientAssignedRef.get()
-                .addOnSuccessListener { documents ->
-                    if (documents.isEmpty) {
-                        // Pasien belum ter-assign, tampilkan dialog konfirmasi
-                        val dialog = AlertDialog.Builder(context)
-                            .setTitle("Konfirmasi Penambahan")
-                            .setMessage("Apakah Anda ingin menambahkan ${patient.name} sebagai pasien Anda?")
-                            .setPositiveButton("Ya") { _, _ ->
-                                getActualDoctorUID { doctorUid, doctorName ->
-                                    if (doctorUid != null) {
-                                        val assignedPatient = hashMapOf(
-                                            "patientId" to patient.id,
-                                            "doctorUid" to doctorUid,
-                                            "name" to patient.name,
-                                            "age" to patient.age,
-                                            "gender" to patient.gender,
-                                            "heartRate" to patient.heartRate,
-                                            "systolicBP" to patient.systolicBP,
-                                            "diastolicBP" to patient.diastolicBP,
-                                            "photoUrl" to patient.photoUrl,
-                                            "email" to patient.email,
-                                            "phoneNumber" to patient.phoneNumber
-                                        )
-                                        FirebaseFirestore.getInstance()
-                                            .collection("assigned_patient")
-                                            .add(assignedPatient)
-                                            .addOnSuccessListener {
-                                                // Update button appearance
-                                                val bgDrawable = ContextCompat.getDrawable(context, R.drawable.button_background)?.mutate()
-                                                val wrappedDrawable = bgDrawable?.let { DrawableCompat.wrap(it) }
-                                                wrappedDrawable?.let {
-                                                    DrawableCompat.setTint(it, ContextCompat.getColor(context, R.color.light_gray))
-                                                    holder.addbutton.background = it
-                                                }
-                                                holder.addbutton.text = "Assigned"
-                                                holder.addbutton.isEnabled = false
-                                                holder.addbutton.setTextColor(ContextCompat.getColor(context, android.R.color.white))
-
-                                                // Show success message
-                                                Toast.makeText(context, "${patient.name} telah ditambahkan sebagai pasien Anda.", Toast.LENGTH_SHORT).show()
-                                                notifyItemChanged(position)
-
-                                                // Navigate to HistoryPatientFragment and pass patientId
-                                                navigateToHistoryPatientFragment(context, patient.id, isFromDoctorFragment = true)
-                                            }
-                                            .addOnFailureListener { e ->
-                                                Toast.makeText(context, "Gagal menambahkan pasien: ${e.message}", Toast.LENGTH_SHORT).show()
-                                            }
-                                    } else {
-                                        Toast.makeText(context, "Doctor UID is unavailable. Please try again.", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                            }
-                            .setNegativeButton("Batal", null)
-                            .create()
-
-                        // Set colors for the dialog buttons
-                        dialog.setOnShowListener {
-                            dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(ContextCompat.getColor(context, R.color.purple_dark))
-                            dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(ContextCompat.getColor(context, R.color.purple_dark))
-                        }
-
-                        // Show the dialog
-                        dialog.show()
-                    } else {
-                        // Pasien sudah ter-assign, arahkan langsung ke HistoryPatientFragment
-                        navigateToHistoryPatientFragment(context, patient.id, isFromDoctorFragment = true)
-                    }
-                }
-                .addOnFailureListener { e ->
-                    Toast.makeText(context, "Gagal memeriksa status penugasan pasien: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
-        }
 
 
 
@@ -320,6 +239,151 @@ class PatientAdapter(patientList: List<PatientData>,  private val context: Conte
             DrawableCompat.setTint(it, ContextCompat.getColor(context, colorRes))
             holder.statusindicator.background = it
         }
+
+        holder.itemView.setOnClickListener {
+            val context = holder.itemView.context
+
+            // 1️⃣ Cek umur dulu
+            getAgeFromPatientId(patient.id) { age ->
+                if (age == null) {
+                    AlertDialog.Builder(context)
+                        .setTitle("Umur Tidak Valid")
+                        .setMessage("Pasien ${patient.name} memiliki data umur yang tidak valid atau kosong.\nMohon periksa kembali data pasien.")
+                        .setPositiveButton("OK", null)
+                        .show()
+                } else {
+                    // 2️⃣ Umur valid → cek apakah pasien ini sudah di-assign oleh dokter yang login
+                    getActualDoctorUID { currentDoctorUid, _ ->
+                        if (currentDoctorUid == null) {
+                            Toast.makeText(context, "Gagal mendapatkan UID dokter", Toast.LENGTH_SHORT).show()
+                            return@getActualDoctorUID
+                        }
+
+                        val firestore = FirebaseFirestore.getInstance()
+                        firestore.collection("assigned_patient")
+                            .whereEqualTo("patientId", patient.id)
+                            .whereEqualTo("doctorUid", currentDoctorUid)  // ❗Cek hanya untuk dokter ini
+                            .get()
+                            .addOnSuccessListener { documents ->
+                                if (!documents.isEmpty) {
+                                    // ✅ Sudah di-assign ke dokter ini → langsung navigasi
+                                    navigateToHistoryPatientFragment(context, patient.id, isFromDoctorFragment = true)
+                                } else {
+                                    // ❌ Belum di-assign ke dokter ini → tampilkan dialog konfirmasi
+                                    showAssignConfirmationDialog(context, holder, patient, position)
+                                }
+                            }
+                            .addOnFailureListener { e ->
+                                Toast.makeText(context, "Gagal memeriksa status penugasan pasien: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                    }
+                }
+            }
+        }
+
+    }
+
+    private fun showAssignConfirmationDialog(
+        context: Context?,
+        holder: PatientAdapter.PatientViewHolder,
+        patient: PatientData,
+        position: Int
+    ) {
+        if (context == null) return  // ⛔ Hindari crash karena context null
+
+        val dialog = AlertDialog.Builder(context)
+            .setTitle("Konfirmasi Penambahan")
+            .setMessage("Apakah Anda ingin menambahkan ${patient.name} sebagai pasien Anda?")
+            .setPositiveButton("Ya") { _, _ ->
+                getActualDoctorUID { doctorUid, doctorName ->
+                    if (doctorUid != null) {
+                        val assignedPatient = hashMapOf(
+                            "patientId" to patient.id,
+                            "doctorUid" to doctorUid,
+                            "name" to patient.name,
+                            "age" to patient.age,
+                            "gender" to patient.gender,
+                            "heartRate" to patient.heartRate,
+                            "systolicBP" to patient.systolicBP,
+                            "diastolicBP" to patient.diastolicBP,
+                            "photoUrl" to patient.photoUrl,
+                            "email" to patient.email,
+                            "phoneNumber" to patient.phoneNumber
+                        )
+
+                        FirebaseFirestore.getInstance()
+                            .collection("assigned_patient")
+                            .add(assignedPatient)
+                            .addOnSuccessListener {
+                                // Update tombol
+                                val bgDrawable = ContextCompat.getDrawable(context, R.drawable.button_background)?.mutate()
+                                val wrappedDrawable = bgDrawable?.let { DrawableCompat.wrap(it) }
+                                wrappedDrawable?.let {
+                                    DrawableCompat.setTint(it, ContextCompat.getColor(context, R.color.light_gray))
+                                    holder.addbutton.background = it
+                                }
+
+                                holder.addbutton.text = "Assigned"
+                                holder.addbutton.isEnabled = false
+                                holder.addbutton.setTextColor(ContextCompat.getColor(context, android.R.color.white))
+
+                                Toast.makeText(context, "${patient.name} telah ditambahkan sebagai pasien Anda.", Toast.LENGTH_SHORT).show()
+                                notifyItemChanged(position)
+
+                                // Navigasi ke History
+                                navigateToHistoryPatientFragment(context, patient.id, isFromDoctorFragment = true)
+                            }
+                            .addOnFailureListener { e ->
+                                Toast.makeText(context, "Gagal menambahkan pasien: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                    } else {
+                        Toast.makeText(context, "Doctor UID tidak tersedia.", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            .setNegativeButton("Batal", null)
+            .create()
+
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                ?.setTextColor(ContextCompat.getColor(context, R.color.purple_dark))
+            dialog.getButton(AlertDialog.BUTTON_NEGATIVE)
+                ?.setTextColor(ContextCompat.getColor(context, R.color.purple_dark))
+        }
+
+        dialog.show()
+    }
+
+    private fun getAgeFromPatientId(patientId: String, onResult: (Int?) -> Unit) {
+        val firestore = FirebaseFirestore.getInstance()
+
+        // Cek di koleksi users_patient_email
+        firestore.collection("users_patient_email")
+            .whereEqualTo("userId", patientId)
+            .get()
+            .addOnSuccessListener { emailDocs ->
+                if (!emailDocs.isEmpty) {
+                    val ageStr = emailDocs.firstOrNull()?.getString("age")
+                    val age = ageStr?.toIntOrNull()
+                    onResult(age)
+                } else {
+                    // Jika tidak ditemukan di email, coba cek di phone number
+                    firestore.collection("users_patient_phonenumber")
+                        .whereEqualTo("userId", patientId)
+                        .get()
+                        .addOnSuccessListener { phoneDocs ->
+                            val ageStr = phoneDocs.firstOrNull()?.getString("age")
+                            val age = ageStr?.toIntOrNull()
+                            onResult(age)
+                        }
+                        .addOnFailureListener {
+                            onResult(null)
+                        }
+                }
+            }
+            .addOnFailureListener {
+                onResult(null)
+            }
     }
 
     private fun navigateToHistoryPatientFragment(context: Context?, patientId: String, isFromDoctorFragment: Boolean) {
