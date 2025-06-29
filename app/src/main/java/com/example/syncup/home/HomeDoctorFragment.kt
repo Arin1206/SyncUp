@@ -438,62 +438,97 @@ private val realtimeDB = FirebaseDatabase.getInstance().reference
     }
 
     private fun observePatientFromRealtime(patientId: String) {
-        fetchAveragePatientAge(patientId) { avgAge ->
-            if (avgAge == null || !isAdded || view == null) {
-                Log.w("RealtimeHeartRate", "Average age is null or fragment not attached")
-                return@fetchAveragePatientAge
-            }
+        val heartRateRef = realtimeDB.child("heart_rate").child(patientId).child("latest")
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val heartRate = snapshot.getValue(Int::class.java) ?: 0
 
-            val heartRateRef = realtimeDB.child("heart_rate").child(patientId).child("latest")
-            val listener = object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    val heartRate = snapshot.getValue(Int::class.java) ?: 0
+                if (!isAdded || view == null) return
 
-                    if (!isAdded || view == null) return
+                binding?.let { binding ->
+                    binding.heartRateValue.text = "$heartRate"
+                    updateHeartRateChart(listOf(heartRate.toFloat()))
+                }
 
-                    binding?.let { binding ->
-                        binding.heartRateValue.text = "$heartRate"
-                        updateHeartRateChart(listOf(heartRate.toFloat()))
-                    }
+                // Ambil data BP & Battery terakhir dari Firestore
+                firestore.collection("patient_heart_rate")
+                    .whereEqualTo("userId", patientId)
+                    .orderBy("timestamp", Query.Direction.DESCENDING)
+                    .limit(1)
+                    .get()
+                    .addOnSuccessListener { result ->
+                        if (!isAdded || view == null) return@addOnSuccessListener
 
-                    // Ambil data BP & Battery terakhir dari Firestore
-                    firestore.collection("patient_heart_rate")
-                        .whereEqualTo("userId", patientId)
-                        .orderBy("timestamp", Query.Direction.DESCENDING)
-                        .limit(1)
-                        .get()
-                        .addOnSuccessListener { result ->
-                            if (!isAdded || view == null) return@addOnSuccessListener
+                        val doc = result.documents.firstOrNull()
+                        val systolic = doc?.getDouble("systolicBP")?.roundToInt() ?: 0
+                        val diastolic = doc?.getDouble("diastolicBP")?.roundToInt() ?: 0
+                        val battery = doc?.getDouble("batteryLevel")?.roundToInt() ?: 0
 
-                            val doc = result.documents.firstOrNull()
-                            val systolic = doc?.getDouble("systolicBP")?.roundToInt() ?: 0
-                            val diastolic = doc?.getDouble("diastolicBP")?.roundToInt() ?: 0
-                            val battery = doc?.getDouble("batteryLevel")?.roundToInt() ?: 0
+                        binding?.let { binding ->
+                            binding.bpValue.text = "$systolic/$diastolic"
+                            binding.batteryValue.text = "$battery%"
+                        }
 
-                            binding?.let { binding ->
-                                binding.bpValue.text = "$systolic/$diastolic"
-                                binding.batteryValue.text = "$battery%"
+                        fetchPatientAgeById(patientId) { avgAge ->
+                        if (!isAdded || view == null) return@fetchPatientAgeById
+                            if (avgAge == null) {
+                                Log.w("UpdateIndicator", "avgAge is null, cannot update indicator")
+                                return@fetchPatientAgeById
                             }
 
-                            // ✅ Update indikator setelah semua data siap
+                            Log.d("UpdateIndicator", "Updating indicator with HR=$heartRate, Age=$avgAge")
                             updateIndicator(heartRate, avgAge)
                         }
-                        .addOnFailureListener { error ->
-                            Log.e("FirestoreFetch", "Failed to fetch BP/Battery", error)
-                        }
-                }
 
-                override fun onCancelled(error: DatabaseError) {
-                    Log.e("RealtimeHeartRate", "Error fetching realtime heart rate: ${error.message}")
-                }
+                    }
+                    .addOnFailureListener { error ->
+                        Log.e("FirestoreFetch", "Failed to fetch BP/Battery", error)
+                    }
             }
 
-            heartRateRef.addValueEventListener(listener)
-            heartRateListeners[patientId] = listener
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("RealtimeHeartRate", "Error fetching realtime heart rate: ${error.message}")
+            }
         }
+
+        heartRateRef.addValueEventListener(listener)
+        heartRateListeners[patientId] = listener
     }
 
+    private fun fetchPatientAgeById(patientId: String, callback: (Int?) -> Unit) {
+        val firestore = FirebaseFirestore.getInstance()
 
+        val emailQuery = firestore.collection("users_patient_email")
+            .whereEqualTo("userId", patientId)
+            .get()
+
+        val phoneQuery = firestore.collection("users_patient_phonenumber")
+            .whereEqualTo("userId", patientId)
+            .get()
+
+        Tasks.whenAllSuccess<QuerySnapshot>(emailQuery, phoneQuery)
+            .addOnSuccessListener { results ->
+                val emailSnapshot = results[0] as QuerySnapshot
+                val phoneSnapshot = results[1] as QuerySnapshot
+
+                val emailAges = emailSnapshot.documents.mapNotNull {
+                    it.getString("age")?.toIntOrNull()
+                }
+                val phoneAges = phoneSnapshot.documents.mapNotNull {
+                    it.getString("age")?.toIntOrNull()
+                }
+
+                val allAges = emailAges + phoneAges
+                val avgAge = if (allAges.isNotEmpty()) allAges.sum() / allAges.size else null
+
+                Log.d("AvgAgeByPatientId", "Average age for $patientId = $avgAge")
+                callback(avgAge)
+            }
+            .addOnFailureListener {
+                Log.e("AvgAgeByPatientId", "Failed to get age data", it)
+                callback(null)
+            }
+    }
 
     private fun fetchAveragePatientAge(doctorUID: String, onResult: (Int?) -> Unit) {
         val firestore = FirebaseFirestore.getInstance()
