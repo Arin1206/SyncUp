@@ -2,6 +2,7 @@ package com.example.syncup.home
 
 import HealthData
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -335,10 +336,16 @@ private val realtimeDB = FirebaseDatabase.getInstance().reference
         patientSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
                 val selectedPatient = patientList[position]
-
                 Log.d("SelectedPatient", "Selected Patient: ${selectedPatient.name}")
 
-                // Observe the heart rate of the selected patient
+                // Stop all previous realtime listeners
+                for (pid in heartRateListeners.keys) {
+                    stopRealtimeListener(pid)
+                }
+
+                // Stop all snapshot listeners if ada logika serupa
+                // (kalau kamu simpan snapshot listener, bisa dihapus juga)
+
                 if (selectedPatient.id != "All") {
                     if (onlinePatientIds.contains(selectedPatient.id)) {
                         observePatientFromRealtime(selectedPatient.id)
@@ -348,8 +355,8 @@ private val realtimeDB = FirebaseDatabase.getInstance().reference
                 } else {
                     updatePatientChartForAll()
                 }
-
             }
+
 
             override fun onNothingSelected(parent: AdapterView<*>) {
                 Toast.makeText(requireContext(), "No patient selected", Toast.LENGTH_SHORT).show()
@@ -357,6 +364,15 @@ private val realtimeDB = FirebaseDatabase.getInstance().reference
         }
     }
 
+
+    private fun stopRealtimeListener(patientId: String) {
+        val listener = heartRateListeners[patientId]
+        if (listener != null) {
+            realtimeDB.child("heart_rate").child(patientId).child("latest").removeEventListener(listener)
+            heartRateListeners.remove(patientId)
+            Log.d("RealtimeListener", "Listener for $patientId stopped")
+        }
+    }
 
     // Function to observe the heart rate data for a single selected patient
     private fun observeSelectedPatientHeartRate(patientId: String) {
@@ -418,11 +434,15 @@ private val realtimeDB = FirebaseDatabase.getInstance().reference
                             val avgDiastolic = (totalDiastolic / count).roundToInt()
                             val avgBattery = (totalBattery / count).roundToInt()
 
-                            binding.heartRateValue.text = "$avgHeartRate"
-                            binding.bpValue.text = "$avgSystolic/$avgDiastolic"
-                            binding.batteryValue.text = "$avgBattery%"
+                            if (!isAdded || view == null) return@addSnapshotListener
 
-                            updateIndicator(avgHeartRate, avgAge)
+                            _binding?.let { binding ->
+                                binding.heartRateValue.text = "$avgHeartRate"
+                                binding.bpValue.text = "$avgSystolic/$avgDiastolic"
+                                binding.batteryValue.text = "$avgBattery%"
+
+                                updateIndicator(avgHeartRate, avgAge)
+                            }
                         }
                     } else {
                         Log.d("HeartRate", "No heart rate data found for patient $patientId.")
@@ -440,6 +460,7 @@ private val realtimeDB = FirebaseDatabase.getInstance().reference
     private fun observePatientFromRealtime(patientId: String) {
         val heartRateRef = realtimeDB.child("heart_rate").child(patientId).child("latest")
         val listener = object : ValueEventListener {
+            @SuppressLint("SuspiciousIndentation")
             override fun onDataChange(snapshot: DataSnapshot) {
                 val heartRate = snapshot.getValue(Int::class.java) ?: 0
 

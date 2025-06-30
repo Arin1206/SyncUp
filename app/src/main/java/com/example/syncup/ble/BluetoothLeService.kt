@@ -370,15 +370,15 @@ class BluetoothLeService : Service() {
         previousSBP: Double,
         previousDBP: Double
     ): Pair<Double, Double> {
-        val a = 28.25
-        val b = 0.3949
-        val c = 0.7149
-        val d = 43.88
+        val a = 0.2458
+        val b = 0.4579
+        val c = 0.7162
+        val d = 1.9881
 
-        val e = -3.36
-        val f = -0.5194
-        val g = 0.5470
-        val h = 69.83
+        val e = 1.5851
+        val f = 0.1518
+        val g = -0.0649
+        val h = 72.3263
 
         val sbp = (a * Math.log(ptt) + b * heartRate + c * previousSBP + d)
         val dbp = (e * Math.log(ptt) + f * heartRate + g * previousDBP + h)
